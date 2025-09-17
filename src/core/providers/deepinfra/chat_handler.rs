@@ -1,0 +1,49 @@
+//! DeepInfra Chat Handler
+//!
+//! Chat completion functionality for DeepInfra platform
+
+use crate::core::providers::deepinfra::{DeepInfraConfig, DeepInfraError};
+use crate::core::types::{
+    common::RequestContext,
+    requests::ChatRequest,
+    responses::{ChatChunk, ChatResponse},
+};
+// Removed unused async_trait import
+use futures::Stream;
+use std::pin::Pin;
+
+/// DeepInfra chat handler
+#[derive(Debug, Clone)]
+pub struct DeepInfraChatHandler {
+    config: DeepInfraConfig,
+}
+
+impl DeepInfraChatHandler {
+    /// Create a new chat handler
+    pub fn new(config: DeepInfraConfig) -> Self {
+        Self { config }
+    }
+
+    /// Handle chat completion request
+    pub async fn chat_completion(
+        &self,
+        _request: ChatRequest,
+        _context: RequestContext,
+    ) -> Result<ChatResponse, DeepInfraError> {
+        Err(DeepInfraError::NotImplemented(
+            "Chat completion not yet implemented".to_string(),
+        ))
+    }
+
+    /// Handle streaming chat completion request
+    pub async fn chat_completion_stream(
+        &self,
+        _request: ChatRequest,
+        _context: RequestContext,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, DeepInfraError>> + Send>>, DeepInfraError>
+    {
+        Err(DeepInfraError::NotImplemented(
+            "Chat streaming not yet implemented".to_string(),
+        ))
+    }
+}

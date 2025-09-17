@@ -1,0 +1,384 @@
+//! Streaming Module for Bedrock
+//!
+//! Handles AWS Event Stream parsing and streaming responses
+
+use bytes::Bytes;
+use futures::{Stream, StreamExt};
+use serde_json::Value;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use crate::core::providers::unified_provider::ProviderError;
+use crate::core::types::responses::ChatChunk;
+
+/// AWS Event Stream message
+#[derive(Debug)]
+pub struct EventStreamMessage {
+    pub headers: Vec<EventStreamHeader>,
+    pub payload: Bytes,
+}
+
+/// Event stream header
+#[derive(Debug)]
+pub struct EventStreamHeader {
+    pub name: String,
+    pub value: HeaderValue,
+}
+
+/// Header value types
+#[derive(Debug)]
+pub enum HeaderValue {
+    String(String),
+    ByteArray(Vec<u8>),
+    Boolean(bool),
+    Byte(i8),
+    Short(i16),
+    Integer(i32),
+    Long(i64),
+    UUID(String),
+    Timestamp(i64),
+}
+
+/// Bedrock streaming response
+pub struct BedrockStream {
+    inner: Pin<Box<dyn Stream<Item = Result<Bytes, ProviderError>> + Send>>,
+    buffer: Vec<u8>,
+    model_family: crate::core::providers::bedrock::model_config::BedrockModelFamily,
+}
+
+impl BedrockStream {
+    /// Create a new Bedrock stream
+    pub fn new(
+        stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
+        model_family: crate::core::providers::bedrock::model_config::BedrockModelFamily,
+    ) -> Self {
+        let mapped_stream = stream.map(|result| {
+            result.map_err(|e| ProviderError::network("bedrock", e.to_string()))
+        });
+
+        Self {
+            inner: Box::pin(mapped_stream),
+            buffer: Vec::new(),
+            model_family,
+        }
+    }
+
+    /// Parse event stream message from bytes
+    fn parse_event_message(data: &[u8]) -> Result<EventStreamMessage, ProviderError> {
+        if data.len() < 16 {
+            return Err(ProviderError::response_parsing("bedrock", "Invalid event stream message"));
+        }
+
+        // Parse prelude (12 bytes)
+        let total_length = u32::from_be_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        let headers_length = u32::from_be_bytes([data[4], data[5], data[6], data[7]]) as usize;
+        // let prelude_crc = u32::from_be_bytes([data[8], data[9], data[10], data[11]]);
+
+        if data.len() < total_length {
+            return Err(ProviderError::response_parsing("bedrock", "Incomplete event stream message"));
+        }
+
+        // Parse headers
+        let mut headers = Vec::new();
+        let mut offset = 12;
+        let headers_end = 12 + headers_length;
+
+        while offset < headers_end {
+            if offset + 1 > data.len() {
+                break;
+            }
+
+            let name_length = data[offset] as usize;
+            offset += 1;
+
+            if offset + name_length > data.len() {
+                break;
+            }
+
+            let name = String::from_utf8_lossy(&data[offset..offset + name_length]).to_string();
+            offset += name_length;
+
+            if offset >= data.len() {
+                break;
+            }
+
+            let header_type = data[offset];
+            offset += 1;
+
+            let value = match header_type {
+                5 => { // String type
+                    if offset + 2 > data.len() {
+                        break;
+                    }
+                    let string_length = u16::from_be_bytes([data[offset], data[offset + 1]]) as usize;
+                    offset += 2;
+                    if offset + string_length > data.len() {
+                        break;
+                    }
+                    let string_value = String::from_utf8_lossy(&data[offset..offset + string_length]).to_string();
+                    offset += string_length;
+                    HeaderValue::String(string_value)
+                }
+                _ => {
+                    // Skip unknown header types
+                    HeaderValue::String(String::new())
+                }
+            };
+
+            headers.push(EventStreamHeader { name, value });
+        }
+
+        // Extract payload
+        let payload_start = headers_end;
+        let payload_end = total_length - 4; // Exclude message CRC
+        let payload = if payload_start < payload_end && payload_end <= data.len() {
+            Bytes::copy_from_slice(&data[payload_start..payload_end])
+        } else {
+            Bytes::new()
+        };
+
+        Ok(EventStreamMessage { headers, payload })
+    }
+
+    /// Parse chunk based on model family
+    fn parse_chunk(&self, payload: &[u8]) -> Result<Option<ChatChunk>, ProviderError> {
+        let json_str = String::from_utf8_lossy(payload);
+        let value: Value = serde_json::from_str(&json_str)
+            .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
+
+        // Parse based on model family
+        match self.model_family {
+            crate::core::providers::bedrock::model_config::BedrockModelFamily::Claude => {
+                self.parse_claude_chunk(&value)
+            }
+            crate::core::providers::bedrock::model_config::BedrockModelFamily::Nova => {
+                self.parse_nova_chunk(&value)
+            }
+            crate::core::providers::bedrock::model_config::BedrockModelFamily::TitanText => {
+                self.parse_titan_chunk(&value)
+            }
+            _ => {
+                // Generic parsing for other models
+                self.parse_generic_chunk(&value)
+            }
+        }
+    }
+
+    /// Parse Claude streaming chunk
+    fn parse_claude_chunk(&self, value: &Value) -> Result<Option<ChatChunk>, ProviderError> {
+        use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
+
+        // Claude uses specific event types
+        let event_type = value.get("type").and_then(|v| v.as_str());
+
+        match event_type {
+            Some("content_block_delta") => {
+                let delta = value.get("delta")
+                    .and_then(|d| d.get("text"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
+
+                Ok(Some(ChatChunk {
+                    id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                    object: "chat.completion.chunk".to_string(),
+                    created: chrono::Utc::now().timestamp(),
+                    model: String::new(),
+                    choices: vec![ChatStreamChoice {
+                        index: 0,
+                        delta: ChatDelta {
+                            role: None,
+                            content: Some(delta.to_string()),
+                            tool_calls: None,
+                            function_call: None,
+                        },
+                        finish_reason: None,
+                        logprobs: None,
+                    }],
+                    usage: None,
+                    system_fingerprint: None,
+                }))
+            }
+            Some("message_stop") => {
+                Ok(Some(ChatChunk {
+                    id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                    object: "chat.completion.chunk".to_string(),
+                    created: chrono::Utc::now().timestamp(),
+                    model: String::new(),
+                    choices: vec![ChatStreamChoice {
+                        index: 0,
+                        delta: ChatDelta {
+                            role: None,
+                            content: None,
+                            tool_calls: None,
+                            function_call: None,
+                        },
+                        finish_reason: Some(crate::core::types::FinishReason::Stop),
+                        logprobs: None,
+                    }],
+                    usage: None,
+                    system_fingerprint: None,
+                }))
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Parse Nova streaming chunk
+    fn parse_nova_chunk(&self, value: &Value) -> Result<Option<ChatChunk>, ProviderError> {
+        use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
+
+        if let Some(content) = value.get("contentBlockDelta")
+            .and_then(|c| c.get("delta"))
+            .and_then(|d| d.get("text"))
+            .and_then(|t| t.as_str()) {
+
+            Ok(Some(ChatChunk {
+                id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                object: "chat.completion.chunk".to_string(),
+                created: chrono::Utc::now().timestamp(),
+                model: String::new(),
+                choices: vec![ChatStreamChoice {
+                    index: 0,
+                    delta: ChatDelta {
+                        role: None,
+                        content: Some(content.to_string()),
+                        tool_calls: None,
+                        function_call: None,
+                    },
+                    finish_reason: None,
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: None,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Parse Titan streaming chunk
+    fn parse_titan_chunk(&self, value: &Value) -> Result<Option<ChatChunk>, ProviderError> {
+        use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
+
+        if let Some(content) = value.get("outputText").and_then(|t| t.as_str()) {
+            Ok(Some(ChatChunk {
+                id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                object: "chat.completion.chunk".to_string(),
+                created: chrono::Utc::now().timestamp(),
+                model: String::new(),
+                choices: vec![ChatStreamChoice {
+                    index: 0,
+                    delta: ChatDelta {
+                        role: None,
+                        content: Some(content.to_string()),
+                        tool_calls: None,
+                        function_call: None,
+                    },
+                    finish_reason: if value.get("completionReason").is_some() {
+                        Some(crate::core::types::FinishReason::Stop)
+                    } else {
+                        None
+                    },
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: None,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Parse generic streaming chunk
+    fn parse_generic_chunk(&self, value: &Value) -> Result<Option<ChatChunk>, ProviderError> {
+        use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
+
+        // Try to find content in common locations
+        let content = value.get("completion")
+            .or_else(|| value.get("generation"))
+            .or_else(|| value.get("text"))
+            .and_then(|t| t.as_str());
+
+        if let Some(text) = content {
+            Ok(Some(ChatChunk {
+                id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                object: "chat.completion.chunk".to_string(),
+                created: chrono::Utc::now().timestamp(),
+                model: String::new(),
+                choices: vec![ChatStreamChoice {
+                    index: 0,
+                    delta: ChatDelta {
+                        role: None,
+                        content: Some(text.to_string()),
+                        tool_calls: None,
+                        function_call: None,
+                    },
+                    finish_reason: None,
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: None,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Stream for BedrockStream {
+    type Item = Result<ChatChunk, ProviderError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        // Poll the inner stream for more data
+        match self.inner.as_mut().poll_next(cx) {
+            Poll::Ready(Some(Ok(bytes))) => {
+                // Add bytes to buffer
+                self.buffer.extend_from_slice(&bytes);
+
+                // Try to parse an event message
+                if self.buffer.len() >= 16 {
+                    // Check if we have a complete message
+                    let total_length = u32::from_be_bytes([
+                        self.buffer[0],
+                        self.buffer[1],
+                        self.buffer[2],
+                        self.buffer[3],
+                    ]) as usize;
+
+                    if self.buffer.len() >= total_length {
+                        // Extract the message
+                        let message_data = self.buffer[..total_length].to_vec();
+                        self.buffer.drain(..total_length);
+
+                        // Parse the message
+                        match Self::parse_event_message(&message_data) {
+                            Ok(message) => {
+                                // Parse the payload as a chunk
+                                match self.parse_chunk(&message.payload) {
+                                    Ok(Some(chunk)) => Poll::Ready(Some(Ok(chunk))),
+                                    Ok(None) => {
+                                        // No chunk from this message, poll again
+                                        cx.waker().wake_by_ref();
+                                        Poll::Pending
+                                    }
+                                    Err(e) => Poll::Ready(Some(Err(e))),
+                                }
+                            }
+                            Err(e) => Poll::Ready(Some(Err(e))),
+                        }
+                    } else {
+                        // Need more data
+                        cx.waker().wake_by_ref();
+                        Poll::Pending
+                    }
+                } else {
+                    // Need more data
+                    cx.waker().wake_by_ref();
+                    Poll::Pending
+                }
+            }
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}

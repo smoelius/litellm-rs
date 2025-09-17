@@ -1,0 +1,424 @@
+//! Anthropic Streaming Module
+//!
+//! 独立的流式响应process，支持SSEparse和实时数据转换
+
+use std::pin::Pin;
+
+use futures::{Stream, StreamExt};
+use pin_project_lite::pin_project;
+use reqwest::Response;
+use serde_json::Value;
+
+use crate::core::providers::unified_provider::ProviderError;
+use crate::core::types::{
+    requests::MessageRole,
+    responses::{ChatChunk, ChatDelta, ChatStreamChoice, Usage},
+};
+
+use super::error::anthropic_stream_error;
+
+/// SSE事件类型
+#[derive(Debug, Clone)]
+pub enum SSEEvent {
+    /// message开始
+    MessageStart(Value),
+    /// content块开始
+    ContentBlockStart(Value),
+    /// content块增量
+    ContentBlockDelta(Value),
+    /// content块结束
+    ContentBlockStop(Value),
+    /// message增量
+    MessageDelta(Value),
+    /// message停止
+    MessageStop(Value),
+    /// Error
+    Error(Value),
+    /// Ping事件（心跳）
+    Ping,
+    /// 未知事件
+    Unknown(String),
+}
+
+/// SSEparse器
+pub struct SSEParser;
+
+impl SSEParser {
+    /// parseSSE行为事件
+    pub fn parse_event(line: &str) -> Option<SSEEvent> {
+        if line.is_empty() || line.starts_with(':') {
+            return None;
+        }
+
+        if line.starts_with("event:") {
+            return None; // Handle
+        }
+
+        if line.starts_with("data:") {
+            let data = line.strip_prefix("data:").unwrap_or("").trim();
+            
+            if data == "[DONE]" {
+                return None;
+            }
+
+            if data.is_empty() {
+                return Some(SSEEvent::Ping);
+            }
+
+            // 尝试parseJSON
+            if let Ok(json) = serde_json::from_str::<Value>(data) {
+                let event_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
+                
+                match event_type {
+                    "message_start" => Some(SSEEvent::MessageStart(json)),
+                    "content_block_start" => Some(SSEEvent::ContentBlockStart(json)),
+                    "content_block_delta" => Some(SSEEvent::ContentBlockDelta(json)),
+                    "content_block_stop" => Some(SSEEvent::ContentBlockStop(json)),
+                    "message_delta" => Some(SSEEvent::MessageDelta(json)),
+                    "message_stop" => Some(SSEEvent::MessageStop(json)),
+                    "error" => Some(SSEEvent::Error(json)),
+                    _ => Some(SSEEvent::Unknown(event_type.to_string())),
+                }
+            } else {
+                Some(SSEEvent::Unknown(data.to_string()))
+            }
+        } else {
+            None
+        }
+    }
+}
+
+pin_project! {
+    /// Handle
+    pub struct AnthropicStream {
+        #[pin]
+        inner: Pin<Box<dyn Stream<Item = Result<ChatChunk, ProviderError>> + Send>>,
+    }
+}
+
+impl AnthropicStream {
+    /// Create
+    pub fn from_response(response: Response, model: String) -> Self {
+        let stream = async_stream::stream! {
+            let mut response_stream = response.bytes_stream();
+            let mut buffer = String::new();
+            let mut message_id = String::new();
+            let created_time = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64;
+
+            while let Some(chunk_result) = response_stream.next().await {
+                match chunk_result {
+                    Ok(chunk) => {
+                        let chunk_str = String::from_utf8_lossy(&chunk);
+                        buffer.push_str(&chunk_str);
+
+                        // Handle
+                        while let Some(newline_pos) = buffer.find('\n') {
+                            let line = buffer[..newline_pos].trim().to_string();
+                            buffer = buffer[newline_pos + 1..].to_string();
+
+                            if let Some(event) = SSEParser::parse_event(&line) {
+                                match Self::process_event(event, &model, &mut message_id, created_time) {
+                                    Ok(Some(chat_chunk)) => yield Ok(chat_chunk),
+                                    Ok(None) => continue,
+                                    Err(e) => yield Err(e),
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        yield Err(anthropic_stream_error(format!("Stream error: {}", e)));
+                        break;
+                    }
+                }
+            }
+        };
+
+        Self {
+            inner: Box::pin(stream),
+        }
+    }
+
+    /// Handle
+    fn process_event(
+        event: SSEEvent, 
+        model: &str, 
+        message_id: &mut String, 
+        created_time: i64
+    ) -> Result<Option<ChatChunk>, ProviderError> {
+        match event {
+            SSEEvent::MessageStart(data) => {
+                // 提取messageID
+                if let Some(message) = data.get("message") {
+                    if let Some(id) = message.get("id").and_then(|v| v.as_str()) {
+                        *message_id = id.to_string();
+                    }
+                }
+
+                Ok(Some(ChatChunk {
+                    id: message_id.clone(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: created_time,
+                    model: model.to_string(),
+                    choices: vec![ChatStreamChoice {
+                        index: 0,
+                        delta: ChatDelta {
+                            role: Some(MessageRole::Assistant),
+                            content: None,
+                            tool_calls: None,
+                            function_call: None,
+                        },
+                        finish_reason: None,
+                        logprobs: None,
+                    }],
+                    usage: None,
+                    system_fingerprint: None,
+                }))
+            }
+
+            SSEEvent::ContentBlockDelta(data) => {
+                let content = data.get("delta")
+                    .and_then(|d| d.get("text"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("");
+
+                Ok(Some(ChatChunk {
+                    id: message_id.clone(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: created_time,
+                    model: model.to_string(),
+                    choices: vec![ChatStreamChoice {
+                        index: 0,
+                        delta: ChatDelta {
+                            role: None,
+                            content: Some(content.to_string()),
+                            tool_calls: None,
+                            function_call: None,
+                        },
+                        finish_reason: None,
+                        logprobs: None,
+                    }],
+                    usage: None,
+                    system_fingerprint: None,
+                }))
+            }
+
+            SSEEvent::MessageDelta(data) => {
+                // 提取usage信息和stop_reason
+                let usage = data.get("usage").map(|u| Usage {
+                    prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                    completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
+                    total_tokens: (
+                        u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) + 
+                        u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                    ) as u32,
+                    completion_tokens_details: None,
+                    prompt_tokens_details: None,
+                });
+
+                let finish_reason = data.get("delta")
+                    .and_then(|d| d.get("stop_reason"))
+                    .and_then(|r| r.as_str())
+                    .map(|reason| match reason {
+                        "end_turn" => crate::core::types::FinishReason::Stop,
+                        "max_tokens" => crate::core::types::FinishReason::Length,
+                        "tool_use" => crate::core::types::FinishReason::ToolCalls,
+                        _ => crate::core::types::FinishReason::Stop,
+                    });
+
+                Ok(Some(ChatChunk {
+                    id: message_id.clone(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: created_time,
+                    model: model.to_string(),
+                    choices: vec![ChatStreamChoice {
+                        index: 0,
+                        delta: ChatDelta {
+                            role: None,
+                            content: None,
+                            tool_calls: None,
+                            function_call: None,
+                        },
+                        finish_reason,
+                        logprobs: None,
+                    }],
+                    usage,
+                    system_fingerprint: None,
+                }))
+            }
+
+            SSEEvent::MessageStop(_) => {
+                // 最终的结束chunk
+                Ok(Some(ChatChunk {
+                    id: message_id.clone(),
+                    object: "chat.completion.chunk".to_string(),
+                    created: created_time,
+                    model: model.to_string(),
+                    choices: vec![],
+                    usage: None,
+                    system_fingerprint: None,
+                }))
+            }
+
+            SSEEvent::ContentBlockStart(_) |
+            SSEEvent::ContentBlockStop(_) => {
+                // 这些事件不需要生成chunk
+                Ok(None)
+            }
+
+            SSEEvent::Error(error_data) => {
+                let error_message = error_data.get("error")
+                    .and_then(|e| e.get("message"))
+                    .and_then(|m| m.as_str())
+                    .unwrap_or("Unknown streaming error");
+                
+                Err(anthropic_stream_error(error_message))
+            }
+
+            SSEEvent::Ping => Ok(None),
+
+            SSEEvent::Unknown(_) => Ok(None),
+        }
+    }
+}
+
+impl Stream for AnthropicStream {
+    type Item = Result<ChatChunk, ProviderError>;
+
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.project();
+        this.inner.poll_next(cx)
+    }
+}
+
+/// 流式工具
+pub struct StreamUtils;
+
+impl StreamUtils {
+    /// Response
+    pub async fn collect_stream_to_response(
+        mut stream: AnthropicStream
+    ) -> Result<crate::core::types::ChatResponse, ProviderError> {
+        let mut content_parts = Vec::new();
+        let mut final_usage = None;
+        let mut response_id = String::new();
+        let mut model = String::new();
+        let mut created = 0;
+
+        while let Some(chunk_result) = stream.next().await {
+            match chunk_result {
+                Ok(chunk) => {
+                    if response_id.is_empty() {
+                        response_id = chunk.id.clone();
+                        model = chunk.model.clone();
+                        created = chunk.created;
+                    }
+
+                    for choice in chunk.choices {
+                        if let Some(content) = choice.delta.content {
+                            content_parts.push(content);
+                        }
+                    }
+
+                    if let Some(usage) = chunk.usage {
+                        final_usage = Some(usage);
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        let final_content = content_parts.join("");
+        let message = crate::core::types::ChatMessage {
+            role: MessageRole::Assistant,
+            content: if final_content.is_empty() { 
+                None 
+            } else { 
+                Some(crate::core::types::MessageContent::Text(final_content))
+            },
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+            function_call: None,
+        };
+
+        let choice = crate::core::types::ChatChoice {
+            index: 0,
+            message,
+            finish_reason: Some(crate::core::types::FinishReason::Stop),
+            logprobs: None,
+        };
+
+        Ok(crate::core::types::ChatResponse {
+            id: response_id,
+            object: "chat.completion".to_string(),
+            created,
+            model,
+            choices: vec![choice],
+            usage: final_usage,
+            system_fingerprint: None,
+        })
+    }
+
+    /// Response
+    pub fn validate_stream_chunk(chunk: &ChatChunk) -> Result<(), ProviderError> {
+        if chunk.id.is_empty() {
+            return Err(anthropic_stream_error("Missing chunk ID"));
+        }
+
+        if chunk.model.is_empty() {
+            return Err(anthropic_stream_error("Missing model in chunk"));
+        }
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sse_parser() {
+        // 测试文本数据parse
+        let result = SSEParser::parse_event("data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\"}}");
+        assert!(matches!(result, Some(SSEEvent::MessageStart(_))));
+
+        // 测试content增量
+        let result = SSEParser::parse_event("data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hello\"}}");
+        assert!(matches!(result, Some(SSEEvent::ContentBlockDelta(_))));
+
+        // 测试完成标记
+        let result = SSEParser::parse_event("data: [DONE]");
+        assert!(result.is_none());
+
+        // 测试ping
+        let result = SSEParser::parse_event("data: ");
+        assert!(matches!(result, Some(SSEEvent::Ping)));
+    }
+
+    #[test]
+    fn test_event_processing() {
+        let event = SSEEvent::ContentBlockDelta(serde_json::json!({
+            "type": "content_block_delta",
+            "delta": {
+                "text": "Hello world"
+            }
+        }));
+
+        let mut message_id = "msg_123".to_string();
+        let result = AnthropicStream::process_event(event, "claude-3-5-sonnet", &mut message_id, 1234567890);
+        
+        assert!(result.is_ok());
+        let chunk_opt = result.unwrap();
+        assert!(chunk_opt.is_some());
+        
+        let chunk = chunk_opt.unwrap();
+        assert_eq!(chunk.choices[0].delta.content, Some("Hello world".to_string()));
+    }
+}

@@ -1,0 +1,598 @@
+//! Azure OpenAI Assistants API
+//!
+//! AI assistants with function calling and code interpreter
+
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+// TODO: Implement assistant types in base_llm module
+// For now, using stub types
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAssistantRequest {
+    pub model: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    pub instructions: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateAssistantResponse {
+    pub id: String,
+    pub object: String,
+    pub created_at: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListAssistantsResponse {
+    pub data: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrieveAssistantResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModifyAssistantRequest {
+    pub name: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteAssistantResponse {
+    pub id: String,
+    pub deleted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateThreadRequest {
+    pub messages: Option<Vec<serde_json::Value>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateThreadResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrieveThreadResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModifyThreadRequest {
+    pub metadata: Option<HashMap<String, String>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteThreadResponse {
+    pub id: String,
+    pub deleted: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateMessageRequest {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateMessageResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListMessagesResponse {
+    pub data: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrieveMessageResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateRunRequest {
+    pub assistant_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateRunResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListRunsResponse {
+    pub data: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetrieveRunResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubmitToolOutputsRequest {
+    pub tool_outputs: Vec<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SubmitToolOutputsResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CancelRunResponse {
+    pub id: String,
+    pub object: String,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum AssistantError {
+    #[error("Authentication error: {0}")]
+    Authentication(String),
+    #[error("Request error: {0}")]
+    Request(String),
+    #[error("Network error: {0}")]
+    Network(String),
+    #[error("Configuration error: {0}")]
+    Configuration(String),
+    #[error("Parsing error: {0}")]
+    Parsing(String),
+    #[error("Validation error: {0}")]
+    Validation(String),
+    #[error("API error (status {status}): {message}")]
+    Api { status: u16, message: String },
+}
+
+#[async_trait]
+pub trait BaseAssistantHandler {
+    async fn create_assistant(
+        &self,
+        request: CreateAssistantRequest,
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<CreateAssistantResponse, AssistantError>;
+    async fn list_assistants(
+        &self,
+        limit: Option<i32>,
+        order: Option<&str>,
+        after: Option<&str>,
+        before: Option<&str>,
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<ListAssistantsResponse, AssistantError>;
+    async fn retrieve_assistant(
+        &self,
+        assistant_id: &str,
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<RetrieveAssistantResponse, AssistantError>;
+    async fn modify_assistant(
+        &self,
+        assistant_id: &str,
+        request: ModifyAssistantRequest,
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<RetrieveAssistantResponse, AssistantError>;
+    async fn delete_assistant(
+        &self,
+        assistant_id: &str,
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<DeleteAssistantResponse, AssistantError>;
+}
+use super::client::AzureClient;
+use super::config::AzureConfig;
+use super::error::AzureError;
+use super::utils::AzureUtils;
+
+#[derive(Debug)]
+pub struct AzureAssistantHandler {
+    client: AzureClient,
+}
+
+impl AzureAssistantHandler {
+    pub fn new(config: AzureConfig) -> Result<Self, AzureError> {
+        let client = AzureClient::new(config)?;
+        Ok(Self { client })
+    }
+
+    fn build_assistants_url(&self, path: &str) -> String {
+        format!(
+            "{}openai/assistants{}?api-version={}",
+            self.client
+                .get_config()
+                .azure_endpoint
+                .as_deref()
+                .unwrap_or(""),
+            path,
+            self.client.get_config().api_version
+        )
+    }
+
+    fn build_threads_url(&self, path: &str) -> String {
+        format!(
+            "{}openai/threads{}?api-version={}",
+            self.client
+                .get_config()
+                .azure_endpoint
+                .as_deref()
+                .unwrap_or(""),
+            path,
+            self.client.get_config().api_version
+        )
+    }
+}
+
+#[async_trait]
+impl BaseAssistantHandler for AzureAssistantHandler {
+    async fn create_assistant(
+        &self,
+        request: CreateAssistantRequest,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<CreateAssistantResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let url = self.build_assistants_url("");
+
+        let mut request_headers =
+            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+                .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self
+            .client
+            .get_http_client()
+            .post(&url)
+            .headers(request_headers)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+
+    async fn list_assistants(
+        &self,
+        limit: Option<i32>,
+        order: Option<&str>,
+        after: Option<&str>,
+        before: Option<&str>,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<ListAssistantsResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let mut url = self.build_assistants_url("");
+        let mut query_params = Vec::new();
+
+        if let Some(limit_val) = limit {
+            query_params.push(format!("limit={}", limit_val));
+        }
+        if let Some(order_val) = order {
+            query_params.push(format!("order={}", order_val));
+        }
+        if let Some(after_val) = after {
+            query_params.push(format!("after={}", after_val));
+        }
+        if let Some(before_val) = before {
+            query_params.push(format!("before={}", before_val));
+        }
+
+        if !query_params.is_empty() {
+            url.push('&');
+            url.push_str(&query_params.join("&"));
+        }
+
+        let mut request_headers =
+            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+                .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self
+            .client
+            .get_http_client()
+            .get(&url)
+            .headers(request_headers)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+
+    async fn retrieve_assistant(
+        &self,
+        assistant_id: &str,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<RetrieveAssistantResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let url = self.build_assistants_url(&format!("/{}", assistant_id));
+
+        let mut request_headers =
+            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+                .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self
+            .client
+            .get_http_client()
+            .get(&url)
+            .headers(request_headers)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+
+    async fn modify_assistant(
+        &self,
+        assistant_id: &str,
+        request: ModifyAssistantRequest,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<RetrieveAssistantResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let url = self.build_assistants_url(&format!("/{}", assistant_id));
+
+        let mut request_headers =
+            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+                .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self
+            .client
+            .get_http_client()
+            .post(&url)
+            .headers(request_headers)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+
+    async fn delete_assistant(
+        &self,
+        assistant_id: &str,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<DeleteAssistantResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let url = self.build_assistants_url(&format!("/{}", assistant_id));
+
+        let mut request_headers =
+            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+                .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self
+            .client
+            .get_http_client()
+            .delete(&url)
+            .headers(request_headers)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response
+            .json()
+            .await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+
+    // Additional methods not in the trait - commented out for now
+    // TODO: These methods need to be added to the trait or moved to an extension trait
+    /*
+    async fn create_thread(
+        &self,
+        request: CreateThreadRequest,
+        api_key: Option<&str>,
+        _api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Result<CreateThreadResponse, AssistantError> {
+        let api_key = api_key
+            .map(|s| s.to_string())
+            .or_else(|| self.client.get_config().api_key.clone())
+            .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
+
+        let url = self.build_threads_url("");
+
+        let mut request_headers = AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            .map_err(|e| AssistantError::Configuration(e.to_string()))?;
+
+        if let Some(custom_headers) = headers {
+            for (key, value) in custom_headers {
+                let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                    .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
+                request_headers.insert(header_name, header_value);
+            }
+        }
+
+        let response = self.client.get_http_client()
+            .post(&url)
+            .headers(request_headers)
+            .json(&request)
+            .send()
+            .await
+            .map_err(|e| AssistantError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(AssistantError::Api {
+                status: response.status().as_u16(),
+                message: response.text().await.unwrap_or_default(),
+            });
+        }
+
+        response.json().await
+            .map_err(|e| AssistantError::Parsing(e.to_string()))
+    }
+    */
+}
+
+pub struct AzureAssistantUtils;
+
+impl AzureAssistantUtils {
+    pub fn get_supported_assistant_models() -> Vec<&'static str> {
+        vec!["gpt-4", "gpt-4-turbo", "gpt-4o", "gpt-35-turbo"]
+    }
+
+    pub fn validate_assistant_request(
+        request: &CreateAssistantRequest,
+    ) -> Result<(), AssistantError> {
+        if !Self::get_supported_assistant_models().contains(&request.model.as_str()) {
+            return Err(AssistantError::Validation(format!(
+                "Unsupported assistant model: {}",
+                request.model
+            )));
+        }
+
+        if let Some(instructions) = &request.instructions {
+            if instructions.len() > 32768 {
+                return Err(AssistantError::Validation(
+                    "Instructions exceed maximum length of 32768 characters".to_string(),
+                ));
+            }
+        }
+
+        Ok(())
+    }
+}

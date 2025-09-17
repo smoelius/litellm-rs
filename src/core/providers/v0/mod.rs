@@ -1,0 +1,529 @@
+//! V0 AI Provider Module
+//!
+//! V0 is an OpenAI-compatible AI platform for developers
+//! https://v0.dev/
+
+pub mod chat;
+
+use crate::core::{
+    traits::{
+        error_mapper::{ErrorMapper, GenericErrorMapper},
+        provider::{LLMProvider, ProviderConfig},
+    },
+    types::{
+        common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
+        errors::ProviderErrorTrait,
+        requests::ChatRequest,
+        responses::ChatResponse,
+    },
+};
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::HashMap;
+use std::sync::LazyLock;
+
+/// V0 Provider configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct V0Config {
+    /// API base URL for V0
+    pub api_base: String,
+    /// API key for authentication
+    pub api_key: String,
+    /// Request timeout in seconds
+    pub timeout_seconds: u64,
+    /// Maximum retry attempts
+    pub max_retries: u32,
+}
+
+impl Default for V0Config {
+    fn default() -> Self {
+        Self {
+            api_base: "https://api.v0.dev/v1".to_string(),
+            api_key: String::new(),
+            timeout_seconds: 60,
+            max_retries: 3,
+        }
+    }
+}
+
+impl V0Config {
+    /// Configuration
+    pub fn validate(&self) -> Result<(), String> {
+        if self.api_key.is_empty() {
+            return Err("V0 API key is required".to_string());
+        }
+        if self.api_base.is_empty() {
+            return Err("V0 API base URL is required".to_string());
+        }
+        Ok(())
+    }
+}
+
+/// implementation ProviderConfig trait
+impl ProviderConfig for V0Config {
+    /// Configuration
+    fn validate(&self) -> Result<(), String> {
+        self.validate()
+    }
+
+    /// Get
+    fn api_key(&self) -> Option<&str> {
+        if self.api_key.is_empty() {
+            None
+        } else {
+            Some(&self.api_key)
+        }
+    }
+
+    /// Get
+    fn api_base(&self) -> Option<&str> {
+        Some(&self.api_base)
+    }
+
+    /// Get
+    fn timeout(&self) -> std::time::Duration {
+        std::time::Duration::from_secs(self.timeout_seconds)
+    }
+
+    /// Get
+    fn max_retries(&self) -> u32 {
+        self.max_retries
+    }
+}
+
+/// V0 supported models
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum V0Model {
+    /// V0 Default Model
+    V0Default,
+    /// Custom model
+    Custom(String),
+}
+
+impl V0Model {
+    /// Get model identifier for API calls
+    pub fn model_id(&self) -> String {
+        match self {
+            Self::V0Default => "v0-default".to_string(),
+            Self::Custom(id) => id.clone(),
+        }
+    }
+
+    /// Check if model supports function calling
+    pub fn supports_function_calling(&self) -> bool {
+        matches!(self, Self::V0Default | Self::Custom(_))
+    }
+
+    /// Check if model supports streaming
+    pub fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    /// Get maximum context window size
+    pub fn max_context_tokens(&self) -> usize {
+        match self {
+            Self::V0Default => 32768,
+            Self::Custom(_) => 32768, // Default assumption
+        }
+    }
+}
+
+/// Parse model string to V0Model enum
+pub fn parse_v0_model(model: &str) -> V0Model {
+    match model {
+        "v0" | "v0-default" => V0Model::V0Default,
+        _ => V0Model::Custom(model.to_string()),
+    }
+}
+
+/// V0 Provider implementation
+#[derive(Debug, Clone)]
+pub struct V0Provider {
+    config: V0Config,
+    client: reqwest::Client,
+}
+
+impl V0Provider {
+    /// Create a new V0 provider
+    pub fn new(config: V0Config) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(config.timeout_seconds))
+            .build()
+            .expect("Failed to create HTTP client");
+
+        Self { config, client }
+    }
+
+    /// Get API endpoint URL
+    fn get_endpoint(&self, path: &str) -> String {
+        format!(
+            "{}/{}",
+            self.config.api_base.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        )
+    }
+
+    /// Create request headers
+    fn create_headers(&self) -> reqwest::header::HeaderMap {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", self.config.api_key)
+                .parse()
+                .expect("Invalid API key format"),
+        );
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
+        headers
+    }
+
+    /// Internal health check method
+    async fn check_health(&self) -> Result<(), V0Error> {
+        let url = self.get_endpoint("models");
+        let response = self
+            .client
+            .get(&url)
+            .headers(self.create_headers())
+            .send()
+            .await
+            .map_err(V0Error::HttpError)?;
+
+        if response.status().is_success() {
+            Ok(())
+        } else {
+            Err(V0Error::ApiError(format!(
+                "Health check failed with status: {}",
+                response.status()
+            )))
+        }
+    }
+}
+
+/// V0 specific errors
+#[derive(Debug, thiserror::Error)]
+pub enum V0Error {
+    #[error("HTTP error: {0}")]
+    HttpError(#[from] reqwest::Error),
+
+    #[error("JSON error: {0}")]
+    JsonError(#[from] serde_json::Error),
+
+    #[error("API error: {0}")]
+    ApiError(String),
+
+    #[error("Invalid request: {0}")]
+    InvalidRequest(String),
+
+    #[error("Rate limit exceeded")]
+    RateLimitExceeded,
+
+    #[error("Authentication failed")]
+    AuthenticationFailed,
+
+    #[error("Model not found: {0}")]
+    ModelNotFound(String),
+}
+
+/// Error
+pub struct V0ErrorMapper;
+
+impl ErrorMapper<V0Error> for V0ErrorMapper {
+    fn map_http_error(&self, status_code: u16, response_body: &str) -> V0Error {
+        match status_code {
+            401 => V0Error::AuthenticationFailed,
+            429 => V0Error::RateLimitExceeded,
+            404 => V0Error::ModelNotFound("Model not found".to_string()),
+            _ => GenericErrorMapper.map_http_error(status_code, response_body),
+        }
+    }
+}
+
+/// implementation统一的 LLMProvider trait
+///
+/// V0是一个OpenAI兼容的AI平台
+#[async_trait]
+impl LLMProvider for V0Provider {
+    type Config = V0Config;
+    type Error = V0Error;
+    type ErrorMapper = V0ErrorMapper;
+
+    /// Get
+    fn name(&self) -> &'static str {
+        "v0"
+    }
+
+    /// Get
+    fn capabilities(&self) -> &'static [ProviderCapability] {
+        &[
+            ProviderCapability::ChatCompletion,
+            ProviderCapability::ChatCompletionStream,
+            ProviderCapability::ToolCalling,
+            ProviderCapability::FunctionCalling,
+        ]
+    }
+
+    /// Model
+    fn models(&self) -> &[ModelInfo] {
+        // usage LazyLock 来延迟初化静态数据
+        static MODELS: LazyLock<Vec<ModelInfo>> = LazyLock::new(|| {
+            vec![ModelInfo {
+                id: "v0-default".to_string(),
+                name: "V0 Default Model".to_string(),
+                provider: "v0".to_string(),
+                max_context_length: 32768,
+                max_output_length: Some(8192),
+                supports_streaming: true,
+                supports_tools: true,
+                supports_multimodal: false,
+                input_cost_per_1k_tokens: Some(0.1),
+                output_cost_per_1k_tokens: Some(0.2),
+                currency: "USD".to_string(),
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
+                created_at: None,
+                updated_at: None,
+                metadata: HashMap::new(),
+            }]
+        });
+        &MODELS
+    }
+
+    // ==================== Python LiteLLM 兼容接口 ====================
+
+    /// Get
+    fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
+        &[
+            "messages",
+            "model",
+            "temperature",
+            "max_tokens",
+            "top_p",
+            "stream",
+            "tools",
+            "tool_choice",
+            "user",
+            "seed",
+        ]
+    }
+
+    /// 映射 OpenAI parameter到 V0 parameter
+    async fn map_openai_params(
+        &self,
+        mut params: HashMap<String, Value>,
+        _model: &str,
+    ) -> Result<HashMap<String, Value>, Self::Error> {
+        // V0 usage OpenAI 兼容的parameter，所以大部分parameter直接透传
+
+        // 可以在这里添加特定的parameter映射逻辑
+        // 例如：将某些parameter重命名或转换format
+
+        // 确保 stream parameter是布尔值而不是 Option<bool>
+        if let Some(stream_val) = params.get("stream") {
+            if let Some(stream_bool) = stream_val.as_bool() {
+                params.insert("stream".to_string(), Value::Bool(stream_bool));
+            }
+        }
+
+        Ok(params)
+    }
+
+    /// Request
+    async fn transform_request(
+        &self,
+        request: ChatRequest,
+        _context: RequestContext,
+    ) -> Result<Value, Self::Error> {
+        // Request
+        if request.messages.is_empty() {
+            return Err(V0Error::InvalidRequest(
+                "Messages cannot be empty".to_string(),
+            ));
+        }
+
+        if request.model.is_empty() {
+            return Err(V0Error::InvalidRequest("Model cannot be empty".to_string()));
+        }
+
+        // 转换为 V0 API format（OpenAI 兼容）
+        let v0_request = serde_json::json!({
+            "model": request.model,
+            "messages": request.messages,
+            "temperature": request.temperature,
+            "max_tokens": request.max_tokens,
+            "top_p": request.top_p,
+            "stream": request.stream,
+            "tools": request.tools,
+            "tool_choice": request.tool_choice,
+        });
+
+        Ok(v0_request)
+    }
+
+    /// Response
+    async fn transform_response(
+        &self,
+        raw_response: &[u8],
+        model: &str,
+        request_id: &str,
+    ) -> Result<ChatResponse, Self::Error> {
+        // Response
+        let response_json: Value =
+            serde_json::from_slice(raw_response).map_err(V0Error::JsonError)?;
+
+        // 转换为标准的 ChatResponse format
+        // Response
+        // Create
+
+        let choices = response_json
+            .get("choices")
+            .and_then(|c| c.as_array())
+            .ok_or_else(|| V0Error::ApiError("Invalid response format".to_string()))?;
+
+        let usage = response_json
+            .get("usage")
+            .map(|u| serde_json::from_value(u.clone()))
+            .transpose()
+            .map_err(V0Error::JsonError)?;
+
+        let chat_response = ChatResponse {
+            id: request_id.to_string(),
+            object: "chat.completion".to_string(),
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs() as i64,
+            model: model.to_string(),
+            choices: serde_json::from_value(serde_json::Value::Array(choices.clone()))
+                .map_err(V0Error::JsonError)?,
+            usage,
+            system_fingerprint: None,
+        };
+
+        Ok(chat_response)
+    }
+
+    /// Error
+    fn get_error_mapper(&self) -> Self::ErrorMapper {
+        V0ErrorMapper
+    }
+
+    // ==================== 核心功能：聊天完成 ====================
+
+    /// Request
+    async fn chat_completion(
+        &self,
+        request: ChatRequest,
+        context: RequestContext,
+    ) -> Result<ChatResponse, Self::Error> {
+        // usage新的转换流程
+        let _transformed_request = self
+            .transform_request(request.clone(), context.clone())
+            .await?;
+
+        // 这里应该call实际的 API，为了演示我们usage原来的 handler
+        chat::V0ChatHandler::handle_chat_completion(self, request).await
+    }
+
+    /// Check
+    async fn health_check(&self) -> HealthStatus {
+        match self.check_health().await {
+            Ok(_) => HealthStatus::Healthy,
+            Err(_) => HealthStatus::Unhealthy,
+        }
+    }
+
+    /// Request
+    async fn calculate_cost(
+        &self,
+        _model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> Result<f64, Self::Error> {
+        // V0 定价：input $0.1/1K tokens, output $0.2/1K tokens
+        let input_cost = (input_tokens as f64 / 1000.0) * 0.1;
+        let output_cost = (output_tokens as f64 / 1000.0) * 0.2;
+        Ok(input_cost + output_cost)
+    }
+}
+
+impl ProviderErrorTrait for V0Error {
+    fn error_type(&self) -> &'static str {
+        match self {
+            Self::HttpError(_) => "network_error",
+            Self::JsonError(_) => "parsing_error",
+            Self::ApiError(_) => "api_error",
+            Self::InvalidRequest(_) => "invalid_request_error",
+            Self::RateLimitExceeded => "rate_limit_error",
+            Self::AuthenticationFailed => "authentication_error",
+            Self::ModelNotFound(_) => "model_not_found",
+        }
+    }
+
+    fn is_retryable(&self) -> bool {
+        match self {
+            Self::HttpError(_) | Self::RateLimitExceeded => true,
+            Self::ApiError(_) => true, // Depends on the specific API error
+            _ => false,
+        }
+    }
+
+    fn retry_delay(&self) -> Option<u64> {
+        match self {
+            Self::RateLimitExceeded => Some(60), // 1 minute
+            Self::HttpError(_) => Some(1),       // 1 second
+            Self::ApiError(_) => Some(5),        // 5 seconds
+            _ => None,
+        }
+    }
+
+    fn http_status(&self) -> u16 {
+        match self {
+            Self::AuthenticationFailed => 401,
+            Self::RateLimitExceeded => 429,
+            Self::ModelNotFound(_) => 404,
+            Self::InvalidRequest(_) => 400,
+            Self::HttpError(_) => 503,
+            _ => 500,
+        }
+    }
+
+    fn not_supported(feature: &str) -> Self {
+        Self::InvalidRequest(format!("Feature '{}' is not supported by V0", feature))
+    }
+
+    fn authentication_failed(_reason: &str) -> Self {
+        Self::AuthenticationFailed
+    }
+
+    fn rate_limited(_retry_after: Option<u64>) -> Self {
+        Self::RateLimitExceeded
+    }
+
+    fn network_error(details: &str) -> Self {
+        Self::InvalidRequest(format!("Network error: {}", details))
+    }
+
+    fn parsing_error(details: &str) -> Self {
+        // Create a JSON parsing error by attempting to parse invalid JSON
+        let invalid_json = format!("{{\"error\": \"{}\"}}", details.replace('"', "\\\""));
+        match serde_json::from_str::<serde_json::Value>(&invalid_json) {
+            Err(e) => Self::JsonError(e),
+            Ok(_) => {
+                // If that somehow succeeded, create a different error
+                Self::InvalidRequest(format!("JSON parsing error: {}", details))
+            }
+        }
+    }
+
+    fn not_implemented(feature: &str) -> Self {
+        Self::InvalidRequest(format!("Feature '{}' not implemented for V0", feature))
+    }
+}
+
+// Provider trait implementation removed - V0Provider is now included through the Provider enum variants

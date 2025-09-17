@@ -1,0 +1,18 @@
+[package]
+name = "litellm-examples"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "simple_openai"
+path = "simple_openai.rs"
+
+[[bin]]
+name = "openai_example"
+path = "openai_example.rs"
+
+[dependencies]
+litellm-rs = { path = ".." }
+tokio = { version = "1", features = ["full"] }
+tracing-subscriber = "0.3"
+serde_json = "1.0"

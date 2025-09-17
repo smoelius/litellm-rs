@@ -1,0 +1,181 @@
+# Rust LiteLLM Gateway - .gitignore
+
+# =============================================================================
+# RUST SPECIFIC
+# =============================================================================
+
+# Compiled files and executables
+/target/
+debug/
+**/*.rs.bk
+*.pdb
+
+# Cargo lock file (keep for applications, ignore for libraries)
+# Cargo.lock
+
+# =============================================================================
+# DEVELOPMENT ENVIRONMENT
+# =============================================================================
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =============================================================================
+# CONFIGURATION AND SECRETS
+# =============================================================================
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Configuration files (keep examples)
+config/gateway.yaml
+config/production.yaml
+config/dev.yaml
+!config/*.example
+!config/*.template
+
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# =============================================================================
+# DATA AND STORAGE
+# =============================================================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Data directories
+/data/
+/storage/
+/uploads/
+/files/
+
+# Cache directories
+.cache/
+cache/
+
+# Logs
+*.log
+logs/
+/var/log/
+
+# =============================================================================
+# DOCKER AND DEPLOYMENT
+# =============================================================================
+
+# Docker override files
+docker-compose.override.yml
+
+# Kubernetes secrets (keep examples)
+deploy/kubernetes/secret.yaml
+!deploy/kubernetes/secret.yaml.example
+
+# Monitoring data
+prometheus_data/
+grafana_data/
+postgres_data/
+redis_data/
+
+# =============================================================================
+# TESTING AND COVERAGE
+# =============================================================================
+
+# Test artifacts
+test-results/
+test-output/
+
+# Coverage reports
+coverage/
+*.profraw
+*.profdata
+lcov.info
+tarpaulin-report.html
+
+# Benchmark results
+criterion/
+target/criterion/
+
+# =============================================================================
+# BUILD ARTIFACTS
+# =============================================================================
+
+# Build outputs
+dist/
+build/
+out/
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+
+# =============================================================================
+# EXTERNAL DEPENDENCIES
+# =============================================================================
+
+# Python (if using for scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+
+# Node.js (if using for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+package-lock.json
+yarn.lock
+
+# =============================================================================
+# BACKUP AND TEMPORARY FILES
+# =============================================================================
+
+# Editor backup files
+*.!*!*
+.!*!*
+*~
+*.bak
+*.backup
+*.swp
+*.swo
+*.tmp
+
+# Emacs backup and lock files
+.#*
+\#*\#
+
+# Vim backup files
+*.un~
+
+# =============================================================================
+# LEGACY FILES (from original project)
+# =============================================================================
+
+litellm/

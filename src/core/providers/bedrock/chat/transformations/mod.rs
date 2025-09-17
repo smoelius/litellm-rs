@@ -1,0 +1,79 @@
+//! Model-specific Request Transformations
+//!
+//! Handles transformation of OpenAI-style requests to provider-specific formats
+
+pub mod anthropic;
+pub mod amazon;
+pub mod meta;
+pub mod mistral;
+pub mod cohere;
+pub mod ai21;
+
+use serde_json::Value;
+use crate::core::providers::unified_provider::ProviderError;
+use crate::core::types::requests::ChatRequest;
+use crate::core::providers::bedrock::model_config::{BedrockModelFamily, ModelConfig};
+
+/// Transform request based on model family
+pub fn transform_for_model(
+    request: &ChatRequest,
+    model_config: &ModelConfig,
+) -> Result<Value, ProviderError> {
+    match model_config.family {
+        BedrockModelFamily::Claude => anthropic::transform_request(request, model_config),
+        BedrockModelFamily::TitanText => amazon::transform_titan_request(request, model_config),
+        BedrockModelFamily::Nova => amazon::transform_nova_request(request, model_config),
+        BedrockModelFamily::Llama => meta::transform_request(request, model_config),
+        BedrockModelFamily::Mistral => mistral::transform_request(request, model_config),
+        BedrockModelFamily::Cohere => cohere::transform_request(request, model_config),
+        BedrockModelFamily::AI21 => ai21::transform_request(request, model_config),
+        BedrockModelFamily::DeepSeek => {
+            // DeepSeek uses similar format to Mistral
+            mistral::transform_request(request, model_config)
+        }
+        _ => Err(ProviderError::not_supported(
+            "bedrock",
+            format!("Model family {:?} not supported for chat", model_config.family),
+        )),
+    }
+}
+
+/// Common utility to convert messages to prompt format
+pub fn messages_to_prompt(messages: &[crate::core::types::ChatMessage]) -> String {
+    use crate::core::types::{MessageRole, MessageContent};
+
+    let mut prompt = String::new();
+
+    for message in messages {
+        let content = match &message.content {
+            Some(MessageContent::Text(text)) => text.clone(),
+            Some(MessageContent::Parts(parts)) => {
+                // Extract text from parts
+                parts.iter()
+                    .filter_map(|part| {
+                        if let crate::core::types::requests::ContentPart::Text { text } = part {
+                            Some(text.clone())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            }
+            None => continue,
+        };
+
+        match message.role {
+            MessageRole::System => prompt.push_str(&format!("System: {}\n\n", content)),
+            MessageRole::User => prompt.push_str(&format!("Human: {}\n\n", content)),
+            MessageRole::Assistant => prompt.push_str(&format!("Assistant: {}\n\n", content)),
+            MessageRole::Function | MessageRole::Tool => {
+                prompt.push_str(&format!("Tool: {}\n\n", content));
+            }
+        }
+    }
+
+    // Add Assistant prompt at the end for completion
+    prompt.push_str("Assistant:");
+    prompt
+}

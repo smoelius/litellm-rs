@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: litellm-gateway
+  labels:
+    name: litellm-gateway
+    app.kubernetes.io/name: litellm-gateway
+    app.kubernetes.io/version: "0.1.0"

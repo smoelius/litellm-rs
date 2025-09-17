@@ -1,0 +1,38 @@
+//! Unified LLM Provider SDK
+//!
+//! This module provides a simplified, unified interface for interacting with multiple LLM providers.
+//! It's built on top of the existing litellm-rs infrastructure but provides a more user-friendly API.
+
+pub mod cache;
+pub mod config;
+pub mod errors;
+pub mod middleware;
+pub mod monitoring;
+// pub mod providers; // Temporarily disabled
+// pub mod router; // Temporarily disabled
+pub mod client;
+pub mod types;
+
+// Re-exports for convenience
+pub use client::LLMClient;
+pub use config::{ClientConfig, ConfigBuilder};
+pub use errors::{Result, SDKError};
+pub use types::*;
+
+/// SDK version
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Initialize the SDK with default logging
+pub fn init() {
+    tracing_subscriber::fmt::init();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version() {
+        assert!(!VERSION.is_empty());
+    }
+}

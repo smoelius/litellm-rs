@@ -1,0 +1,46 @@
+# Prometheus Configuration for Development Environment
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+  external_labels:
+    cluster: 'rust-litellm-gateway'
+    environment: 'development'
+
+# Scrape configurations for development
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9092']
+    scrape_interval: 60s
+
+  # Gateway running locally
+  - job_name: 'rust-litellm-gateway-dev'
+    static_configs:
+      - targets: ['host.docker.internal:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scrape_timeout: 10s
+
+  # Gateway health check
+  - job_name: 'gateway-health-dev'
+    static_configs:
+      - targets: ['host.docker.internal:8000']
+    scrape_interval: 60s
+    metrics_path: /health
+    scrape_timeout: 5s
+
+  # Development PostgreSQL
+  - job_name: 'postgres-dev'
+    static_configs:
+      - targets: ['postgres-dev:5432']
+    scrape_interval: 60s
+    metrics_path: /metrics
+
+  # Development Redis
+  - job_name: 'redis-dev'
+    static_configs:
+      - targets: ['redis-dev:6379']
+    scrape_interval: 60s
+    metrics_path: /metrics

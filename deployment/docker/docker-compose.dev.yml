@@ -1,0 +1,200 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database for Development
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: litellm-postgres-dev
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=gateway_dev
+      - POSTGRES_USER=gateway_dev
+      - POSTGRES_PASSWORD=dev_password
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./scripts/init-dev-db.sql:/docker-entrypoint-initdb.d/init-dev-db.sql:ro
+    ports:
+      - "5433:5432"
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway_dev -d gateway_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache for Development
+  redis-dev:
+    image: redis:7-alpine
+    container_name: litellm-redis-dev
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6380:6379"
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Jaeger for Development Tracing
+  jaeger-dev:
+    image: jaegertracing/all-in-one:latest
+    container_name: litellm-jaeger-dev
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+    ports:
+      - "16687:16686"  # Jaeger UI
+      - "14269:14268"  # Jaeger collector HTTP
+    networks:
+      - dev-network
+
+  # Prometheus for Development Monitoring
+  prometheus-dev:
+    image: prom/prometheus:latest
+    container_name: litellm-prometheus-dev
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=24h'
+      - '--web.enable-lifecycle'
+      - '--log.level=debug'
+    volumes:
+      - ./monitoring/prometheus-dev.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_dev_data:/prometheus
+    ports:
+      - "9092:9090"
+    networks:
+      - dev-network
+
+  # Grafana for Development Visualization
+  grafana-dev:
+    image: grafana/grafana:latest
+    container_name: litellm-grafana-dev
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=true
+      - GF_LOG_LEVEL=debug
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    networks:
+      - dev-network
+    depends_on:
+      - prometheus-dev
+
+  # Qdrant Vector Database for Development (Optional)
+  qdrant-dev:
+    image: qdrant/qdrant:latest
+    container_name: litellm-qdrant-dev
+    restart: unless-stopped
+    volumes:
+      - qdrant_dev_data:/qdrant/storage
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    networks:
+      - dev-network
+    environment:
+      - QDRANT__SERVICE__HTTP_PORT=6333
+      - QDRANT__SERVICE__GRPC_PORT=6334
+
+  # MinIO for S3-compatible storage (Development)
+  minio-dev:
+    image: minio/minio:latest
+    container_name: litellm-minio-dev
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_dev_data:/data
+    ports:
+      - "9000:9000"  # MinIO API
+      - "9001:9001"  # MinIO Console
+    networks:
+      - dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # Mailhog for Email Testing (Development)
+  mailhog-dev:
+    image: mailhog/mailhog:latest
+    container_name: litellm-mailhog-dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - dev-network
+
+  # Test Gateway Instance (for integration testing)
+  gateway-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: builder
+    image: rust-litellm-gateway:test
+    container_name: litellm-gateway-test
+    restart: "no"
+    environment:
+      - DATABASE_URL=postgresql://gateway_dev:dev_password@postgres-dev:5432/gateway_dev
+      - REDIS_URL=redis://redis-dev:6379
+      - RUST_LOG=debug
+      - JAEGER_ENDPOINT=http://jaeger-dev:14268/api/traces
+      - JWT_SECRET=test-jwt-secret-for-development-only
+    volumes:
+      - ./config:/app/config:ro
+      - ./src:/app/src:ro
+      - ./target:/app/target
+    working_dir: /app
+    command: ["cargo", "test", "--", "--test-threads=1"]
+    networks:
+      - dev-network
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    profiles:
+      - testing
+
+volumes:
+  postgres_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  prometheus_dev_data:
+    driver: local
+  grafana_dev_data:
+    driver: local
+  qdrant_dev_data:
+    driver: local
+  minio_dev_data:
+    driver: local
+
+networks:
+  dev-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16

@@ -1,0 +1,53 @@
+[Unit]
+Description=LiteLLM-RS - AI API Gateway
+Documentation=https://github.com/majiayu000/litellm-rs
+After=network.target postgresql.service redis.service
+Wants=postgresql.service redis.service
+
+[Service]
+Type=exec
+User=gateway
+Group=gateway
+WorkingDirectory=/opt/litellm-rs
+ExecStart=/opt/litellm-rs/bin/gateway --config /etc/litellm-rs/gateway.yaml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+StartLimitInterval=60
+StartLimitBurst=3
+
+# Environment variables
+Environment=RUST_LOG=info
+Environment=ENVIRONMENT=production
+EnvironmentFile=-/etc/litellm-rs/environment
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/litellm-rs /var/lib/litellm-rs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+MemoryMax=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=litellm-rs
+
+[Install]
+WantedBy=multi-user.target

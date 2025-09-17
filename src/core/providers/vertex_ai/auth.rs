@@ -1,0 +1,436 @@
+//! Vertex AI Authentication
+//!
+//! Supports multiple authentication methods:
+//! - Service Account JSON
+//! - Workload Identity Federation
+//! - Application Default Credentials (ADC)
+//! - Access Token
+
+use anyhow::{Context, Result};
+use chrono::{DateTime, Duration, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::RwLock;
+
+/// Vertex AI Authentication credentials
+#[derive(Debug, Clone)]
+pub enum VertexCredentials {
+    /// Service Account JSON key
+    ServiceAccount(ServiceAccountKey),
+
+    /// Workload Identity Federation
+    WorkloadIdentity(WorkloadIdentityConfig),
+
+    /// Application Default Credentials
+    ApplicationDefault,
+
+    /// Direct access token
+    AccessToken(String),
+
+    /// Authorized User (from gcloud auth)
+    AuthorizedUser(AuthorizedUserCredentials),
+}
+
+/// Service Account key structure
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ServiceAccountKey {
+    #[serde(rename = "type")]
+    pub key_type: String,
+    pub project_id: String,
+    pub private_key_id: String,
+    pub private_key: String,
+    pub client_email: String,
+    pub client_id: String,
+    pub auth_uri: String,
+    pub token_uri: String,
+    pub auth_provider_x509_cert_url: String,
+    pub client_x509_cert_url: String,
+}
+
+/// Workload Identity Federation configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct WorkloadIdentityConfig {
+    #[serde(rename = "type")]
+    pub config_type: String,
+    pub audience: String,
+    pub subject_token_type: String,
+    pub service_account_impersonation_url: Option<String>,
+    pub token_url: String,
+    pub credential_source: CredentialSource,
+    pub quota_project_id: Option<String>,
+}
+
+/// Credential source for Workload Identity
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct CredentialSource {
+    pub file: Option<String>,
+    pub url: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
+    pub environment_id: Option<String>,
+    pub regional_cred_verification_url: Option<String>,
+}
+
+/// Authorized User credentials (from gcloud)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthorizedUserCredentials {
+    pub client_id: String,
+    pub client_secret: String,
+    pub refresh_token: String,
+    #[serde(rename = "type")]
+    pub cred_type: String,
+}
+
+/// OAuth2 Token with expiration
+#[derive(Debug, Clone)]
+pub struct AccessToken {
+    pub token: String,
+    pub expires_at: DateTime<Utc>,
+    pub token_type: String,
+}
+
+impl AccessToken {
+    /// Check if token is expired
+    pub fn is_expired(&self) -> bool {
+        Utc::now() >= self.expires_at - Duration::minutes(5) // 5 min buffer
+    }
+}
+
+/// Vertex AI Authentication handler
+#[derive(Debug)]
+pub struct VertexAuth {
+    credentials: VertexCredentials,
+    token_cache: Arc<RwLock<Option<AccessToken>>>,
+    http_client: reqwest::Client,
+}
+
+impl VertexAuth {
+    /// Create new authentication handler
+    pub fn new(credentials: VertexCredentials) -> Self {
+        Self {
+            credentials,
+            token_cache: Arc::new(RwLock::new(None)),
+            http_client: reqwest::Client::new(),
+        }
+    }
+
+    /// Load credentials from environment or file
+    pub async fn from_env() -> Result<Self> {
+        // Try GOOGLE_APPLICATION_CREDENTIALS first
+        if let Ok(path) = std::env::var("GOOGLE_APPLICATION_CREDENTIALS") {
+            let credentials = Self::load_credentials_from_file(&path).await?;
+            return Ok(Self::new(credentials));
+        }
+
+        // Try VERTEX_AI_CREDENTIALS
+        if let Ok(json_str) = std::env::var("VERTEX_AI_CREDENTIALS") {
+            let credentials = Self::parse_credentials(&json_str)?;
+            return Ok(Self::new(credentials));
+        }
+
+        // Fall back to Application Default Credentials
+        Ok(Self::new(VertexCredentials::ApplicationDefault))
+    }
+
+    /// Load credentials from a JSON file
+    pub async fn load_credentials_from_file(path: &str) -> Result<VertexCredentials> {
+        let contents = tokio::fs::read_to_string(path)
+            .await
+            .context("Failed to read credentials file")?;
+        Self::parse_credentials(&contents)
+    }
+
+    /// Parse credentials from JSON string
+    pub fn parse_credentials(json_str: &str) -> Result<VertexCredentials> {
+        let json_obj: serde_json::Value = serde_json::from_str(json_str)?;
+
+        match json_obj.get("type").and_then(|t| t.as_str()) {
+            Some("service_account") => {
+                let key: ServiceAccountKey = serde_json::from_value(json_obj)?;
+                Ok(VertexCredentials::ServiceAccount(key))
+            }
+            Some("external_account") => {
+                let config: WorkloadIdentityConfig = serde_json::from_value(json_obj)?;
+                Ok(VertexCredentials::WorkloadIdentity(config))
+            }
+            Some("authorized_user") => {
+                let creds: AuthorizedUserCredentials = serde_json::from_value(json_obj)?;
+                Ok(VertexCredentials::AuthorizedUser(creds))
+            }
+            _ => Err(anyhow::anyhow!("Unknown credential type")),
+        }
+    }
+
+    /// Get a valid access token
+    pub async fn get_access_token(&self) -> Result<String> {
+        // Check cache first
+        {
+            let cache = self.token_cache.read().await;
+            if let Some(ref token) = *cache {
+                if !token.is_expired() {
+                    return Ok(token.token.clone());
+                }
+            }
+        }
+
+        // Fetch new token based on credential type
+        let new_token = match &self.credentials {
+            VertexCredentials::ServiceAccount(key) => self.get_service_account_token(key).await?,
+            VertexCredentials::WorkloadIdentity(config) => {
+                self.get_workload_identity_token(config).await?
+            }
+            VertexCredentials::ApplicationDefault => self.get_adc_token().await?,
+            VertexCredentials::AccessToken(token) => AccessToken {
+                token: token.clone(),
+                expires_at: Utc::now() + Duration::hours(1),
+                token_type: "Bearer".to_string(),
+            },
+            VertexCredentials::AuthorizedUser(creds) => {
+                self.get_authorized_user_token(creds).await?
+            }
+        };
+
+        // Update cache
+        let token_string = new_token.token.clone();
+        {
+            let mut cache = self.token_cache.write().await;
+            *cache = Some(new_token);
+        }
+
+        Ok(token_string)
+    }
+
+    /// Get token for service account
+    async fn get_service_account_token(&self, key: &ServiceAccountKey) -> Result<AccessToken> {
+        use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+
+        #[derive(Debug, Serialize)]
+        struct Claims {
+            iss: String,
+            scope: String,
+            aud: String,
+            exp: i64,
+            iat: i64,
+        }
+
+        let now = Utc::now().timestamp();
+        let claims = Claims {
+            iss: key.client_email.clone(),
+            scope: "https://www.googleapis.com/auth/cloud-platform".to_string(),
+            aud: key.token_uri.clone(),
+            exp: now + 3600,
+            iat: now,
+        };
+
+        let header = Header::new(Algorithm::RS256);
+        let encoding_key = EncodingKey::from_rsa_pem(key.private_key.as_bytes())?;
+        let jwt = encode(&header, &claims, &encoding_key)?;
+
+        // Exchange JWT for access token
+        let params = [
+            ("grant_type", "urn:ietf:params:oauth:grant-type:jwt-bearer"),
+            ("assertion", &jwt),
+        ];
+
+        let response = self
+            .http_client
+            .post(&key.token_uri)
+            .form(&params)
+            .send()
+            .await?;
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: i64,
+            token_type: String,
+        }
+
+        let token_response: TokenResponse = response.json().await?;
+
+        Ok(AccessToken {
+            token: token_response.access_token,
+            expires_at: Utc::now() + Duration::seconds(token_response.expires_in),
+            token_type: token_response.token_type,
+        })
+    }
+
+    /// Get token for workload identity
+    async fn get_workload_identity_token(
+        &self,
+        config: &WorkloadIdentityConfig,
+    ) -> Result<AccessToken> {
+        // Get subject token from credential source
+        let subject_token = self.get_subject_token(&config.credential_source).await?;
+
+        // Exchange for access token
+        let mut params = HashMap::new();
+        params.insert(
+            "grant_type",
+            "urn:ietf:params:oauth:grant-type:token-exchange",
+        );
+        params.insert("audience", &config.audience);
+        params.insert("subject_token", &subject_token);
+        params.insert("subject_token_type", &config.subject_token_type);
+        params.insert("scope", "https://www.googleapis.com/auth/cloud-platform");
+
+        let response = self
+            .http_client
+            .post(&config.token_url)
+            .json(&params)
+            .send()
+            .await?;
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: i64,
+            token_type: String,
+        }
+
+        let token_response: TokenResponse = response.json().await?;
+
+        Ok(AccessToken {
+            token: token_response.access_token,
+            expires_at: Utc::now() + Duration::seconds(token_response.expires_in),
+            token_type: token_response.token_type,
+        })
+    }
+
+    /// Get subject token from credential source
+    async fn get_subject_token(&self, source: &CredentialSource) -> Result<String> {
+        if let Some(ref file_path) = source.file {
+            // Read token from file
+            tokio::fs::read_to_string(file_path)
+                .await
+                .context("Failed to read subject token from file")
+        } else if let Some(ref url) = source.url {
+            // Fetch token from URL
+            let mut request = self.http_client.get(url);
+
+            if let Some(ref headers) = source.headers {
+                for (key, value) in headers {
+                    request = request.header(key, value);
+                }
+            }
+
+            let response = request.send().await?;
+            response
+                .text()
+                .await
+                .context("Failed to fetch subject token")
+        } else if let Some(ref env_id) = source.environment_id {
+            // AWS environment
+            if env_id.contains("aws") {
+                self.get_aws_token(source).await
+            } else {
+                Err(anyhow::anyhow!("Unsupported environment ID: {}", env_id))
+            }
+        } else {
+            Err(anyhow::anyhow!("No credential source specified"))
+        }
+    }
+
+    /// Get token from AWS metadata service
+    async fn get_aws_token(&self, _source: &CredentialSource) -> Result<String> {
+        // TODO: Implement AWS metadata service token retrieval
+        Err(anyhow::anyhow!("AWS token retrieval not yet implemented"))
+    }
+
+    /// Get token using Application Default Credentials
+    async fn get_adc_token(&self) -> Result<AccessToken> {
+        // Try metadata service (for GCE/Cloud Run/etc)
+        let metadata_url = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token";
+
+        let response = self
+            .http_client
+            .get(metadata_url)
+            .header("Metadata-Flavor", "Google")
+            .send()
+            .await;
+
+        if let Ok(resp) = response {
+            #[derive(Deserialize)]
+            struct MetadataToken {
+                access_token: String,
+                expires_in: i64,
+                token_type: String,
+            }
+
+            if let Ok(token) = resp.json::<MetadataToken>().await {
+                return Ok(AccessToken {
+                    token: token.access_token,
+                    expires_at: Utc::now() + Duration::seconds(token.expires_in),
+                    token_type: token.token_type,
+                });
+            }
+        }
+
+        // Fall back to gcloud auth
+        Err(anyhow::anyhow!(
+            "Unable to get ADC token. Please run 'gcloud auth application-default login'"
+        ))
+    }
+
+    /// Get token for authorized user
+    async fn get_authorized_user_token(
+        &self,
+        creds: &AuthorizedUserCredentials,
+    ) -> Result<AccessToken> {
+        let grant_type = "refresh_token".to_string();
+        let params = [
+            ("client_id", &creds.client_id),
+            ("client_secret", &creds.client_secret),
+            ("refresh_token", &creds.refresh_token),
+            ("grant_type", &grant_type),
+        ];
+
+        let response = self
+            .http_client
+            .post("https://oauth2.googleapis.com/token")
+            .form(&params)
+            .send()
+            .await?;
+
+        #[derive(Deserialize)]
+        struct TokenResponse {
+            access_token: String,
+            expires_in: i64,
+            token_type: String,
+        }
+
+        let token_response: TokenResponse = response.json().await?;
+
+        Ok(AccessToken {
+            token: token_response.access_token,
+            expires_at: Utc::now() + Duration::seconds(token_response.expires_in),
+            token_type: token_response.token_type,
+        })
+    }
+
+    /// Get the project ID
+    pub async fn get_project_id(&self) -> Result<String> {
+        match &self.credentials {
+            VertexCredentials::ServiceAccount(key) => Ok(key.project_id.clone()),
+            VertexCredentials::WorkloadIdentity(config) => config
+                .quota_project_id
+                .clone()
+                .ok_or_else(|| anyhow::anyhow!("No project ID in workload identity config")),
+            _ => {
+                // Try to get from metadata service
+                let url = "http://metadata.google.internal/computeMetadata/v1/project/project-id";
+                let response = self
+                    .http_client
+                    .get(url)
+                    .header("Metadata-Flavor", "Google")
+                    .send()
+                    .await?;
+
+                response
+                    .text()
+                    .await
+                    .context("Failed to get project ID from metadata")
+            }
+        }
+    }
+}

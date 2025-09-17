@@ -1,0 +1,124 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Batches::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Batches::Id)
+                            .string()
+                            .not_null()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::Object)
+                            .string()
+                            .not_null()
+                            .default("batch"),
+                    )
+                    .col(ColumnDef::new(Batches::Endpoint).string().not_null())
+                    .col(ColumnDef::new(Batches::InputFileId).string().null())
+                    .col(
+                        ColumnDef::new(Batches::CompletionWindow)
+                            .string()
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Batches::Status).string().not_null())
+                    .col(ColumnDef::new(Batches::OutputFileId).string().null())
+                    .col(ColumnDef::new(Batches::ErrorFileId).string().null())
+                    .col(
+                        ColumnDef::new(Batches::CreatedAt)
+                            .timestamp_with_time_zone()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::InProgressAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::FinalizingAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::CompletedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::FailedAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::ExpiredAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::CancellingAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::CancelledAt)
+                            .timestamp_with_time_zone()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(Batches::RequestCountsTotal).integer().null())
+                    .col(
+                        ColumnDef::new(Batches::RequestCountsCompleted)
+                            .integer()
+                            .null(),
+                    )
+                    .col(
+                        ColumnDef::new(Batches::RequestCountsFailed)
+                            .integer()
+                            .null(),
+                    )
+                    .col(ColumnDef::new(Batches::Metadata).text().null())
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(Batches::Table).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Batches {
+    Table,
+    Id,
+    Object,
+    Endpoint,
+    InputFileId,
+    CompletionWindow,
+    Status,
+    OutputFileId,
+    ErrorFileId,
+    CreatedAt,
+    InProgressAt,
+    FinalizingAt,
+    CompletedAt,
+    FailedAt,
+    ExpiredAt,
+    CancellingAt,
+    CancelledAt,
+    RequestCountsTotal,
+    RequestCountsCompleted,
+    RequestCountsFailed,
+    Metadata,
+}
