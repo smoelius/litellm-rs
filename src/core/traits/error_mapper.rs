@@ -1,34 +1,39 @@
-//! Error handling
+//! Error mapping traits and implementations
 //!
-//! Error handling
+//! This module provides error mapping functionality to convert HTTP responses
+//! and other errors into provider-specific error types.
 
 use crate::core::types::errors::ProviderErrorTrait;
 use serde_json::Value;
 
-/// Error
+/// Trait for mapping various error conditions to provider-specific error types
 ///
-/// Error
+/// This trait provides a unified interface for converting HTTP status codes,
+/// JSON error responses, and other error conditions into structured error types.
 ///
 /// # Design Goals
 ///
-/// Handle
-/// Error
-/// Error
-/// Error
+/// - Provide consistent error handling across all providers
+/// - Support provider-specific error response formats
+/// - Enable structured error information extraction
+/// - Support retry logic and error categorization
 ///
 /// # Implementation Guide
 ///
-/// Handle
+/// Implement this trait for each provider to handle their specific error formats:
 ///
-/// ```rust
-/// struct OpenAIErrorMapper;
+/// ```rust,ignore
+/// use litellm_rs::core::traits::error_mapper::ErrorMapper;
+/// use litellm_rs::core::types::errors::ProviderErrorTrait;
 ///
-/// impl ErrorMapper<OpenAIError> for OpenAIErrorMapper {
-///     fn map_http_error(&self, status: u16, body: &str) -> OpenAIError {
+/// struct MyProviderErrorMapper;
+///
+/// impl<E: ProviderErrorTrait> ErrorMapper<E> for MyProviderErrorMapper {
+///     fn map_http_error(&self, status: u16, body: &str) -> E {
 ///         match status {
-///             401 => OpenAIError::Authentication("Invalid API key".to_string()),
-///             429 => OpenAIError::RateLimit("Rate limit exceeded".to_string()),
-///             _ => OpenAIError::Unknown(format!("HTTP {}: {}", status, body)),
+///             401 => E::authentication_failed("Invalid API key"),
+///             429 => E::rate_limited(Some(60)),
+///             _ => E::network_error(&format!("HTTP {}: {}", status, body)),
 ///         }
 ///     }
 /// }
@@ -37,33 +42,33 @@ pub trait ErrorMapper<E>: Send + Sync + 'static
 where
     E: ProviderErrorTrait,
 {
-    /// Response
+    /// Map HTTP status code and response body to provider error
     ///
-    /// # parameter
-    /// * `status_code` - HTTP status code
-    ///   Response
+    /// # Parameters
+    /// * `status_code` - HTTP status code from the response
+    /// * `response_body` - Raw response body as string
     ///
     /// # Returns
-    /// Error
+    /// Provider-specific error type
     ///
     /// # Common Mappings
-    /// Error
-    /// Error
-    /// Error
-    /// Error
-    /// Error
+    /// * `400` - Invalid request parameters
+    /// * `401` - Authentication failure
+    /// * `429` - Rate limit exceeded
+    /// * `404` - Resource/model not found
+    /// * `5xx` - Server-side errors
     fn map_http_error(&self, status_code: u16, response_body: &str) -> E;
 
-    /// Response
+    /// Map JSON error response to provider error
     ///
-    /// # parameter
-    /// Response
+    /// # Parameters
+    /// * `error_response` - Parsed JSON error response
     ///
     /// # Returns
-    /// Error
+    /// Provider-specific error type
     ///
-    /// Default
-    /// Error
+    /// Default implementation handles common JSON error formats.
+    /// Override for provider-specific error response structures.
     fn map_json_error(&self, error_response: &Value) -> E {
         let error_msg = error_response
             .get("error")
@@ -88,53 +93,50 @@ where
         }
     }
 
-    /// Error
+    /// Map network-level errors to provider error
     ///
-    /// # parameter
-    /// Error
+    /// # Parameters
+    /// * `error` - Network or connection error
     ///
     /// # Returns
-    /// Error
+    /// Provider-specific error type
     ///
-    /// Default
-    /// Error
+    /// Default implementation wraps the error as a network error.
     fn map_network_error(&self, error: &dyn std::error::Error) -> E {
         E::network_error(&error.to_string())
     }
 
-    /// Error
+    /// Map parsing/serialization errors to provider error
     ///
-    /// # parameter
-    /// Error
+    /// # Parameters
+    /// * `error` - Parsing or serialization error
     ///
     /// # Returns
-    /// Error
+    /// Provider-specific error type
     ///
-    /// Default
-    /// Maps to parsing error
+    /// Default implementation maps to parsing error.
     fn map_parsing_error(&self, error: &dyn std::error::Error) -> E {
         E::parsing_error(&error.to_string())
     }
 
-    /// Error
+    /// Map timeout errors to provider error
     ///
-    /// # parameter
-    /// * `timeout_duration` - Timeout duration
+    /// # Parameters
+    /// * `timeout_duration` - Duration after which the request timed out
     ///
     /// # Returns
-    /// Error
+    /// Provider-specific error type
     ///
-    /// Default
-    /// Error
+    /// Default implementation wraps timeout as network error.
     fn map_timeout_error(&self, timeout_duration: std::time::Duration) -> E {
         E::network_error(&format!("Request timeout after {:?}", timeout_duration))
     }
 }
 
-/// Error
+/// Generic error mapper with standard HTTP status code handling
 ///
-/// Error
-/// Error
+/// Provides reasonable defaults for common HTTP status codes.
+/// Can be used as a fallback or base implementation.
 pub struct GenericErrorMapper;
 
 impl<E> ErrorMapper<E> for GenericErrorMapper

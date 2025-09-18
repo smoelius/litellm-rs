@@ -31,7 +31,9 @@
 //!         None,
 //!     ).await?;
 //!     
-//!     println!("Response: {}", response.choices[0].message.content);
+//!     if let Some(content) = &response.choices[0].message.content {
+//!         println!("Response: {}", content);
+//!     }
 //!
 //!     // Call Anthropic with explicit provider
 //!     let response = completion(
@@ -40,7 +42,9 @@
 //!         None,
 //!     ).await?;
 //!     
-//!     println!("Claude says: {}", response.choices[0].message.content);
+//!     if let Some(content) = &response.choices[0].message.content {
+//!         println!("Claude says: {}", content);
+//!     }
 //!     
 //!     Ok(())
 //! }

@@ -33,22 +33,46 @@ use std::collections::HashMap;
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,ignore
 /// use async_trait::async_trait;
+/// use crate::core::traits::provider::{LLMProvider, ProviderConfig};
+/// use crate::core::types::common::ProviderCapability;
+/// use crate::core::types::errors::ProviderErrorTrait;
+///
+/// #[derive(Debug, Clone)]
+/// struct MyConfig {
+///     api_key: String,
+/// }
+///
+/// impl ProviderConfig for MyConfig {
+///     fn validate(&self) -> Result<(), String> { Ok(()) }
+///     fn api_key(&self) -> Option<&str> { Some(&self.api_key) }
+///     fn api_base(&self) -> Option<&str> { None }
+///     fn timeout(&self) -> std::time::Duration { std::time::Duration::from_secs(30) }
+///     fn max_retries(&self) -> u32 { 3 }
+/// }
+///
+/// #[derive(Debug)]
+/// struct MyProvider;
 ///
 /// #[async_trait]
 /// impl LLMProvider for MyProvider {
 ///     type Config = MyConfig;
-///     type Error = MyError;
-///     
+///     type Error = crate::core::providers::unified_provider::ProviderError;
+///     type ErrorMapper = crate::core::traits::error_mapper::GenericErrorMapper;
+///
 ///     fn name(&self) -> &'static str {
 ///         "my_provider"
 ///     }
-///     
+///
 ///     fn capabilities(&self) -> &'static [ProviderCapability] {
 ///         &[ProviderCapability::ChatCompletion]
 ///     }
-///     
+///
+///     fn models(&self) -> &[crate::core::types::common::ModelInfo] {
+///         &[]
+///     }
+///
 ///     // implement other required methods...
 /// }
 /// ```
@@ -182,12 +206,15 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
     /// List of supported parameter names
     ///
     /// # Example
-    /// ```
+    /// ```rust,ignore
     /// // OpenAI provider might return:
     /// // ["temperature", "max_tokens", "top_p", "frequency_penalty", "presence_penalty", "tools"]
     /// //
     /// // Anthropic provider might return:
     /// // ["temperature", "max_tokens", "top_p", "top_k", "tools"]
+    /// fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
+    ///     &["temperature", "max_tokens", "top_p"]
+    /// }
     /// ```
     fn get_supported_openai_params(&self, model: &str) -> &'static [&'static str];
 
@@ -203,7 +230,10 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
     /// Converted parameter mapping (provider-specific format)
     ///
     /// # Example
-    /// ```
+    /// ```rust,ignore
+    /// use std::collections::HashMap;
+    /// use serde_json::Value;
+    ///
     /// // For Anthropic provider:
     /// // input: {"max_tokens": 100, "temperature": 0.7}
     /// // output: {"max_tokens_to_sample": 100, "temperature": 0.7}
@@ -211,6 +241,13 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
     /// // For Azure provider:
     /// // input: {"user": "alice", "stream": true}
     /// // output: {"end_user_id": "alice", "stream": true}
+    /// async fn map_openai_params(
+    ///     &self,
+    ///     params: HashMap<String, Value>,
+    ///     _model: &str,
+    /// ) -> Result<HashMap<String, Value>, Self::Error> {
+    ///     Ok(params) // Pass through unchanged
+    /// }
     /// ```
     async fn map_openai_params(
         &self,

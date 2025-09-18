@@ -2,14 +2,12 @@
 //!
 //! Single error type for all providers - optimized design for simplicity and performance
 //!
-//! Error handling
-//!
-//! Error handling
+//! This module provides a unified error handling system for all AI providers.
 //!
 //! ## Core Components
 //!
 //! ### `ProviderError` Enum
-//! Error handling
+//! A comprehensive error type that covers all possible failure scenarios across different AI providers.
 //!
 //! | Variant | Purpose | HTTP Status | Retryable |
 //! |------|------|------------|--------|
@@ -27,43 +25,47 @@
 //!
 //! ## Usage
 //!
-//! ```rust
-//! Error handling
+//! ```rust,ignore
+//! use litellm_rs::ProviderError;
+//!
+//! // 1. Direct construction
 //! let err = ProviderError::Authentication {
 //!     provider: "openai",
 //!     message: "Invalid API key".to_string()
 //! };
 //!
-//! // 2. Use factory methods
+//! // 2. Use factory methods (preferred)
 //! let err = ProviderError::authentication("openai", "Invalid API key");
 //! let err = ProviderError::rate_limit("anthropic", Some(60));
 //!
-//! // 3. Use in provider
-//! impl LLMProvider for MyProvider {
-//! Error handling
-//!     // ...
+//! // 3. Check error properties
+//! if err.is_retryable() {
+//!     if let Some(delay) = err.retry_delay() {
+//!         println!("Retry after {} seconds", delay);
+//!     }
 //! }
 //! ```
 //!
 //! ## Migration Guide
 //!
-//! Error handling
+//! For migrating from provider-specific error types:
 //!
-//! ```rust
+//! ```rust,ignore
 //! // Old code
-//! pub enum MyProviderError { ... }
+//! // pub enum MyProviderError { ... }
 //!
-//! Types
+//! // New code - use unified error type
+//! use litellm_rs::ProviderError;
 //! pub type MyProviderError = ProviderError;
 //! ```
 //!
 //! ## Design Advantages
 //!
-//! Error handling
-//! Error handling
-//! Error handling
-//! Error handling
-//! Types
+//! - **Unified Interface**: Single error type for all providers eliminates conversion overhead
+//! - **Rich Context**: Structured error information with provider-specific details
+//! - **Retry Logic**: Built-in retry determination and delay calculation
+//! - **HTTP Mapping**: Automatic HTTP status code mapping for web APIs
+//! - **Performance**: Zero-cost abstractions with compile-time optimization
 
 /// Unified provider error type - single error for all providers
 /// This eliminates the need for error type conversion and simplifies the architecture

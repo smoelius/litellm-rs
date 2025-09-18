@@ -1,88 +1,96 @@
-//! Error handling
+//! Error types and traits for unified error handling across providers
 //!
-//! Error handling
+//! This module provides a hierarchical error system with provider-agnostic interfaces.
 //!
-//! Error handling
+//! ## Architecture Overview
 //!
-//! Error handling
+//! The error system is organized into multiple layers:
 //!
 //! ## 1. Trait Layer (this file)
-//! Error handling
-//! Error handling
-//!   - is_retryable(): Whether retryable
-//!   - retry_delay(): Retry delay duration
+//! - `ProviderErrorTrait`: Common interface for all provider errors
+//! - Provides unified methods:
+//!   - is_retryable(): Whether the error can be retried
+//!   - retry_delay(): Recommended retry delay duration
 //!   - http_status(): HTTP status code mapping
 //!   - Factory methods: not_supported(), authentication_failed() etc
 //!
-//! Implementation
-//!   - Error handling
+//! ## 2. Unified Implementation Layer
+//! - `ProviderError`: Single concrete error type for all providers
+//! - Common variants:
 //!   - Authentication: Authentication failed
-//!   - RateLimit: Rate limit
-//!   - ModelNotFound: Model does not exist
-//!   - InvalidRequest: Invalid request
-//!   - Error handling
-//!   - Timeout: Timeout
-//!   - Error handling
-//!   - ServiceUnavailable: Service unavailable
-//!   - QuotaExceeded: Quota exceeded
-//!   - NotSupported: Feature not supported
-//!   - Error handling
+//!   - RateLimit: Rate limit exceeded with retry information
+//!   - ModelNotFound: Requested model does not exist
+//!   - InvalidRequest: Malformed or invalid request
+//!   - Network: Network connectivity issues
+//!   - Timeout: Request timeout exceeded
+//!   - ApiError: Provider-specific API errors
+//!   - ServiceUnavailable: Service temporarily unavailable
+//!   - QuotaExceeded: Usage quota exceeded
+//!   - NotSupported: Feature not supported by provider
+//!   - ContentFiltered: Content blocked by safety filters
 //!
 //! ## Usage
-//! ```rust
+//! ```rust,ignore
 //! // All providers use unified ProviderError
-//! use crate::core::providers::unified_provider::ProviderError;
+//! use litellm_rs::ProviderError;
 //!
-//! Error handling
+//! // Create errors using factory methods
 //! let err = ProviderError::authentication("openai", "Invalid API key");
 //! let err = ProviderError::rate_limit("anthropic", Some(60));
+//!
+//! // Check error properties
+//! if err.is_retryable() {
+//!     if let Some(delay) = err.retry_delay() {
+//!         println!("Retry after {} seconds", delay);
+//!     }
+//! }
 //! ```
 //!
 //! ## Design Principles
-//! Error handling
+//! 1. **Unified Interface**: Single error type eliminates conversion overhead
 //! 2. **Extensible**: Define interfaces through traits for future expansion
 //! 3. **Zero-cost abstraction**: Use static dispatch, no runtime overhead
-//! Types
+//! 4. **Rich Context**: Structured error information with provider-specific details
 
-/// Error
+/// Common trait for all provider error types
 ///
-/// Error
+/// Provides a unified interface for error handling across different AI providers.
 pub trait ProviderErrorTrait: std::error::Error + Send + Sync + 'static {
-    /// Error
+    /// Get the error type as a string identifier
     fn error_type(&self) -> &'static str;
 
-    /// Error
+    /// Check if this error can be retried
     fn is_retryable(&self) -> bool;
 
-    /// Get
+    /// Get the recommended retry delay in seconds
     fn retry_delay(&self) -> Option<u64>;
 
-    /// Get
+    /// Get the appropriate HTTP status code for this error
     fn http_status(&self) -> u16;
 
-    /// Create
+    /// Create a "feature not supported" error
     fn not_supported(feature: &str) -> Self;
 
-    /// Create
+    /// Create an authentication failure error
     fn authentication_failed(reason: &str) -> Self;
 
-    /// Create
+    /// Create a rate limit error with optional retry delay
     fn rate_limited(retry_after: Option<u64>) -> Self;
 
-    /// Create
+    /// Create a network error
     fn network_error(details: &str) -> Self;
 
-    /// Create
+    /// Create a parsing/serialization error
     fn parsing_error(details: &str) -> Self;
 
-    /// Create
+    /// Create a "feature not implemented" error
     fn not_implemented(feature: &str) -> Self;
 }
 
-/// Error
+/// Top-level error type for the LiteLLM gateway
 #[derive(Debug, thiserror::Error)]
 pub enum LiteLLMError {
-    /// Error
+    /// Provider-specific error
     #[error("Provider error ({provider}): {message}")]
     Provider {
         provider: String,
@@ -91,7 +99,7 @@ pub enum LiteLLMError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
-    /// Error
+    /// Request routing error
     #[error("Routing error: {0}")]
     Routing(RoutingError),
 
@@ -99,46 +107,46 @@ pub enum LiteLLMError {
     #[error("Configuration error: {0}")]
     Configuration(ConfigError),
 
-    /// Error
+    /// Authentication failure
     #[error("Authentication error: {0}")]
     Authentication(String),
 
-    /// Error
+    /// Authorization/permission denied
     #[error("Authorization error: {0}")]
     Authorization(String),
 
-    /// Error
+    /// Request validation error
     #[error("Validation error: {field}: {message}")]
     Validation { field: String, message: String },
 
-    /// Error
+    /// Rate limit exceeded
     #[error("Rate limit exceeded: {message}")]
     RateLimit {
         message: String,
         retry_after: Option<u64>,
     },
 
-    /// Error
+    /// Network connectivity error
     #[error("Network error: {0}")]
     Network(String),
 
-    /// Error
+    /// Operation timeout
     #[error("Operation timed out: {operation}")]
     Timeout { operation: String },
 
-    /// Error
+    /// Response parsing error
     #[error("Parsing error: {0}")]
     Parsing(String),
 
-    /// Error
+    /// JSON serialization error
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
 
-    /// Error
+    /// Cache operation error
     #[error("Cache error: {0}")]
     Cache(String),
 
-    /// Error
+    /// Internal system error
     #[error("Internal error: {0}")]
     Internal(String),
 
