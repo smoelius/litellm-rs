@@ -3,6 +3,7 @@
 //! This module provides Server-Sent Events (SSE) streaming support for real-time AI responses.
 
 use crate::core::models::openai::*;
+use crate::core::types::MessageRole;
 use crate::utils::error::{GatewayError, Result};
 use actix_web::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use actix_web::{HttpResponse, web};

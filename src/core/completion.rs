@@ -163,9 +163,13 @@ pub type Usage = crate::core::types::responses::Usage;
 /// Finish reason enumeration (re-export from core types)
 pub type FinishReason = crate::core::types::responses::FinishReason;
 
-/// Streaming response type (placeholder for now)
-pub type CompletionStream =
-    Box<dyn futures::Stream<Item = Result<String>> + Send + Unpin + 'static>;
+/// Streaming response type
+pub type CompletionStream = Box<
+    dyn futures::Stream<Item = Result<crate::core::streaming::ChatCompletionChunk>>
+        + Send
+        + Unpin
+        + 'static,
+>;
 
 /// LiteLLM Error type
 pub type LiteLLMError = GatewayError;

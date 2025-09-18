@@ -62,7 +62,7 @@ serde_yaml = "0.9"
 bincode = "1.3"
 
 # Database and storage
-sea-orm = { version = "1.1", features = ["sqlx-postgres", "sqlx-sqlite", "runtime-tokio-rustls", "macros", "with-chrono", "with-uuid", "with-json"] }
+sea-orm = { version = "1.1", features = ["macros", "with-chrono", "with-uuid", "with-json"], default-features = false }
 sea-orm-migration = "1.1"
 redis = { version = "0.27", features = ["tokio-comp", "cluster", "streams", "aio", "connection-manager"], optional = true }
 
@@ -96,7 +96,7 @@ tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 tracing-actix-web = "0.7"
 opentelemetry = { version = "0.21", optional = true }
 opentelemetry-jaeger = { version = "0.20", optional = true }
-prometheus = { version = "0.13", optional = true }
+prometheus = { version = "0.14", optional = true }
 
 # Middleware and utilities
 governor = "0.6"
@@ -161,8 +161,8 @@ opt-level = 0
 default = ["sqlite", "redis", "metrics", "tracing"]
 
 # Storage backends
-postgres = ["sea-orm/sqlx-postgres"]
-sqlite = ["sea-orm/sqlx-sqlite"]
+postgres = ["sea-orm/sqlx-postgres", "sea-orm/runtime-tokio-rustls"]
+sqlite = ["sea-orm/sqlx-sqlite", "sea-orm/runtime-tokio-rustls"]
 redis = ["dep:redis"]
 s3 = ["dep:object_store", "dep:aws-sdk-s3", "dep:aws-config"]
 

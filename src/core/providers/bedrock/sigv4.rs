@@ -186,7 +186,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Known HMAC-SHA256 result for key="key", message="message"
-        let expected = "6e9ef29b75fffc5b7abae527d58fdadb2fe42e7219011e917a9c6e0c3d5e4c3b";
+        let expected = "6e9ef29b75fffc5b7abae527d58fdadb2fe42e7219011976917343065f58ed4a";
         assert_eq!(hex::encode(result.unwrap()), expected);
     }
 

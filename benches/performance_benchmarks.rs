@@ -69,7 +69,10 @@ fn bench_cache_operations(c: &mut Criterion) {
                         system_fingerprint: None,
                     };
 
-                    rt.block_on(async { black_box(cache.put(key, response).await.unwrap()) })
+                    rt.block_on(async {
+                        cache.put(key, response).await.unwrap();
+                        black_box(())
+                    })
                 });
             },
         );

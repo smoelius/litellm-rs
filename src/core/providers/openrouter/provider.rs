@@ -476,7 +476,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_provider_creation() {
-        let config = OpenRouterConfig::new("test-key")
+        let config = OpenRouterConfig::new("test-key-1234567890")
             .with_site_url("https://example.com")
             .with_site_name("Test Site");
 
@@ -486,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_capabilities() {
-        let config = OpenRouterConfig::new("test-key");
+        let config = OpenRouterConfig::new("test-key-1234567890");
         let provider = OpenRouterProvider::new(config).unwrap();
 
         let caps = provider.capabilities();
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn test_models() {
-        let config = OpenRouterConfig::new("test-key");
+        let config = OpenRouterConfig::new("test-key-1234567890");
         let provider = OpenRouterProvider::new(config).unwrap();
 
         let models = provider.models();
@@ -512,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_request_transformation() {
-        let config = OpenRouterConfig::new("test-key");
+        let config = OpenRouterConfig::new("test-key-1234567890");
         let provider = OpenRouterProvider::new(config).unwrap();
 
         let request = ChatRequest {
@@ -528,7 +528,12 @@ mod tests {
 
         assert_eq!(transformed["model"], "openai/gpt-4");
         assert_eq!(transformed["max_tokens"], 100);
-        assert_eq!(transformed["temperature"], 0.7);
+        let temp_value = transformed["temperature"].as_f64().unwrap();
+        assert!(
+            (temp_value - 0.7).abs() < 1e-6,
+            "Expected 0.7, got {}",
+            temp_value
+        );
         assert_eq!(transformed["stream"], false);
     }
 }

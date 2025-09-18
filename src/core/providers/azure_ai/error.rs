@@ -93,17 +93,18 @@ fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
     }
 
     // Parse common rate limit messages from text
-    if response_body.contains("rate limit") || response_body.contains("quota") {
+    let body_lower = response_body.to_lowercase();
+    if body_lower.contains("rate limit") || body_lower.contains("quota") {
         // Azure AI typically recommends 60 seconds retry interval
         return Some(60);
     }
 
     // If it's a token limit, may need longer time
-    if response_body.contains("tokens per minute") || response_body.contains("TPM") {
+    if body_lower.contains("tokens per minute") || body_lower.contains("tpm") {
         return Some(60);
     }
 
-    if response_body.contains("requests per minute") || response_body.contains("RPM") {
+    if body_lower.contains("requests per minute") || body_lower.contains("rpm") {
         return Some(30);
     }
 

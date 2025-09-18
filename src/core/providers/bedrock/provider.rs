@@ -768,8 +768,8 @@ mod tests {
     #[test]
     fn test_embedding_model_detection() {
         let config = BedrockConfig {
-            aws_access_key_id: "test".to_string(),
-            aws_secret_access_key: "test".to_string(),
+            aws_access_key_id: "AKIAIOSFODNN7EXAMPLE".to_string(), // Valid AWS format for testing
+            aws_secret_access_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY".to_string(),
             aws_session_token: None,
             aws_region: "us-east-1".to_string(),
             timeout_seconds: 30,

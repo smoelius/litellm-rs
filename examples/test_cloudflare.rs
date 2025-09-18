@@ -27,7 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!(
                 "Make sure CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN environment variables are set"
             );
-            return Err(Box::new(e));
+            return Err(e.into());
         }
     };
 
@@ -178,7 +178,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cost
         ),
         Err(e) => println!("Cost calculation failed: {}", e),
-    }
+    };
 
     Ok(())
 }

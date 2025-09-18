@@ -425,7 +425,7 @@ mod tests {
         let config = GeminiConfig::new_google_ai("test-api-key-12345678901234567890");
         let provider = GeminiProvider::new(config).unwrap();
 
-        assert!(provider.supports_model("gemini-pro"));
+        assert!(provider.supports_model("gemini-1.0-pro"));
         assert!(provider.supports_model("gemini-1.5-flash"));
         assert!(!provider.supports_model("gpt-4"));
     }

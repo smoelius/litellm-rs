@@ -475,7 +475,8 @@ mod tests {
 
     #[test]
     fn test_model_support() {
-        let config = LlamaProviderConfig::default();
+        let mut config = LlamaProviderConfig::default();
+        config.api_key = "test-api-key-1234567890123456".to_string();
         let provider = LlamaProvider::new(config).unwrap();
 
         assert!(provider.is_model_supported("llama3.1-8b"));
@@ -485,7 +486,8 @@ mod tests {
 
     #[test]
     fn test_capabilities() {
-        let config = LlamaProviderConfig::default();
+        let mut config = LlamaProviderConfig::default();
+        config.api_key = "test-api-key-1234567890123456".to_string();
         let provider = LlamaProvider::new(config).unwrap();
         let capabilities = provider.get_capabilities();
 

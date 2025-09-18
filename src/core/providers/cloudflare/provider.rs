@@ -454,7 +454,12 @@ mod tests {
 
         let transformed = provider.transform_to_cloudflare_format(&request);
         assert!(transformed["messages"].is_array());
-        assert_eq!(transformed["temperature"], 0.7);
+        let temp_value = transformed["temperature"].as_f64().unwrap();
+        assert!(
+            (temp_value - 0.7).abs() < 1e-6,
+            "Expected 0.7, got {}",
+            temp_value
+        );
         assert_eq!(transformed["max_tokens"], 100);
     }
 }

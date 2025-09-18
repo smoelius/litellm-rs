@@ -40,6 +40,11 @@ pub use error::{ErrorCategory, ErrorContext, ErrorUtils};
 pub use logging::{LogEntry, LogLevel, Logger, LoggingUtils};
 pub use net::{ClientUtils, HttpClientConfig, RequestMetrics, RetryConfig};
 
+// Re-export string pool for performance benchmarks
+pub mod string_pool {
+    pub use crate::utils::perf::strings::{StringPool, intern_string};
+}
+
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 

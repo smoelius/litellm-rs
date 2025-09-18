@@ -88,6 +88,9 @@ pub use core::completion::{
     user_message,
 };
 
+// Export streaming types
+pub use core::streaming::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
+
 // Export unified type system
 pub use core::types::{MessageContent, MessageRole};
 

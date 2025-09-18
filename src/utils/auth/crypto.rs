@@ -300,6 +300,41 @@ mod tests {
     }
 
     #[test]
+    fn test_hmac_sha256_specific_case() {
+        // Test the specific case mentioned in the question
+        let key = "key";
+        let message = "message";
+
+        let signature = create_hmac_signature(key, message).unwrap();
+        println!(
+            "HMAC-SHA256 for key='{}', message='{}': {}",
+            key, message, signature
+        );
+
+        // Verify the signature is correctly calculated
+        assert!(verify_hmac_signature(key, message, &signature).unwrap());
+
+        // The correct HMAC-SHA256 for key="key" and message="message"
+        let expected = "6e9ef29b75fffc5b7abae527d58fdadb2fe42e7219011976917343065f58ed4a";
+        assert_eq!(signature, expected, "HMAC-SHA256 calculation mismatch");
+
+        // Also test against the incorrect value that was mentioned
+        let incorrect = "6e9ef29b75fffc5b7abae527d58fdadb2fe42e7219011e917a9c6e0c3d5e4c3b";
+        assert_ne!(signature, incorrect, "Should not match the incorrect hash");
+    }
+
+    #[test]
+    fn test_hmac_sha256_rfc4231_vectors() {
+        // Test Case 2 from RFC 4231
+        let key = "Jefe";
+        let data = "what do ya want for nothing?";
+        let expected = "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843";
+
+        let signature = create_hmac_signature(key, data).unwrap();
+        assert_eq!(signature, expected, "RFC 4231 Test Case 2 failed");
+    }
+
+    #[test]
     fn test_constant_time_eq() {
         assert!(constant_time_eq("hello", "hello"));
         assert!(!constant_time_eq("hello", "world"));

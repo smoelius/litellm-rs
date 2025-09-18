@@ -372,9 +372,12 @@ mod tests {
 
     #[test]
     fn test_google_ai_config() {
-        let config = GeminiConfig::new_google_ai("test-api-key");
+        let config = GeminiConfig::new_google_ai("test-api-key-1234567890123456");
         assert!(!config.use_vertex_ai);
-        assert_eq!(config.api_key, Some("test-api-key".to_string()));
+        assert_eq!(
+            config.api_key,
+            Some("test-api-key-1234567890123456".to_string())
+        );
         assert!(config.validate().is_ok());
     }
 
@@ -398,16 +401,16 @@ mod tests {
 
     #[test]
     fn test_endpoint_generation() {
-        let config = GeminiConfig::new_google_ai("test-key");
+        let config = GeminiConfig::new_google_ai("test-key-1234567890123456");
         let endpoint = config.get_endpoint("gemini-pro", "generateContent");
         assert!(endpoint.contains("generativelanguage.googleapis.com"));
         assert!(endpoint.contains("gemini-pro:generateContent"));
-        assert!(endpoint.contains("key=test-key"));
+        assert!(endpoint.contains("key=test-key-1234567890123456"));
     }
 
     #[test]
     fn test_builder_pattern() {
-        let config = GeminiConfigBuilder::google_ai("test-key")
+        let config = GeminiConfigBuilder::google_ai("test-key-1234567890123456")
             .with_timeout(300)
             .with_retries(5)
             .with_debug(true)

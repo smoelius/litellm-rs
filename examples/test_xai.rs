@@ -25,7 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Err(e) => {
             eprintln!("Failed to create xAI provider: {}", e);
             eprintln!("Make sure XAI_API_KEY environment variable is set");
-            return Err(Box::new(e));
+            return Err(e.into());
         }
     };
 
@@ -159,7 +159,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cost
         ),
         Err(e) => println!("Cost calculation failed: {}", e),
-    }
+    };
 
     match provider.calculate_cost("grok-2-mini", 1000, 500).await {
         Ok(cost) => println!(
@@ -167,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             cost
         ),
         Err(e) => println!("Cost calculation failed: {}", e),
-    }
+    };
 
     Ok(())
 }
