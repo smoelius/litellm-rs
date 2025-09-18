@@ -37,10 +37,10 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Run clippy
-      run: cargo clippy --all-targets --all-features -- -D warnings
+      run: cargo clippy --all-targets --features "postgres sqlite redis s3 metrics tracing websockets analytics" -- -D warnings
 
     - name: Check documentation
-      run: cargo doc --no-deps --all-features
+      run: cargo doc --no-deps --features "postgres sqlite redis s3 metrics tracing websockets analytics"
 
   # Security audit
   audit:
@@ -109,7 +109,7 @@ jobs:
         sudo apt-get install -y libpq-dev
 
     - name: Run tests
-      run: cargo test --all-features --verbose
+      run: cargo test --features "postgres sqlite redis s3 metrics tracing websockets analytics" --verbose
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gateway_test
         REDIS_URL: redis://localhost:6379
@@ -117,7 +117,7 @@ jobs:
         RUST_LOG: debug
 
     - name: Run integration tests
-      run: cargo test --test integration_tests --all-features
+      run: cargo test --test integration_tests --features "postgres sqlite redis s3 metrics tracing websockets analytics"
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gateway_test
         REDIS_URL: redis://localhost:6379
@@ -169,7 +169,7 @@ jobs:
         brew install postgresql openssl pkg-config
 
     - name: Build
-      run: cargo build --release --target ${{ matrix.target }} --all-features
+      run: cargo build --release --target ${{ matrix.target }} --features "postgres sqlite redis s3 metrics tracing websockets analytics"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v3
@@ -206,7 +206,7 @@ jobs:
         sudo apt-get install -y libpq-dev
 
     - name: Run benchmarks
-      run: cargo bench --all-features
+      run: cargo bench --features "postgres sqlite redis s3 metrics tracing websockets analytics"
 
     - name: Upload benchmark results
       uses: actions/upload-artifact@v3
@@ -269,7 +269,7 @@ jobs:
         sudo apt-get install -y libpq-dev
 
     - name: Generate code coverage
-      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+      run: cargo llvm-cov --features "postgres sqlite redis s3 metrics tracing websockets analytics" --workspace --lcov --output-path lcov.info
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gateway_test
         REDIS_URL: redis://localhost:6379
