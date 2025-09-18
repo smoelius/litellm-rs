@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] - 2024-12-18
+## [0.1.3] - 2025-09-18
 
 ### Fixed
 - **docs.rs Build**: Fixed documentation build failure on docs.rs by excluding `vector-db` feature
