@@ -36,9 +36,10 @@ pub trait MiddlewareNext<Req, Resp>: Send + Sync {
     async fn call(&self, request: Req) -> Result<Resp, Box<dyn std::error::Error + Send + Sync>>;
 }
 
-// Type alias for cleaner middleware type
-type BoxedMiddleware<Req, Resp> =
-    Box<dyn Middleware<Req, Resp, Error = Box<dyn std::error::Error + Send + Sync>>>;
+// Type aliases for cleaner types
+type BoxedError = Box<dyn std::error::Error + Send + Sync>;
+type BoxedMiddleware<Req, Resp> = Box<dyn Middleware<Req, Resp, Error = BoxedError>>;
+type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 /// Middleware chain/stack
 pub struct MiddlewareStack<Req, Resp> {
@@ -91,11 +92,7 @@ where
         request: Req,
         index: usize,
         final_handler: Box<dyn MiddlewareNext<Req, Resp>>,
-    ) -> Pin<
-        Box<
-            dyn Future<Output = Result<Resp, Box<dyn std::error::Error + Send + Sync>>> + Send + '_,
-        >,
-    > {
+    ) -> BoxedFuture<'_, Result<Resp, BoxedError>> {
         Box::pin(async move {
             if index >= self.middlewares.len() {
                 // Execute final handler

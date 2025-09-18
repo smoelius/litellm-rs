@@ -34,7 +34,11 @@ mod tests {
     #[test]
     fn test_version() {
         // VERSION is always non-empty as it's from env!("CARGO_PKG_VERSION")
-        assert!(VERSION.len() > 0);
+        // Clippy warns about const expressions, but we want to test this
+        #[allow(clippy::const_is_empty)]
+        {
+            assert!(!VERSION.is_empty());
+        }
         assert!(VERSION.contains('.'));
     }
 }

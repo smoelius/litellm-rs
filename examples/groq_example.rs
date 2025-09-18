@@ -1,8 +1,6 @@
 //! Example of using the Groq provider
 
 use litellm_rs::core::providers::groq::{GroqConfig, GroqProvider};
-use litellm_rs::core::traits::LLMProvider;
-use litellm_rs::core::types::requests::{ChatMessage, ChatRequest, MessageContent, MessageRole};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
