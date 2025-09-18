@@ -1,75 +1,96 @@
-# 🐳 Docker Deployment
+# LiteLLM-RS Docker Deployment
 
-## Quick Start
+Docker files for building and running LiteLLM-RS.
 
-### 1. Production Deployment
+## 🚀 Quick Start
+
 ```bash
-cd deployment/docker
-docker-compose up -d
+# Build the image
+./deployment/docker/build.sh
+
+# Run the container
+docker run -p 8000:8000 litellm-rs:latest
 ```
 
-### 2. Development Environment
+## 🛠️ Build Options
+
 ```bash
-cd deployment/docker
-docker-compose -f docker-compose.dev.yml up -d
+# Custom tag
+./deployment/docker/build.sh -t v1.0.0
+
+# Custom image name
+./deployment/docker/build.sh -n my-litellm
+
+# Using environment variables
+IMAGE_TAG=dev ./deployment/docker/build.sh
 ```
-
-## 📁 Files
-
-- **`Dockerfile`** - Multi-stage build for production
-- **`docker-compose.yml`** - Production stack (Gateway + PostgreSQL + Redis)
-- **`docker-compose.dev.yml`** - Development stack with debug tools
 
 ## 🔧 Configuration
 
 ### Environment Variables
-```bash
-# Copy and edit
-cp ../../config/gateway.yaml.example ../../config/gateway.yaml
-# Edit your API keys in config/gateway.yaml
-```
 
-### Custom Configuration
-```bash
-# Mount custom config
-docker run -v ./config:/app/config rust-litellm-gateway
-```
-
-## 🚀 Build & Run
-
-### Build Image
-```bash
-docker build -t rust-litellm-gateway -f Dockerfile ../..
-```
-
-### Run Container
 ```bash
 docker run -p 8000:8000 \
-  -v ./config:/app/config \
-  rust-litellm-gateway
+  -e OPENAI_API_KEY=sk-... \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -e DATABASE_URL=postgresql://... \
+  -e REDIS_URL=redis://... \
+  litellm-rs:latest
 ```
 
-## 📊 Monitoring
+### Volume Mounts
 
-Access services:
-- **Gateway**: http://localhost:8000
-- **Health Check**: http://localhost:8000/health
-- **Metrics**: http://localhost:9090/metrics (if enabled)
-
-## 🔍 Troubleshooting
-
-### View Logs
 ```bash
-docker-compose logs -f gateway
+# Mount configuration
+docker run -p 8000:8000 \
+  -v $(pwd)/config:/app/config \
+  litellm-rs:latest
+
+# Mount data directory
+docker run -p 8000:8000 \
+  -v litellm_data:/app/data \
+  litellm-rs:latest
 ```
 
-### Debug Container
-```bash
-docker exec -it gateway_container bash
+## 📁 Files
+
+- `Dockerfile` - Multi-stage build definition
+- `.dockerignore` - Build context exclusions
+- `build.sh` - Automated build script
+- `README.md` - This documentation
+
+## 🐳 Docker Compose Example
+
+```yaml
+version: '3.8'
+services:
+  litellm:
+    image: litellm-rs:latest
+    ports:
+      - "8000:8000"
+      - "9090:9090"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/litellm
+    volumes:
+      - ./config:/app/config
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_DB=litellm
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=pass
 ```
 
-### Reset Environment
+## 🔍 Health Check
+
 ```bash
-docker-compose down -v
-docker-compose up -d
+# Check container health
+curl http://localhost:8000/health
+
+# View metrics
+curl http://localhost:9090/metrics
 ```

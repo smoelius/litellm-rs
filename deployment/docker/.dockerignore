@@ -1,0 +1,52 @@
+# Build artifacts
+/target
+target/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Documentation build
+/doc
+/docs
+
+# Test outputs
+coverage/
+.coverage
+
+# Temporary files
+tmp/
+temp/
+
+# Docker files (avoid recursion)
+Dockerfile*
+.dockerignore
+
+# CI files (unless needed)
+.github/
+
+# Development tools
+.gitignore
+
+# Don't ignore .git (needed for build.rs)
+# .git/

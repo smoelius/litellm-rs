@@ -1,5 +1,5 @@
 # Multi-stage build for LiteLLM-RS
-FROM rust:1.87-slim as builder
+FROM rust:1.87-slim AS builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libpq-dev \
     ca-certificates \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
@@ -15,19 +16,23 @@ RUN useradd -m -u 1001 appuser
 # Set working directory
 WORKDIR /app
 
-# Copy dependency files
-COPY Cargo.toml Cargo.lock ./
+# Copy dependency files and build configuration
+COPY Cargo.toml Cargo.lock build.rs ./
 
-# Create dummy main.rs to cache dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+# Create dummy source files to cache dependencies
+RUN mkdir -p src/bin && \
+    echo "fn main() {}" > src/main.rs && \
+    echo "#![allow(dead_code)] pub fn dummy() {}" > src/lib.rs && \
+    echo "fn main() {}" > src/bin/google_gateway.rs
 
 # Build dependencies (this layer will be cached)
 RUN cargo build --release --features "postgres sqlite redis s3 metrics tracing websockets analytics"
-RUN rm src/main.rs
+RUN rm -rf src/*
 
-# Copy source code
+# Copy source code and necessary files
 COPY src ./src
 COPY config ./config
+COPY .git ./.git
 
 # Build the application
 RUN cargo build --release --features "postgres sqlite redis s3 metrics tracing websockets analytics"

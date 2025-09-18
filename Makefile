@@ -112,14 +112,24 @@ docs-build: ## Build documentation without opening
 # DOCKER
 # =============================================================================
 
-docker: ## Build Docker image
-	docker build -t litellm-rs:latest .
+docker: ## Build Docker image using optimized build script
+	@echo "🐳 Building Docker image..."
+	@./deployment/docker/build.sh
 
 docker-dev: ## Build development Docker image
-	docker build -t litellm-rs:dev --target builder .
+	@echo "🐳 Building development Docker image..."
+	@./deployment/docker/build.sh -t dev
 
 docker-run: ## Run Docker container
-	docker run -p 8000:8000 -v ./config:/app/config litellm-rs:latest
+	@echo "🐳 Running Docker container..."
+	docker run -p 8000:8000 -p 9090:9090 -v ./config:/app/config litellm-rs:latest
+
+docker-run-dev: ## Run development Docker container
+	@echo "🐳 Running development Docker container..."
+	docker run -p 8000:8000 -p 9090:9090 -v ./config:/app/config litellm-rs:dev
+
+docker-shell: ## Access Docker container shell
+	docker run -it --entrypoint /bin/bash litellm-rs:latest
 
 docker-compose: ## Start full stack with docker-compose
 	docker-compose up -d
@@ -133,6 +143,11 @@ docker-compose-down: ## Stop docker-compose stack
 docker-clean: ## Clean Docker images and containers
 	docker system prune -f
 	docker image prune -f
+
+docker-tag: ## Tag image for registry (usage: make docker-tag TAG=v1.0.0)
+	@if [ -z "$(TAG)" ]; then echo "❌ Please specify TAG: make docker-tag TAG=v1.0.0"; exit 1; fi
+	docker tag litellm-rs:latest litellm-rs:$(TAG)
+	@echo "✅ Tagged image as litellm-rs:$(TAG)"
 
 # =============================================================================
 # DATABASE
