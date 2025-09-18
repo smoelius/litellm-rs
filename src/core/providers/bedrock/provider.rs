@@ -13,17 +13,17 @@ use super::client::BedrockClient;
 use super::config::BedrockConfig;
 use super::error::{BedrockError, BedrockErrorMapper};
 use super::model_config::{BedrockModelFamily, get_model_config};
-use super::utils::{validate_region, CostCalculator};
+use super::utils::{CostCalculator, validate_region};
 use crate::core::traits::ProviderConfig as _;
 
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::provider::LLMProvider;
 use crate::core::types::{
+    ChatMessage, FinishReason, MessageContent, MessageRole,
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
     responses::{ChatChunk, ChatResponse, EmbeddingResponse},
-    ChatMessage, MessageContent, MessageRole, FinishReason,
 };
-use crate::core::providers::unified_provider::ProviderError;
 
 /// Static capabilities for Bedrock provider
 const BEDROCK_CAPABILITIES: &[ProviderCapability] = &[
@@ -44,9 +44,9 @@ impl BedrockProvider {
     /// Create a new Bedrock provider instance
     pub async fn new(config: BedrockConfig) -> Result<Self, BedrockError> {
         // Validate configuration
-        config.validate().map_err(|e|
-            ProviderError::configuration("bedrock", e)
-        )?;
+        config
+            .validate()
+            .map_err(|e| ProviderError::configuration("bedrock", e))?;
 
         // Validate AWS region
         validate_region(&config.aws_region)?;
@@ -63,7 +63,10 @@ impl BedrockProvider {
                 if let Ok(model_config) = get_model_config(model_id) {
                     models.push(ModelInfo {
                         id: model_id.to_string(),
-                        name: format!("{} (Bedrock)", model_id.split('.').next_back().unwrap_or(model_id)),
+                        name: format!(
+                            "{} (Bedrock)",
+                            model_id.split('.').next_back().unwrap_or(model_id)
+                        ),
                         provider: "bedrock".to_string(),
                         max_context_length: model_config.max_context_length,
                         max_output_length: model_config.max_output_length,
@@ -82,10 +85,7 @@ impl BedrockProvider {
             }
         }
 
-        Ok(Self {
-            client,
-            models,
-        })
+        Ok(Self { client, models })
     }
 
     /// Generate images using Bedrock image models
@@ -130,7 +130,8 @@ impl BedrockProvider {
                 Some(MessageContent::Text(text)) => text.clone(),
                 Some(MessageContent::Parts(parts)) => {
                     // Extract text from parts
-                    parts.iter()
+                    parts
+                        .iter()
                         .filter_map(|part| {
                             if let crate::core::types::requests::ContentPart::Text { text } = part {
                                 Some(text.clone())
@@ -203,9 +204,7 @@ impl LLMProvider for BedrockProvider {
             match key.as_str() {
                 // Map OpenAI parameters to Bedrock format
                 "max_tokens" => mapped.insert("max_tokens_to_sample".to_string(), value),
-                "temperature" | "top_p" | "stream" | "stop" => {
-                    mapped.insert(key, value)
-                },
+                "temperature" | "top_p" | "stream" | "stop" => mapped.insert(key, value),
                 // Skip unsupported parameters
                 _ => None,
             };
@@ -233,11 +232,13 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 if let Some(top_p) = request.top_p {
-                    body["top_p"] = Value::Number(serde_json::Number::from_f64(top_p.into()).unwrap());
+                    body["top_p"] =
+                        Value::Number(serde_json::Number::from_f64(top_p.into()).unwrap());
                 }
 
                 Ok(body)
@@ -253,11 +254,13 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["textGenerationConfig"]["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["textGenerationConfig"]["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 if let Some(top_p) = request.top_p {
-                    body["textGenerationConfig"]["topP"] = Value::Number(serde_json::Number::from_f64(top_p.into()).unwrap());
+                    body["textGenerationConfig"]["topP"] =
+                        Value::Number(serde_json::Number::from_f64(top_p.into()).unwrap());
                 }
 
                 Ok(body)
@@ -270,7 +273,8 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
@@ -283,7 +287,8 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
@@ -297,7 +302,8 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
@@ -311,7 +317,8 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
@@ -325,7 +332,8 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
@@ -339,16 +347,22 @@ impl LLMProvider for BedrockProvider {
                 });
 
                 if let Some(temp) = request.temperature {
-                    body["temperature"] = Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
+                    body["temperature"] =
+                        Value::Number(serde_json::Number::from_f64(temp.into()).unwrap());
                 }
 
                 Ok(body)
             }
-            BedrockModelFamily::TitanEmbedding | BedrockModelFamily::TitanImage | BedrockModelFamily::StabilityAI => {
+            BedrockModelFamily::TitanEmbedding
+            | BedrockModelFamily::TitanImage
+            | BedrockModelFamily::StabilityAI => {
                 // These are not chat models
                 Err(ProviderError::invalid_request(
                     "bedrock",
-                    format!("Model family {:?} is not supported for chat completion", model_config.family),
+                    format!(
+                        "Model family {:?} is not supported for chat completion",
+                        model_config.family
+                    ),
                 ))
             }
         }
@@ -371,7 +385,8 @@ impl LLMProvider for BedrockProvider {
         let choices = match model_config.family {
             BedrockModelFamily::Claude => {
                 // Claude response format
-                let content = response.get("content")
+                let content = response
+                    .get("content")
                     .and_then(|c| c.as_array())
                     .and_then(|arr| arr.first())
                     .and_then(|item| item.get("text"))
@@ -395,7 +410,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::TitanText => {
                 // Titan response format
-                let content = response.get("results")
+                let content = response
+                    .get("results")
                     .and_then(|r| r.as_array())
                     .and_then(|arr| arr.first())
                     .and_then(|item| item.get("outputText"))
@@ -419,7 +435,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::Nova | BedrockModelFamily::Llama => {
                 // Nova and Llama use similar format to Claude
-                let content = response.get("content")
+                let content = response
+                    .get("content")
                     .and_then(|c| c.as_array())
                     .and_then(|arr| arr.first())
                     .and_then(|item| item.get("text"))
@@ -443,7 +460,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::Mistral => {
                 // Mistral response format
-                let content = response.get("outputs")
+                let content = response
+                    .get("outputs")
                     .and_then(|o| o.as_array())
                     .and_then(|arr| arr.first())
                     .and_then(|item| item.get("text"))
@@ -467,7 +485,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::AI21 => {
                 // AI21 response format
-                let content = response.get("completions")
+                let content = response
+                    .get("completions")
                     .and_then(|c| c.as_array())
                     .and_then(|arr| arr.first())
                     .and_then(|item| item.get("data"))
@@ -492,7 +511,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::Cohere => {
                 // Cohere response format
-                let content = response.get("text")
+                let content = response
+                    .get("text")
                     .and_then(|text| text.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -513,7 +533,8 @@ impl LLMProvider for BedrockProvider {
             }
             BedrockModelFamily::DeepSeek => {
                 // DeepSeek response format
-                let content = response.get("completion")
+                let content = response
+                    .get("completion")
                     .and_then(|text| text.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -536,7 +557,10 @@ impl LLMProvider for BedrockProvider {
                 // Unsupported model family
                 return Err(ProviderError::invalid_request(
                     "bedrock",
-                    format!("Model family {:?} is not supported for response parsing", model_config.family),
+                    format!(
+                        "Model family {:?} is not supported for response parsing",
+                        model_config.family
+                    ),
                 ));
             }
         };
@@ -545,8 +569,10 @@ impl LLMProvider for BedrockProvider {
         let usage = match model_config.family {
             BedrockModelFamily::Claude | BedrockModelFamily::Nova | BedrockModelFamily::Llama => {
                 response.get("usage").map(|u| Usage {
-                    prompt_tokens: u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32,
-                    completion_tokens: u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0) as u32,
+                    prompt_tokens: u.get("input_tokens").and_then(|t| t.as_u64()).unwrap_or(0)
+                        as u32,
+                    completion_tokens: u.get("output_tokens").and_then(|t| t.as_u64()).unwrap_or(0)
+                        as u32,
                     total_tokens: 0, // Will be calculated below
                     prompt_tokens_details: None,
                     completion_tokens_details: None,
@@ -610,14 +636,16 @@ impl LLMProvider for BedrockProvider {
         let response_bytes = serde_json::to_vec(&response_value)
             .map_err(|e| ProviderError::serialization("bedrock", e.to_string()))?;
 
-        self.transform_response(&response_bytes, &request.model, "bedrock-request").await
+        self.transform_response(&response_bytes, &request.model, "bedrock-request")
+            .await
     }
 
     async fn chat_completion_stream(
         &self,
         request: ChatRequest,
         context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         debug!("Bedrock streaming chat request: model={}", request.model);
 
         // Check if it's an embedding model
@@ -634,7 +662,7 @@ impl LLMProvider for BedrockProvider {
         if !model_config.supports_streaming {
             return Err(ProviderError::not_supported(
                 "bedrock",
-                format!("Model {} does not support streaming", request.model)
+                format!("Model {} does not support streaming", request.model),
             ));
         }
 
@@ -648,13 +676,19 @@ impl LLMProvider for BedrockProvider {
             _ => {
                 return Err(ProviderError::not_supported(
                     "bedrock",
-                    format!("Model {} does not support streaming with API type {:?}", request.model, model_config.api_type)
+                    format!(
+                        "Model {} does not support streaming with API type {:?}",
+                        request.model, model_config.api_type
+                    ),
                 ));
             }
         };
 
         // Send streaming request
-        let response = self.client.send_streaming_request(&request.model, operation, &body).await?;
+        let response = self
+            .client
+            .send_streaming_request(&request.model, operation, &body)
+            .await?;
 
         // Create BedrockStream
         let stream = super::streaming::BedrockStream::new(
@@ -724,7 +758,11 @@ mod tests {
 
         let provider = provider.unwrap();
         assert_eq!(provider.name(), "bedrock");
-        assert!(provider.capabilities().contains(&ProviderCapability::ChatCompletion));
+        assert!(
+            provider
+                .capabilities()
+                .contains(&ProviderCapability::ChatCompletion)
+        );
     }
 
     #[test]

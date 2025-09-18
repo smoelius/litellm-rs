@@ -84,7 +84,7 @@ impl PricingDatabase {
             if key == "sample_spec" || key.starts_with("_") || key.contains("example") {
                 continue;
             }
-            
+
             // Try to parse value as ModelPricing
             match serde_json::from_value::<ModelPricing>(value) {
                 Ok(pricing) => {

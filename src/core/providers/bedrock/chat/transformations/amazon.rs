@@ -1,9 +1,9 @@
 //! Amazon Titan and Nova Model Transformations
 
-use serde_json::{json, Value};
+use crate::core::providers::bedrock::model_config::ModelConfig;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::ModelConfig;
+use serde_json::{Value, json};
 
 /// Transform request for Amazon Titan models
 pub fn transform_titan_request(
@@ -43,7 +43,7 @@ pub fn transform_nova_request(
     let mut messages = Vec::new();
     let mut system = None;
 
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
     for msg in &request.messages {
         match msg.role {
@@ -52,18 +52,19 @@ pub fn transform_nova_request(
                 if let Some(content) = &msg.content {
                     system = Some(match content {
                         MessageContent::Text(text) => text.clone(),
-                        MessageContent::Parts(parts) => {
-                            parts.iter()
-                                .filter_map(|part| {
-                                    if let crate::core::types::requests::ContentPart::Text { text } = part {
-                                        Some(text.clone())
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .collect::<Vec<_>>()
-                                .join(" ")
-                        }
+                        MessageContent::Parts(parts) => parts
+                            .iter()
+                            .filter_map(|part| {
+                                if let crate::core::types::requests::ContentPart::Text { text } =
+                                    part
+                                {
+                                    Some(text.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(" "),
                     });
                 }
             }

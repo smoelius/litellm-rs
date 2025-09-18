@@ -12,12 +12,18 @@ pub struct AzureErrorMapper;
 impl ErrorMapper<ProviderError> for AzureErrorMapper {
     fn map_http_error(&self, status_code: u16, response_body: &str) -> ProviderError {
         match status_code {
-            400 => ProviderError::invalid_request("azure", format!("Bad request: {}", response_body)),
+            400 => {
+                ProviderError::invalid_request("azure", format!("Bad request: {}", response_body))
+            }
             401 => ProviderError::authentication("azure", "Invalid Azure API key or credentials"),
             403 => ProviderError::authentication("azure", "Forbidden: insufficient permissions"),
             404 => azure_deployment_error("Azure deployment not found"),
             429 => ProviderError::rate_limit("azure", Some(60)),
-            500..=599 => ProviderError::api_error("azure", status_code, format!("Server error: {}", response_body)),
+            500..=599 => ProviderError::api_error(
+                "azure",
+                status_code,
+                format!("Server error: {}", response_body),
+            ),
             _ => ProviderError::api_error("azure", status_code, response_body),
         }
     }
@@ -71,14 +77,15 @@ pub fn extract_azure_error_message(response: &serde_json::Value) -> String {
         // Try Azure-specific error format
         if let Some(code) = error.get("code") {
             if let Some(code_str) = code.as_str() {
-                let message = error.get("message")
+                let message = error
+                    .get("message")
                     .and_then(|m| m.as_str())
                     .unwrap_or("Unknown error");
                 return format!("{}: {}", code_str, message);
             }
         }
     }
-    
+
     // Fallback to generic message
     response.to_string()
 }

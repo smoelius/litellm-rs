@@ -5,7 +5,7 @@ use futures::Stream;
 use reqwest::Client;
 use std::pin::Pin;
 use std::time::Duration;
-use tracing::{warn, error, debug};
+use tracing::{debug, error, warn};
 
 use crate::core::traits::{ErrorMapper, ProviderConfig, provider::LLMProvider};
 use crate::core::types::{
@@ -107,9 +107,7 @@ impl OpenRouterProvider {
     /// Create
     pub async fn new(config: OpenRouterConfig) -> Result<Self, OpenRouterError> {
         // Configuration
-        config
-            .validate()
-            .map_err(OpenRouterError::Configuration)?;
+        config.validate().map_err(OpenRouterError::Configuration)?;
 
         // Get
         let api_key = if config.api_key.is_empty() {

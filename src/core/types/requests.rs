@@ -99,7 +99,6 @@ pub struct ChatRequest {
     pub extra_params: HashMap<String, serde_json::Value>,
 }
 
-
 /// Chat message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
@@ -196,7 +195,7 @@ impl std::fmt::Display for MessageContent {
                     .filter_map(|part| match part {
                         ContentPart::Text { text } => Some(text.clone()),
                         ContentPart::ImageUrl { .. } => None,
-                        ContentPart::Audio { .. } => None, 
+                        ContentPart::Audio { .. } => None,
                         ContentPart::Image { .. } => None,
                         ContentPart::Document { .. } => None,
                         ContentPart::ToolResult { .. } => None,
@@ -237,7 +236,7 @@ pub enum ContentPart {
         #[serde(skip_serializing_if = "Option::is_none")]
         image_url: Option<ImageUrl>,
     },
-    
+
     /// Document content (PDF etc)
     #[serde(rename = "document")]
     Document {
@@ -247,7 +246,7 @@ pub enum ContentPart {
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
-    
+
     /// Tool result
     #[serde(rename = "tool_result")]
     ToolResult {
@@ -259,7 +258,7 @@ pub enum ContentPart {
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
     },
-    
+
     /// Tool usage
     #[serde(rename = "tool_use")]
     ToolUse {
@@ -802,27 +801,27 @@ pub struct AnthropicRequestParams {
     /// System message
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
-    
+
     /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
-    
+
     /// Top K sampling
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<u32>,
-    
+
     /// Metadata
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<AnthropicMetadata>,
-    
+
     /// Configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thinking: Option<ThinkingConfig>,
-    
+
     /// Configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computer_use: Option<ComputerToolConfig>,
-    
+
     /// MCP server list
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers: Option<Vec<McpServerConfig>>,
@@ -847,7 +846,7 @@ pub struct AnthropicMetadata {
 pub struct AnthropicChatRequest {
     #[serde(flatten)]
     pub base: ChatRequest,
-    
+
     #[serde(flatten)]
     pub anthropic_params: AnthropicRequestParams,
 }

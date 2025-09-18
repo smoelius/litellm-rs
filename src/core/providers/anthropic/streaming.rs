@@ -56,7 +56,7 @@ impl SSEParser {
 
         if line.starts_with("data:") {
             let data = line.strip_prefix("data:").unwrap_or("").trim();
-            
+
             if data == "[DONE]" {
                 return None;
             }
@@ -68,7 +68,7 @@ impl SSEParser {
             // Try to parse JSON
             if let Ok(json) = serde_json::from_str::<Value>(data) {
                 let event_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
-                
+
                 match event_type {
                     "message_start" => Some(SSEEvent::MessageStart(json)),
                     "content_block_start" => Some(SSEEvent::ContentBlockStart(json)),
@@ -143,10 +143,10 @@ impl AnthropicStream {
 
     /// Process SSE event
     fn process_event(
-        event: SSEEvent, 
-        model: &str, 
-        message_id: &mut String, 
-        created_time: i64
+        event: SSEEvent,
+        model: &str,
+        message_id: &mut String,
+        created_time: i64,
     ) -> Result<Option<ChatChunk>, ProviderError> {
         match event {
             SSEEvent::MessageStart(data) => {
@@ -179,7 +179,8 @@ impl AnthropicStream {
             }
 
             SSEEvent::ContentBlockDelta(data) => {
-                let content = data.get("delta")
+                let content = data
+                    .get("delta")
                     .and_then(|d| d.get("text"))
                     .and_then(|t| t.as_str())
                     .unwrap_or("");
@@ -208,17 +209,19 @@ impl AnthropicStream {
             SSEEvent::MessageDelta(data) => {
                 // Extract usage information and stop_reason
                 let usage = data.get("usage").map(|u| Usage {
-                    prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                    completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                    total_tokens: (
-                        u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) + 
-                        u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                    ) as u32,
+                    prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                        as u32,
+                    completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                        as u32,
+                    total_tokens: (u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
+                        + u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0))
+                        as u32,
                     completion_tokens_details: None,
                     prompt_tokens_details: None,
                 });
 
-                let finish_reason = data.get("delta")
+                let finish_reason = data
+                    .get("delta")
                     .and_then(|d| d.get("stop_reason"))
                     .and_then(|r| r.as_str())
                     .map(|reason| match reason {
@@ -262,18 +265,18 @@ impl AnthropicStream {
                 }))
             }
 
-            SSEEvent::ContentBlockStart(_) |
-            SSEEvent::ContentBlockStop(_) => {
+            SSEEvent::ContentBlockStart(_) | SSEEvent::ContentBlockStop(_) => {
                 // These events don't need to generate chunks
                 Ok(None)
             }
 
             SSEEvent::Error(error_data) => {
-                let error_message = error_data.get("error")
+                let error_message = error_data
+                    .get("error")
                     .and_then(|e| e.get("message"))
                     .and_then(|m| m.as_str())
                     .unwrap_or("Unknown streaming error");
-                
+
                 Err(anthropic_stream_error(error_message))
             }
 
@@ -302,7 +305,7 @@ pub struct StreamUtils;
 impl StreamUtils {
     /// Collect stream to response
     pub async fn collect_stream_to_response(
-        mut stream: AnthropicStream
+        mut stream: AnthropicStream,
     ) -> Result<crate::core::types::ChatResponse, ProviderError> {
         let mut content_parts = Vec::new();
         let mut final_usage = None;
@@ -336,9 +339,9 @@ impl StreamUtils {
         let final_content = content_parts.join("");
         let message = crate::core::types::ChatMessage {
             role: MessageRole::Assistant,
-            content: if final_content.is_empty() { 
-                None 
-            } else { 
+            content: if final_content.is_empty() {
+                None
+            } else {
                 Some(crate::core::types::MessageContent::Text(final_content))
             },
             name: None,
@@ -386,11 +389,15 @@ mod tests {
     #[test]
     fn test_sse_parser() {
         // Test text data parsing
-        let result = SSEParser::parse_event("data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\"}}");
+        let result = SSEParser::parse_event(
+            "data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\"}}",
+        );
         assert!(matches!(result, Some(SSEEvent::MessageStart(_))));
 
         // Test content delta
-        let result = SSEParser::parse_event("data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hello\"}}");
+        let result = SSEParser::parse_event(
+            "data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hello\"}}",
+        );
         assert!(matches!(result, Some(SSEEvent::ContentBlockDelta(_))));
 
         // Test completion marker
@@ -412,13 +419,17 @@ mod tests {
         }));
 
         let mut message_id = "msg_123".to_string();
-        let result = AnthropicStream::process_event(event, "claude-3-5-sonnet", &mut message_id, 1234567890);
-        
+        let result =
+            AnthropicStream::process_event(event, "claude-3-5-sonnet", &mut message_id, 1234567890);
+
         assert!(result.is_ok());
         let chunk_opt = result.unwrap();
         assert!(chunk_opt.is_some());
-        
+
         let chunk = chunk_opt.unwrap();
-        assert_eq!(chunk.choices[0].delta.content, Some("Hello world".to_string()));
+        assert_eq!(
+            chunk.choices[0].delta.content,
+            Some("Hello world".to_string())
+        );
     }
 }

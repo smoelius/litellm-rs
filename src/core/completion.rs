@@ -206,8 +206,10 @@ impl DefaultRouter {
             return None;
         }
 
-        let actual_model = original_model.strip_prefix(prefix).unwrap_or(original_model);
-        
+        let actual_model = original_model
+            .strip_prefix(prefix)
+            .unwrap_or(original_model);
+
         debug!(
             provider = provider_name,
             model = %actual_model,
@@ -221,7 +223,7 @@ impl DefaultRouter {
                 return Some((provider, updated_request));
             }
         }
-        
+
         None
     }
 
@@ -283,7 +285,7 @@ impl DefaultRouter {
 
         // Add Anthropic provider if API key is available
         if let Ok(api_key) = std::env::var("ANTHROPIC_API_KEY") {
-            use crate::core::providers::anthropic::{AnthropicProvider, AnthropicConfig};
+            use crate::core::providers::anthropic::{AnthropicConfig, AnthropicProvider};
 
             let config = AnthropicConfig::new(api_key)
                 .with_base_url("https://api.anthropic.com")
@@ -375,7 +377,8 @@ impl DefaultRouter {
                 .unwrap_or_else(|| "https://api.deepseek.com".to_string());
             ("deepseek", actual_model, api_base)
         } else if model.starts_with("azure_ai/") || model.starts_with("azure-ai/") {
-            let actual_model = model.strip_prefix("azure_ai/")
+            let actual_model = model
+                .strip_prefix("azure_ai/")
                 .or_else(|| model.strip_prefix("azure-ai/"))
                 .unwrap_or(model);
             let api_base = options
@@ -528,7 +531,7 @@ impl DefaultRouter {
         chat_request: &ChatRequest,
         context: RequestContext,
     ) -> Result<CompletionResponse> {
-        use crate::core::providers::anthropic::{AnthropicProvider, AnthropicConfig};
+        use crate::core::providers::anthropic::{AnthropicConfig, AnthropicProvider};
         use crate::core::traits::LLMProvider;
 
         let config = AnthropicConfig::new(api_key)
@@ -615,7 +618,7 @@ impl DefaultRouter {
         let mut config = AzureAIConfig::new("azure_ai");
         config.base.api_key = Some(api_key.to_string());
         config.base.api_base = Some(api_base.to_string());
-        
+
         // Also check environment variables
         if config.base.api_key.is_none() {
             if let Ok(key) = std::env::var("AZURE_AI_API_KEY") {
@@ -629,10 +632,7 @@ impl DefaultRouter {
         }
 
         let provider = AzureAIProvider::new(config).map_err(|e| {
-            GatewayError::internal(format!(
-                "Failed to create dynamic Azure AI provider: {}",
-                e
-            ))
+            GatewayError::internal(format!("Failed to create dynamic Azure AI provider: {}", e))
         })?;
 
         let mut updated_request = chat_request.clone();
@@ -771,11 +771,29 @@ impl Router for DefaultRouter {
         let providers = self.provider_registry.all();
 
         // Check if model explicitly specifies a provider - using helper function
-        let mut selected_provider = Self::select_provider_by_name(&providers, "openrouter", model, "openrouter/", &chat_request)
-            .or_else(|| Self::select_provider_by_name(&providers, "deepseek", model, "deepseek/", &chat_request))
-            .or_else(|| Self::select_provider_by_name(&providers, "anthropic", model, "anthropic/", &chat_request))
-            .or_else(|| Self::select_provider_by_name(&providers, "azure_ai", model, "azure_ai/", &chat_request));
-        
+        let mut selected_provider = Self::select_provider_by_name(
+            &providers,
+            "openrouter",
+            model,
+            "openrouter/",
+            &chat_request,
+        )
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "deepseek", model, "deepseek/", &chat_request)
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(
+                &providers,
+                "anthropic",
+                model,
+                "anthropic/",
+                &chat_request,
+            )
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "azure_ai", model, "azure_ai/", &chat_request)
+        });
+
         // Handle special cases that don't follow the standard pattern
         if selected_provider.is_none() {
             if model.starts_with("openai/") || model.starts_with("azure/") {

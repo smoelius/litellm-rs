@@ -206,8 +206,7 @@ impl OptimizedConfigManager {
                                 Err(e) => {
                                     error!(
                                         "Failed to reload config {}: {}",
-                                        file_path_for_spawn,
-                                        e
+                                        file_path_for_spawn, e
                                     );
                                 }
                             }

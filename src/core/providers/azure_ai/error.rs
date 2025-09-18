@@ -54,7 +54,7 @@ impl ErrorMapper<ProviderError> for AzureAIErrorMapper {
 
     fn map_network_error(&self, error: &dyn std::error::Error) -> ProviderError {
         let error_str = error.to_string();
-        
+
         if error_str.contains("timeout") || error_str.contains("timed out") {
             ProviderError::timeout("azure_ai", &error_str)
         } else if error_str.contains("connection") {
@@ -83,7 +83,7 @@ fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
                 }
             }
         }
-        
+
         // Or directly in the top-level object
         if let Some(retry_after) = json.get("retry_after") {
             if let Some(seconds) = retry_after.as_u64() {
@@ -91,22 +91,22 @@ fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
             }
         }
     }
-    
+
     // Parse common rate limit messages from text
     if response_body.contains("rate limit") || response_body.contains("quota") {
         // Azure AI typically recommends 60 seconds retry interval
         return Some(60);
     }
-    
+
     // If it's a token limit, may need longer time
     if response_body.contains("tokens per minute") || response_body.contains("TPM") {
         return Some(60);
     }
-    
+
     if response_body.contains("requests per minute") || response_body.contains("RPM") {
         return Some(30);
     }
-    
+
     None
 }
 
@@ -119,9 +119,11 @@ pub fn is_unsupported_feature_error(response_body: &str) -> bool {
         "unsupported model",
         "unsupported parameter",
     ];
-    
+
     let body_lower = response_body.to_lowercase();
-    unsupported_indicators.iter().any(|&indicator| body_lower.contains(indicator))
+    unsupported_indicators
+        .iter()
+        .any(|&indicator| body_lower.contains(indicator))
 }
 
 /// Error
@@ -132,9 +134,11 @@ pub fn is_content_filter_error(response_body: &str) -> bool {
         "harmful content",
         "inappropriate content",
     ];
-    
+
     let body_lower = response_body.to_lowercase();
-    content_filter_indicators.iter().any(|&indicator| body_lower.contains(indicator))
+    content_filter_indicators
+        .iter()
+        .any(|&indicator| body_lower.contains(indicator))
 }
 
 /// Response
@@ -148,7 +152,7 @@ pub fn extract_error_message(response_body: &str) -> String {
             vec!["detail"],
             vec!["error_description"],
         ];
-        
+
         for path in &possible_paths {
             let mut current = &json;
             for &key in path {
@@ -158,16 +162,16 @@ pub fn extract_error_message(response_body: &str) -> String {
                     break;
                 }
             }
-            
+
             if let Some(message) = current.as_str() {
                 return message.to_string();
             }
         }
-        
+
         // If no standard message found, return the entire JSON as string
         return json.to_string();
     }
-    
+
     // Response
     response_body.to_string()
 }
@@ -175,34 +179,34 @@ pub fn extract_error_message(response_body: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_retry_after_parsing() {
         let json_response = r#"{"error": {"retry_after": 60, "message": "Rate limit exceeded"}}"#;
         let retry_after = parse_retry_after_from_body(json_response);
         assert_eq!(retry_after, Some(60));
     }
-    
+
     #[test]
     fn test_rate_limit_detection() {
         let response = "Rate limit exceeded. Please try again later.";
         let retry_after = parse_retry_after_from_body(response);
         assert_eq!(retry_after, Some(60));
     }
-    
+
     #[test]
     fn test_error_message_extraction() {
         let json_response = r#"{"error": {"message": "Invalid request format"}}"#;
         let message = extract_error_message(json_response);
         assert_eq!(message, "Invalid request format");
     }
-    
+
     #[test]
     fn test_content_filter_detection() {
         let response = "Content filtered due to harmful content detection";
         assert!(is_content_filter_error(response));
     }
-    
+
     #[test]
     fn test_unsupported_feature_detection() {
         let response = "This feature is not supported for the selected model";

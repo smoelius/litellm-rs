@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{
-    GlobalPoolManager, HttpMethod,
-};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{LLMProvider, ProviderConfig};
 use crate::core::types::{
@@ -59,7 +57,10 @@ impl OpenRouterProvider {
             .validate()
             .map_err(|e| ProviderError::configuration("openrouter", e))?;
 
-        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e| ProviderError::configuration("openrouter", e.to_string()))?);
+        let pool_manager = Arc::new(
+            GlobalPoolManager::new()
+                .map_err(|e| ProviderError::configuration("openrouter", e.to_string()))?,
+        );
         let model_registry = get_openrouter_registry();
 
         Ok(Self {
@@ -142,13 +143,16 @@ impl OpenRouterProvider {
                 )
             })?
             .clone();
-        
+
         // Check for error response
         if let Some(error) = response.get("error") {
             let error_obj = error.as_object().ok_or_else(|| {
-                ProviderError::response_parsing("openrouter", "Error field is not an object".to_string())
+                ProviderError::response_parsing(
+                    "openrouter",
+                    "Error field is not an object".to_string(),
+                )
             })?;
-            
+
             // Try to get detailed error from metadata.raw first, like Python LiteLLM
             let detailed_message = if let Some(metadata) = error_obj.get("metadata") {
                 if let Some(raw) = metadata.get("raw").and_then(|v| v.as_str()) {
@@ -157,41 +161,74 @@ impl OpenRouterProvider {
                         if let Some(error_inner) = raw_error.get("error") {
                             if let Some(msg) = error_inner.get("message").and_then(|v| v.as_str()) {
                                 // Include provider name for context
-                                if let Some(provider_name) = metadata.get("provider_name").and_then(|v| v.as_str()) {
+                                if let Some(provider_name) =
+                                    metadata.get("provider_name").and_then(|v| v.as_str())
+                                {
                                     format!("{}: {}", provider_name, msg)
                                 } else {
                                     msg.to_string()
                                 }
                             } else {
-                                error_obj.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string()
+                                error_obj
+                                    .get("message")
+                                    .and_then(|v| v.as_str())
+                                    .unwrap_or("Unknown error")
+                                    .to_string()
                             }
                         } else {
-                            error_obj.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string()
+                            error_obj
+                                .get("message")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("Unknown error")
+                                .to_string()
                         }
                     } else {
-                        error_obj.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string()
+                        error_obj
+                            .get("message")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("Unknown error")
+                            .to_string()
                     }
                 } else {
-                    error_obj.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string()
+                    error_obj
+                        .get("message")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown error")
+                        .to_string()
                 }
             } else {
-                error_obj.get("message").and_then(|v| v.as_str()).unwrap_or("Unknown error").to_string()
+                error_obj
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("Unknown error")
+                    .to_string()
             };
-            
-            let code = error_obj.get("code")
+
+            let code = error_obj
+                .get("code")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(500);
-            
+
             // Check for specific error types
-            if code == 404 || detailed_message.contains("Model not found") || detailed_message.contains("No endpoints found") {
+            if code == 404
+                || detailed_message.contains("Model not found")
+                || detailed_message.contains("No endpoints found")
+            {
                 return Err(ProviderError::model_not_found("openrouter", model));
             } else if code == 401 {
-                return Err(ProviderError::authentication("openrouter", &detailed_message));
+                return Err(ProviderError::authentication(
+                    "openrouter",
+                    &detailed_message,
+                ));
             } else if code == 429 {
                 return Err(ProviderError::rate_limit("openrouter", None));
             } else {
                 // For all other errors (including 403), return as API error with proper detailed message
-                return Err(ProviderError::api_error("openrouter", code as u16, detailed_message));
+                return Err(ProviderError::api_error(
+                    "openrouter",
+                    code as u16,
+                    detailed_message,
+                ));
             }
         }
 
@@ -357,7 +394,7 @@ impl LLMProvider for OpenRouterProvider {
     ) -> Result<ChatResponse, Self::Error> {
         // Like Python LiteLLM, we don't validate models locally
         // OpenRouter API will handle invalid models
-        
+
         // Transform request
         let body = self
             .transform_request(request.clone(), context.clone())
@@ -391,7 +428,7 @@ impl LLMProvider for OpenRouterProvider {
     {
         // Like Python LiteLLM, we don't validate models locally
         // OpenRouter API will handle model capabilities
-        
+
         // Force streaming
         let mut streaming_request = request;
         streaming_request.stream = true;

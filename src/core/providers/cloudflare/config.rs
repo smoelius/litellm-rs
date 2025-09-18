@@ -1,7 +1,7 @@
 //! Cloudflare Workers AI Configuration
 
-use serde::{Deserialize, Serialize};
 use crate::core::traits::ProviderConfig;
+use serde::{Deserialize, Serialize};
 
 /// Cloudflare Workers AI provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,20 +78,23 @@ impl ProviderConfig for CloudflareConfig {
 impl CloudflareConfig {
     /// Get the API base URL
     pub fn get_api_base(&self) -> String {
-        self.api_base.clone()
+        self.api_base
+            .clone()
             .or_else(|| std::env::var("CLOUDFLARE_API_BASE").ok())
             .unwrap_or_else(|| "https://api.cloudflare.com/client/v4".to_string())
     }
 
     /// Get the account ID
     pub fn get_account_id(&self) -> Option<String> {
-        self.account_id.clone()
+        self.account_id
+            .clone()
             .or_else(|| std::env::var("CLOUDFLARE_ACCOUNT_ID").ok())
     }
 
     /// Get the API token
     pub fn get_api_token(&self) -> Option<String> {
-        self.api_token.clone()
+        self.api_token
+            .clone()
             .or_else(|| std::env::var("CLOUDFLARE_API_TOKEN").ok())
     }
 }

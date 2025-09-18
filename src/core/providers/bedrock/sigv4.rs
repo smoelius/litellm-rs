@@ -3,10 +3,10 @@
 //! Implementation of AWS Signature Version 4 signing process
 //! for authenticating requests to AWS Bedrock services.
 
+use chrono::{DateTime, Utc};
 use hmac::{Hmac, Mac};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 
 type HmacSha256 = Hmac<Sha256>;
 
@@ -47,11 +47,9 @@ impl SigV4Signer {
         timestamp: DateTime<Utc>,
     ) -> Result<HashMap<String, String>, String> {
         // Parse URL
-        let parsed_url = url::Url::parse(url)
-            .map_err(|e| format!("Invalid URL: {}", e))?;
+        let parsed_url = url::Url::parse(url).map_err(|e| format!("Invalid URL: {}", e))?;
 
-        let host = parsed_url.host_str()
-            .ok_or("Missing host in URL")?;
+        let host = parsed_url.host_str().ok_or("Missing host in URL")?;
 
         let path = parsed_url.path();
         let query = parsed_url.query().unwrap_or("");
@@ -101,15 +99,15 @@ impl SigV4Signer {
 
         // Create string to sign
         let algorithm = "AWS4-HMAC-SHA256";
-        let credential_scope = format!("{}/{}/{}/aws4_request", date_stamp, self.region, self.service);
+        let credential_scope = format!(
+            "{}/{}/{}/aws4_request",
+            date_stamp, self.region, self.service
+        );
         let canonical_request_hash = hex::encode(Sha256::digest(canonical_request.as_bytes()));
 
         let string_to_sign = format!(
             "{}\n{}\n{}\n{}",
-            algorithm,
-            amz_date,
-            credential_scope,
-            canonical_request_hash
+            algorithm, amz_date, credential_scope, canonical_request_hash
         );
 
         // Calculate signature
@@ -118,11 +116,7 @@ impl SigV4Signer {
         // Create authorization header
         let authorization = format!(
             "{} Credential={}/{}, SignedHeaders={}, Signature={}",
-            algorithm,
-            self.access_key,
-            credential_scope,
-            signed_headers,
-            signature
+            algorithm, self.access_key, credential_scope, signed_headers, signature
         );
 
         // Build final headers
@@ -133,7 +127,11 @@ impl SigV4Signer {
     }
 
     /// Calculate AWS SigV4 signature
-    fn calculate_signature(&self, string_to_sign: &str, date_stamp: &str) -> Result<String, String> {
+    fn calculate_signature(
+        &self,
+        string_to_sign: &str,
+        date_stamp: &str,
+    ) -> Result<String, String> {
         let k_date = self.hmac_sha256(
             format!("AWS4{}", self.secret_key).as_bytes(),
             date_stamp.as_bytes(),
@@ -149,8 +147,8 @@ impl SigV4Signer {
 
     /// HMAC-SHA256 helper function
     fn hmac_sha256(&self, key: &[u8], data: &[u8]) -> Result<Vec<u8>, String> {
-        let mut mac = HmacSha256::new_from_slice(key)
-            .map_err(|e| format!("HMAC key error: {}", e))?;
+        let mut mac =
+            HmacSha256::new_from_slice(key).map_err(|e| format!("HMAC key error: {}", e))?;
         mac.update(data);
         Ok(mac.finalize().into_bytes().to_vec())
     }

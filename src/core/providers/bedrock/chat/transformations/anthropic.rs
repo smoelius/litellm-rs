@@ -1,9 +1,9 @@
 //! Anthropic Claude Model Transformations
 
-use serde_json::{json, Value};
+use crate::core::providers::bedrock::model_config::ModelConfig;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::ModelConfig;
+use serde_json::{Value, json};
 
 /// Transform request for Anthropic Claude models
 pub fn transform_request(
@@ -38,24 +38,25 @@ pub fn transform_request(
 
 /// Extract system message from chat messages
 fn extract_system_message(request: &ChatRequest) -> Option<String> {
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
-    request.messages.iter()
+    request
+        .messages
+        .iter()
         .find(|msg| msg.role == MessageRole::System)
         .and_then(|msg| msg.content.as_ref())
         .map(|content| match content {
             MessageContent::Text(text) => text.clone(),
-            MessageContent::Parts(parts) => {
-                parts.iter()
-                    .filter_map(|part| {
-                        if let crate::core::types::requests::ContentPart::Text { text } = part {
-                            Some(text.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            MessageContent::Parts(parts) => parts
+                .iter()
+                .filter_map(|part| {
+                    if let crate::core::types::requests::ContentPart::Text { text } = part {
+                        Some(text.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
         })
 }

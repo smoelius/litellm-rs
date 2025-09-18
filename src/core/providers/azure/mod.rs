@@ -7,8 +7,8 @@ pub mod batches;
 pub mod chat;
 pub mod client;
 pub mod config;
-pub mod error;
 pub mod embed;
+pub mod error;
 pub mod image;
 pub mod responses;
 pub mod utils;
@@ -16,7 +16,10 @@ pub mod utils;
 // Re-export core utilities
 pub use client::{AzureClient, AzureConfigFactory, AzureRateLimitInfo};
 pub use config::{AzureConfig, AzureModelInfo};
-pub use error::{AzureError, AzureErrorMapper, azure_config_error, azure_header_error, azure_api_error, azure_ad_error, azure_deployment_error};
+pub use error::{
+    AzureError, AzureErrorMapper, azure_ad_error, azure_api_error, azure_config_error,
+    azure_deployment_error, azure_header_error,
+};
 pub use utils::{AzureEndpointType, AzureUtils};
 
 // Use the new unified cost calculation system
@@ -96,15 +99,18 @@ impl AzureOpenAIProvider {
     pub fn get_cost_calculator(&self) -> &AzureCostCalculator {
         &self.cost_calculator
     }
-    
+
     /// Create from environment variables
     pub fn from_env() -> Result<Self, AzureError> {
         let config = AzureConfig::new();
         Self::new(config)
     }
-    
+
     /// Create with API key
-    pub fn with_api_key(api_key: impl Into<String>, endpoint: impl Into<String>) -> Result<Self, AzureError> {
+    pub fn with_api_key(
+        api_key: impl Into<String>,
+        endpoint: impl Into<String>,
+    ) -> Result<Self, AzureError> {
         let config = AzureConfig::new()
             .with_api_key(api_key.into())
             .with_azure_endpoint(endpoint.into());
@@ -211,15 +217,20 @@ impl LLMProvider for AzureOpenAIProvider {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse, Self::Error> {
-        self.chat_handler.create_chat_completion(request, context).await
+        self.chat_handler
+            .create_chat_completion(request, context)
+            .await
     }
 
     async fn chat_completion_stream(
         &self,
         request: ChatRequest,
         context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
-        self.chat_handler.create_chat_completion_stream(request, context).await
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
+        self.chat_handler
+            .create_chat_completion_stream(request, context)
+            .await
     }
 
     async fn embeddings(
@@ -227,7 +238,9 @@ impl LLMProvider for AzureOpenAIProvider {
         request: EmbeddingRequest,
         context: RequestContext,
     ) -> Result<EmbeddingResponse, Self::Error> {
-        self.embedding_handler.create_embeddings(request, context).await
+        self.embedding_handler
+            .create_embeddings(request, context)
+            .await
     }
 
     async fn image_generation(

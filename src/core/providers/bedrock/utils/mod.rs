@@ -10,8 +10,4 @@ pub mod region;
 // Re-export main types and functions
 pub use auth::{AwsAuth, AwsCredentials};
 pub use cost::{CostCalculator, ModelPricing};
-pub use region::{
-    validate_region,
-    is_model_available_in_region,
-    AWS_REGIONS
-};
+pub use region::{AWS_REGIONS, is_model_available_in_region, validate_region};

@@ -287,8 +287,9 @@ impl MoonshotChatTransformation {
         &self,
         message_value: Option<&Value>,
     ) -> Result<ChatMessage, MoonshotError> {
-        let message_obj = message_value
-            .ok_or_else(|| ProviderError::response_parsing("moonshot", "Missing message in choice"))?;
+        let message_obj = message_value.ok_or_else(|| {
+            ProviderError::response_parsing("moonshot", "Missing message in choice")
+        })?;
 
         let role = message_obj
             .get("role")

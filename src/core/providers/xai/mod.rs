@@ -6,11 +6,11 @@
 // Core modules
 mod config;
 mod error;
-mod provider;
 mod model_info;
+mod provider;
 
 // Re-export main types for external use
 pub use config::XAIConfig;
 pub use error::{XAIError, XAIErrorMapper};
-pub use provider::XAIProvider;
 pub use model_info::{XAIModel, get_model_info};
+pub use provider::XAIProvider;

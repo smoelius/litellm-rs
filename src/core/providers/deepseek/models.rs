@@ -37,8 +37,7 @@ pub struct ModelSpec {
 }
 
 /// Configuration
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ModelConfig {
     /// Request
     pub requires_special_formatting: bool,
@@ -47,7 +46,6 @@ pub struct ModelConfig {
     /// Custom parameter mapping
     pub custom_params: HashMap<String, String>,
 }
-
 
 /// Model
 pub struct DeepSeekModelRegistry {

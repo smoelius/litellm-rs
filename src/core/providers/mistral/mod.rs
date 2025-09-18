@@ -13,16 +13,16 @@ use tracing::debug;
 
 // Use base infrastructure instead of common_utils
 use crate::core::providers::base_provider::{
-    BaseHttpClient, BaseProviderConfig, HeaderBuilder, OpenAIRequestTransformer,
-    UrlBuilder, HttpErrorMapper, CostCalculator
+    BaseHttpClient, BaseProviderConfig, CostCalculator, HeaderBuilder, HttpErrorMapper,
+    OpenAIRequestTransformer, UrlBuilder,
 };
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{ErrorMapper, ProviderConfig, provider::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
     responses::{ChatChunk, ChatResponse, EmbeddingResponse},
 };
-use crate::core::providers::unified_provider::ProviderError;
 
 // Re-export submodules (these remain as-is for now)
 pub mod chat;
@@ -115,7 +115,10 @@ impl ErrorMapper<MistralError> for MistralErrorMapper {
     }
 
     fn map_timeout_error(&self, timeout_duration: std::time::Duration) -> MistralError {
-        ProviderError::timeout("mistral", format!("Request timed out after {:?}", timeout_duration))
+        ProviderError::timeout(
+            "mistral",
+            format!("Request timed out after {:?}", timeout_duration),
+        )
     }
 }
 
@@ -131,9 +134,9 @@ impl MistralProvider {
     /// Create a new Mistral provider instance
     pub async fn new(config: MistralConfig) -> Result<Self, MistralError> {
         // Validate configuration
-        config.validate().map_err(|e|
-            ProviderError::configuration("mistral", e)
-        )?;
+        config
+            .validate()
+            .map_err(|e| ProviderError::configuration("mistral", e))?;
 
         // Create base HTTP client using our infrastructure
         let base_config = BaseProviderConfig {
@@ -250,7 +253,6 @@ impl MistralProvider {
     }
 }
 
-
 #[async_trait]
 impl LLMProvider for MistralProvider {
     type Config = MistralConfig;
@@ -296,10 +298,8 @@ impl LLMProvider for MistralProvider {
                 // Mistral uses 'random_seed' instead of 'seed'
                 "seed" => mapped.insert("random_seed".to_string(), value),
                 // Direct pass-through for standard parameters
-                "temperature" | "top_p" | "max_tokens" | "stream" |
-                "stop" | "tools" | "tool_choice" | "response_format" => {
-                    mapped.insert(key, value)
-                },
+                "temperature" | "top_p" | "max_tokens" | "stream" | "stop" | "tools"
+                | "tool_choice" | "response_format" => mapped.insert(key, value),
                 // Skip unsupported parameters
                 _ => None,
             };
@@ -370,7 +370,9 @@ impl LLMProvider for MistralProvider {
             .build_reqwest()
             .map_err(|e| ProviderError::invalid_request("mistral", e.to_string()))?;
 
-        let response = self.base_client.inner()
+        let response = self
+            .base_client
+            .inner()
             .post(&url)
             .headers(headers)
             .json(&body)
@@ -384,7 +386,9 @@ impl LLMProvider for MistralProvider {
             return Err(ProviderError::api_error("mistral", status, body));
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("mistral", e.to_string()))
     }
 
@@ -392,7 +396,8 @@ impl LLMProvider for MistralProvider {
         &self,
         request: ChatRequest,
         context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         debug!("Mistral streaming chat request: model={}", request.model);
 
         // Transform request
@@ -410,7 +415,9 @@ impl LLMProvider for MistralProvider {
             .build_reqwest()
             .map_err(|e| ProviderError::invalid_request("mistral", e.to_string()))?;
 
-        let response = self.base_client.inner()
+        let response = self
+            .base_client
+            .inner()
             .post(&url)
             .headers(headers)
             .json(&body)
@@ -425,7 +432,7 @@ impl LLMProvider for MistralProvider {
         }
 
         // Parse SSE stream using shared infrastructure
-        use crate::core::providers::base::sse::{UnifiedSSEParser, OpenAICompatibleTransformer};
+        use crate::core::providers::base::sse::{OpenAICompatibleTransformer, UnifiedSSEParser};
         use futures::StreamExt;
 
         let transformer = OpenAICompatibleTransformer::new("mistral");
@@ -436,22 +443,18 @@ impl LLMProvider for MistralProvider {
         let stream = byte_stream
             .scan((parser, Vec::new()), |(parser, buffer), bytes_result| {
                 futures::future::ready(match bytes_result {
-                    Ok(bytes) => {
-                        match parser.process_bytes(&bytes) {
-                            Ok(chunks) => {
-                                *buffer = chunks;
-                                Some(Ok(buffer.clone()))
-                            }
-                            Err(e) => Some(Err(e)),
+                    Ok(bytes) => match parser.process_bytes(&bytes) {
+                        Ok(chunks) => {
+                            *buffer = chunks;
+                            Some(Ok(buffer.clone()))
                         }
-                    }
+                        Err(e) => Some(Err(e)),
+                    },
                     Err(e) => Some(Err(ProviderError::network("mistral", e.to_string()))),
                 })
             })
             .map(|result| match result {
-                Ok(chunks) => {
-                    chunks.into_iter().map(Ok).collect::<Vec<_>>()
-                }
+                Ok(chunks) => chunks.into_iter().map(Ok).collect::<Vec<_>>(),
                 Err(e) => vec![Err(e)],
             })
             .flat_map(futures::stream::iter);
@@ -483,7 +486,9 @@ impl LLMProvider for MistralProvider {
             .build_reqwest()
             .map_err(|e| ProviderError::invalid_request("mistral", e.to_string()))?;
 
-        let response = self.base_client.inner()
+        let response = self
+            .base_client
+            .inner()
             .post(&url)
             .headers(headers)
             .json(&body)
@@ -497,7 +502,9 @@ impl LLMProvider for MistralProvider {
             return Err(ProviderError::api_error("mistral", status, body));
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("mistral", e.to_string()))
     }
 
@@ -513,7 +520,9 @@ impl LLMProvider for MistralProvider {
 
         match headers {
             Ok(headers) => {
-                match self.base_client.inner()
+                match self
+                    .base_client
+                    .inner()
                     .get(&url)
                     .headers(headers)
                     .send()
@@ -541,7 +550,9 @@ impl LLMProvider for MistralProvider {
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
         // Find model pricing
-        let model_info = self.models.iter()
+        let model_info = self
+            .models
+            .iter()
             .find(|m| m.id == model)
             .ok_or_else(|| ProviderError::model_not_found("mistral", model.to_string()))?;
 
@@ -573,7 +584,11 @@ mod tests {
 
         let provider = provider.unwrap();
         assert_eq!(LLMProvider::name(&provider), "mistral");
-        assert!(provider.capabilities().contains(&ProviderCapability::ChatCompletionStream));
+        assert!(
+            provider
+                .capabilities()
+                .contains(&ProviderCapability::ChatCompletionStream)
+        );
     }
 
     #[test]

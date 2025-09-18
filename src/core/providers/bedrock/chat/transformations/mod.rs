@@ -2,17 +2,17 @@
 //!
 //! Handles transformation of OpenAI-style requests to provider-specific formats
 
-pub mod anthropic;
+pub mod ai21;
 pub mod amazon;
+pub mod anthropic;
+pub mod cohere;
 pub mod meta;
 pub mod mistral;
-pub mod cohere;
-pub mod ai21;
 
-use serde_json::Value;
+use crate::core::providers::bedrock::model_config::{BedrockModelFamily, ModelConfig};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::{BedrockModelFamily, ModelConfig};
+use serde_json::Value;
 
 /// Transform request based on model family
 pub fn transform_for_model(
@@ -33,14 +33,17 @@ pub fn transform_for_model(
         }
         _ => Err(ProviderError::not_supported(
             "bedrock",
-            format!("Model family {:?} not supported for chat", model_config.family),
+            format!(
+                "Model family {:?} not supported for chat",
+                model_config.family
+            ),
         )),
     }
 }
 
 /// Common utility to convert messages to prompt format
 pub fn messages_to_prompt(messages: &[crate::core::types::ChatMessage]) -> String {
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
     let mut prompt = String::new();
 
@@ -49,7 +52,8 @@ pub fn messages_to_prompt(messages: &[crate::core::types::ChatMessage]) -> Strin
             Some(MessageContent::Text(text)) => text.clone(),
             Some(MessageContent::Parts(parts)) => {
                 // Extract text from parts
-                parts.iter()
+                parts
+                    .iter()
                     .filter_map(|part| {
                         if let crate::core::types::requests::ContentPart::Text { text } = part {
                             Some(text.clone())

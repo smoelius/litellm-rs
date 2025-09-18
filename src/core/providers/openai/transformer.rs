@@ -141,7 +141,7 @@ impl OpenAIRequestTransformer {
                 message: "Document content not supported by OpenAI".to_string(),
             }),
             ContentPart::ToolResult { .. } => Err(OpenAIError::InvalidRequest {
-                provider: "openai", 
+                provider: "openai",
                 message: "ToolResult should be handled separately".to_string(),
             }),
             ContentPart::ToolUse { .. } => Err(OpenAIError::InvalidRequest {

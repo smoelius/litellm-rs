@@ -3,7 +3,6 @@
 //! These macros help reduce boilerplate code when implementing providers,
 //! following Rust's principle of zero-cost abstractions.
 
-
 /// Macro to implement common provider methods
 #[macro_export]
 macro_rules! impl_provider_basics {

@@ -20,8 +20,8 @@ use crate::core::types::{
 
 use super::client::GeminiClient;
 use super::config::GeminiConfig;
-use super::error::{GeminiError, GeminiErrorMapper, gemini_validation_error, gemini_model_error};
-use super::models::{get_gemini_registry, ModelFeature};
+use super::error::{GeminiError, GeminiErrorMapper, gemini_model_error, gemini_validation_error};
+use super::models::{ModelFeature, get_gemini_registry};
 use super::streaming::GeminiStream;
 
 /// Gemini Provider - Unified implementation
@@ -37,7 +37,8 @@ impl GeminiProvider {
     /// Create
     pub fn new(config: GeminiConfig) -> Result<Self, ProviderError> {
         // Configuration
-        config.validate()
+        config
+            .validate()
             .map_err(|e| ProviderError::configuration("gemini", e))?;
 
         // Create
@@ -48,7 +49,8 @@ impl GeminiProvider {
 
         // Get
         let registry = get_gemini_registry();
-        let supported_models = registry.list_models()
+        let supported_models = registry
+            .list_models()
             .into_iter()
             .map(|spec| spec.model_info.clone())
             .collect();
@@ -64,9 +66,10 @@ impl GeminiProvider {
     /// Request
     fn validate_request(&self, request: &ChatRequest) -> Result<(), ProviderError> {
         let registry = get_gemini_registry();
-        
+
         // Check
-        let model_spec = registry.get_model_spec(&request.model)
+        let model_spec = registry
+            .get_model_spec(&request.model)
             .ok_or_else(|| gemini_model_error(format!("Unsupported model: {}", request.model)))?;
 
         // Check
@@ -79,8 +82,7 @@ impl GeminiProvider {
             if max_tokens > model_spec.limits.max_output_tokens {
                 return Err(gemini_validation_error(format!(
                     "max_tokens ({}) exceeds model limit ({})",
-                    max_tokens,
-                    model_spec.limits.max_output_tokens
+                    max_tokens, model_spec.limits.max_output_tokens
                 )));
             }
         }
@@ -89,7 +91,7 @@ impl GeminiProvider {
         if let Some(temperature) = request.temperature {
             if !(0.0..=2.0).contains(&temperature) {
                 return Err(gemini_validation_error(
-                    "temperature must be between 0.0 and 2.0"
+                    "temperature must be between 0.0 and 2.0",
                 ));
             }
         }
@@ -97,9 +99,7 @@ impl GeminiProvider {
         // Check
         if let Some(top_p) = request.top_p {
             if !(0.0..=1.0).contains(&top_p) {
-                return Err(gemini_validation_error(
-                    "top_p must be between 0.0 and 1.0"
-                ));
+                return Err(gemini_validation_error("top_p must be between 0.0 and 1.0"));
             }
         }
 
@@ -115,7 +115,12 @@ impl GeminiProvider {
     }
 
     /// Get
-    pub fn calculate_cost(&self, model: &str, input_tokens: u32, output_tokens: u32) -> Option<f64> {
+    pub fn calculate_cost(
+        &self,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> Option<f64> {
         super::models::CostCalculator::calculate_cost(model, input_tokens, output_tokens)
     }
 }
@@ -170,7 +175,7 @@ impl LLMProvider for GeminiProvider {
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
         &[
             "temperature",
-            "max_tokens", 
+            "max_tokens",
             "top_p",
             "stop",
             "stream",
@@ -233,8 +238,9 @@ impl LLMProvider for GeminiProvider {
         _request_id: &str,
     ) -> Result<ChatResponse, Self::Error> {
         let response_text = String::from_utf8_lossy(raw_response);
-        let response_json: Value = serde_json::from_str(&response_text)
-            .map_err(|e| ProviderError::serialization("gemini", format!("Failed to parse response: {}", e)))?;
+        let response_json: Value = serde_json::from_str(&response_text).map_err(|e| {
+            ProviderError::serialization("gemini", format!("Failed to parse response: {}", e))
+        })?;
 
         // Error
         if response_json.get("error").is_some() {
@@ -268,7 +274,8 @@ impl LLMProvider for GeminiProvider {
             extra_params: std::collections::HashMap::new(),
         };
 
-        self.client.transform_chat_response(response_json, &dummy_request)
+        self.client
+            .transform_chat_response(response_json, &dummy_request)
     }
 
     fn get_error_mapper(&self) -> Self::ErrorMapper {
@@ -291,16 +298,17 @@ impl LLMProvider for GeminiProvider {
         &self,
         request: ChatRequest,
         _context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         // Request
         self.validate_request(&request)?;
 
         // Request
         let response = self.client.chat_stream(request.clone()).await?;
-        
+
         // Create stream
         let stream = GeminiStream::from_response(response, request.model);
-        
+
         Ok(Box::pin(stream))
     }
 
@@ -371,18 +379,17 @@ impl LLMProvider for GeminiProvider {
             },
         }
     }
-    
+
     async fn calculate_cost(
         &self,
         model: &str,
         input_tokens: u32,
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
-        Ok(super::models::CostCalculator::calculate_cost(
-            model,
-            input_tokens,
-            output_tokens
-        ).unwrap_or(0.0))
+        Ok(
+            super::models::CostCalculator::calculate_cost(model, input_tokens, output_tokens)
+                .unwrap_or(0.0),
+        )
     }
 }
 
@@ -404,7 +411,7 @@ mod tests {
     fn test_provider_capabilities() {
         let config = GeminiConfig::new_google_ai("test-api-key-12345678901234567890");
         let provider = GeminiProvider::new(config).unwrap();
-        
+
         assert_eq!(provider.name(), "gemini");
         assert!(provider.supports_streaming());
         assert!(provider.supports_tools());
@@ -417,7 +424,7 @@ mod tests {
     fn test_model_support() {
         let config = GeminiConfig::new_google_ai("test-api-key-12345678901234567890");
         let provider = GeminiProvider::new(config).unwrap();
-        
+
         assert!(provider.supports_model("gemini-pro"));
         assert!(provider.supports_model("gemini-1.5-flash"));
         assert!(!provider.supports_model("gpt-4"));
@@ -462,7 +469,9 @@ mod tests {
             model: "gemini-pro".to_string(),
             messages: vec![crate::core::types::requests::ChatMessage {
                 role: crate::core::types::requests::MessageRole::User,
-                content: Some(crate::core::types::requests::MessageContent::Text("Hello".to_string())),
+                content: Some(crate::core::types::requests::MessageContent::Text(
+                    "Hello".to_string(),
+                )),
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,

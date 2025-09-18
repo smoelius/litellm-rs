@@ -2,8 +2,8 @@
 //!
 //! Provides content filtering, PII detection, and policy enforcement
 
-use serde::{Deserialize, Serialize};
 use crate::core::providers::unified_provider::ProviderError;
+use serde::{Deserialize, Serialize};
 
 /// Guardrail configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,11 +199,18 @@ impl<'a> GuardrailClient<'a> {
             source,
         };
 
-        let url = format!("guardrail/{}/version/{}/apply", guardrail_id, guardrail_version);
-        let response = self.client.send_request("", &url, &serde_json::to_value(request)?)
+        let url = format!(
+            "guardrail/{}/version/{}/apply",
+            guardrail_id, guardrail_version
+        );
+        let response = self
+            .client
+            .send_request("", &url, &serde_json::to_value(request)?)
             .await?;
 
-        let guardrail_response: GuardrailResponse = response.json().await
+        let guardrail_response: GuardrailResponse = response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
         Ok(guardrail_response)
@@ -217,7 +224,9 @@ impl<'a> GuardrailClient<'a> {
         content: &str,
         source: GuardrailSource,
     ) -> Result<bool, ProviderError> {
-        let response = self.apply(guardrail_id, guardrail_version, content, source).await?;
+        let response = self
+            .apply(guardrail_id, guardrail_version, content, source)
+            .await?;
         Ok(matches!(response.action, GuardrailAction::None))
     }
 }

@@ -8,13 +8,15 @@
 //! 2. Model deployments configured (e.g., gpt-4, gpt-3.5-turbo)
 //! 3. API key and endpoint URL
 
-use litellm_rs::{completion, CompletionOptions};
-use litellm_rs::{system_message, user_message, assistant_message};
+use litellm_rs::{CompletionOptions, completion};
+use litellm_rs::{assistant_message, system_message, user_message};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("🔷 Azure AI Completion Example\n");
-    println!("Azure AI provides enterprise-grade OpenAI models with additional security and compliance\n");
+    println!(
+        "Azure AI provides enterprise-grade OpenAI models with additional security and compliance\n"
+    );
 
     // Check environment variables
     if std::env::var("AZURE_AI_API_KEY").is_err() || std::env::var("AZURE_AI_API_BASE").is_err() {
@@ -28,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Simple conversation
     println!("📤 Testing GPT-4o on Azure AI...\n");
-    
+
     let messages = vec![
         system_message("You are a helpful AI assistant running on Azure infrastructure."),
         user_message("Hello! What makes Azure AI special compared to direct OpenAI API?"),
@@ -40,10 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("✅ GPT-4o Response: {:?}\n", content);
             }
             if let Some(usage) = response.usage {
-                println!("📊 Tokens - Input: {}, Output: {}, Total: {}\n", 
-                    usage.prompt_tokens, 
-                    usage.completion_tokens, 
-                    usage.total_tokens);
+                println!(
+                    "📊 Tokens - Input: {}, Output: {}, Total: {}\n",
+                    usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
+                );
             }
         }
         Err(e) => println!("❌ Error: {}\n", e),
@@ -51,7 +53,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Testing with parameters
     println!("📤 Testing with custom parameters (temperature, max_tokens)...\n");
-    
+
     let params = CompletionOptions {
         temperature: Some(0.7),
         max_tokens: Some(150),
@@ -75,11 +77,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Multi-turn conversation
     println!("📤 Testing multi-turn conversation...\n");
-    
+
     let conversation = vec![
         system_message("You are an Azure expert. Be concise but informative."),
         user_message("What is Azure AI Foundry?"),
-        assistant_message("Azure AI Foundry is Microsoft's comprehensive platform for building, deploying, and managing AI applications. It provides unified access to various AI models, tools for MLOps, and enterprise-grade security features."),
+        assistant_message(
+            "Azure AI Foundry is Microsoft's comprehensive platform for building, deploying, and managing AI applications. It provides unified access to various AI models, tools for MLOps, and enterprise-grade security features.",
+        ),
         user_message("Can I use it with open-source models?"),
     ];
 
@@ -94,10 +98,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Testing different models (if deployed)
     println!("📤 Testing GPT-3.5-Turbo on Azure AI...\n");
-    
-    let fast_messages = vec![
-        user_message("Explain quantum computing in one sentence."),
-    ];
+
+    let fast_messages = vec![user_message("Explain quantum computing in one sentence.")];
 
     match completion("azure_ai/gpt-35-turbo", fast_messages, None).await {
         Ok(response) => {
@@ -105,18 +107,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("✅ GPT-3.5-Turbo Response: {:?}\n", content);
             }
         }
-        Err(e) => println!("❌ Note: {}\n   (This model might not be deployed in your Azure resource)\n", e),
+        Err(e) => println!(
+            "❌ Note: {}\n   (This model might not be deployed in your Azure resource)\n",
+            e
+        ),
     }
 
     // Testing with embedding models
     println!("📤 Testing Text Embedding Model...\n");
-    
+
     // Note: This would use the embedding endpoint, not chat completion
     println!("ℹ️  Text embeddings require using the embedding-specific functions\n");
 
     // Testing with DALL-E (if available)
     println!("📤 Image Generation with DALL-E 3...\n");
-    
+
     println!("ℹ️  Image generation requires using the image-specific functions\n");
 
     println!("💡 Azure AI Tips:");

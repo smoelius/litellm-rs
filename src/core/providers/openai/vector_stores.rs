@@ -114,8 +114,7 @@ pub enum VectorStoreStatus {
 }
 
 /// File counts by status
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct FileCounts {
     /// The number of files that are currently being processed
     pub in_progress: u32,
@@ -442,7 +441,6 @@ impl Default for ChunkingStrategy {
         ChunkingStrategy::Auto
     }
 }
-
 
 #[cfg(test)]
 mod tests {

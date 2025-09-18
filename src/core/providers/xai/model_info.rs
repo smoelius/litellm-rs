@@ -2,9 +2,9 @@
 //!
 //! Model configurations for Grok models
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::LazyLock;
-use serde::{Deserialize, Serialize};
 
 /// xAI model identifiers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -48,64 +48,76 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
     let mut configs = HashMap::new();
 
     // Grok-2 (flagship model)
-    configs.insert("grok-2", ModelInfo {
-        model_id: "grok-2",
-        display_name: "Grok-2",
-        context_length: 131072, // 128K context
-        max_output_tokens: 32768,
-        supports_tools: true,
-        supports_vision: false,
-        supports_web_search: true,
-        supports_reasoning: true,
-        input_cost_per_million: 2.0,
-        output_cost_per_million: 10.0,
-        reasoning_cost_per_million: Some(10.0),
-    });
+    configs.insert(
+        "grok-2",
+        ModelInfo {
+            model_id: "grok-2",
+            display_name: "Grok-2",
+            context_length: 131072, // 128K context
+            max_output_tokens: 32768,
+            supports_tools: true,
+            supports_vision: false,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 2.0,
+            output_cost_per_million: 10.0,
+            reasoning_cost_per_million: Some(10.0),
+        },
+    );
 
     // Grok-2 Mini (smaller, faster model)
-    configs.insert("grok-2-mini", ModelInfo {
-        model_id: "grok-2-mini",
-        display_name: "Grok-2 Mini",
-        context_length: 131072, // 128K context
-        max_output_tokens: 16384,
-        supports_tools: true,
-        supports_vision: false,
-        supports_web_search: true,
-        supports_reasoning: false,
-        input_cost_per_million: 0.5,
-        output_cost_per_million: 2.0,
-        reasoning_cost_per_million: None,
-    });
+    configs.insert(
+        "grok-2-mini",
+        ModelInfo {
+            model_id: "grok-2-mini",
+            display_name: "Grok-2 Mini",
+            context_length: 131072, // 128K context
+            max_output_tokens: 16384,
+            supports_tools: true,
+            supports_vision: false,
+            supports_web_search: true,
+            supports_reasoning: false,
+            input_cost_per_million: 0.5,
+            output_cost_per_million: 2.0,
+            reasoning_cost_per_million: None,
+        },
+    );
 
     // Grok Beta (experimental features)
-    configs.insert("grok-beta", ModelInfo {
-        model_id: "grok-beta",
-        display_name: "Grok Beta",
-        context_length: 131072,
-        max_output_tokens: 32768,
-        supports_tools: true,
-        supports_vision: true,
-        supports_web_search: true,
-        supports_reasoning: true,
-        input_cost_per_million: 5.0,
-        output_cost_per_million: 15.0,
-        reasoning_cost_per_million: Some(15.0),
-    });
+    configs.insert(
+        "grok-beta",
+        ModelInfo {
+            model_id: "grok-beta",
+            display_name: "Grok Beta",
+            context_length: 131072,
+            max_output_tokens: 32768,
+            supports_tools: true,
+            supports_vision: true,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 5.0,
+            output_cost_per_million: 15.0,
+            reasoning_cost_per_million: Some(15.0),
+        },
+    );
 
     // Grok Vision (multimodal)
-    configs.insert("grok-vision-beta", ModelInfo {
-        model_id: "grok-vision-beta",
-        display_name: "Grok Vision Beta",
-        context_length: 8192,
-        max_output_tokens: 4096,
-        supports_tools: true,
-        supports_vision: true,
-        supports_web_search: true,
-        supports_reasoning: false,
-        input_cost_per_million: 5.0,
-        output_cost_per_million: 15.0,
-        reasoning_cost_per_million: None,
-    });
+    configs.insert(
+        "grok-vision-beta",
+        ModelInfo {
+            model_id: "grok-vision-beta",
+            display_name: "Grok Vision Beta",
+            context_length: 8192,
+            max_output_tokens: 4096,
+            supports_tools: true,
+            supports_vision: true,
+            supports_web_search: true,
+            supports_reasoning: false,
+            input_cost_per_million: 5.0,
+            output_cost_per_million: 15.0,
+            reasoning_cost_per_million: None,
+        },
+    );
 
     configs
 });
@@ -142,7 +154,8 @@ pub fn calculate_cost_with_reasoning(
     let output_cost = (output_tokens as f64) * (model_info.output_cost_per_million / 1_000_000.0);
 
     let reasoning_cost = if let (Some(reasoning_tokens), Some(reasoning_rate)) =
-        (reasoning_tokens, model_info.reasoning_cost_per_million) {
+        (reasoning_tokens, model_info.reasoning_cost_per_million)
+    {
         (reasoning_tokens as f64) * (reasoning_rate / 1_000_000.0)
     } else {
         0.0
@@ -219,7 +232,9 @@ mod tests {
 
         // Test with reasoning tokens
         let cost = calculate_cost_with_reasoning("grok-2", 1000, 500, Some(200)).unwrap();
-        let expected = (1000.0 * 2.0 / 1_000_000.0) + (500.0 * 10.0 / 1_000_000.0) + (200.0 * 10.0 / 1_000_000.0);
+        let expected = (1000.0 * 2.0 / 1_000_000.0)
+            + (500.0 * 10.0 / 1_000_000.0)
+            + (200.0 * 10.0 / 1_000_000.0);
         assert!((cost - expected).abs() < 0.0001);
 
         // Test model without reasoning support

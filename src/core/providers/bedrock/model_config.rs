@@ -48,10 +48,12 @@ pub struct ModelConfig {
 
 /// Model configuration database
 static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::new(|| {
-        let mut configs = HashMap::new();
+    let mut configs = HashMap::new();
 
-        // Claude models
-        configs.insert("anthropic.claude-3-opus-20240229", ModelConfig {
+    // Claude models
+    configs.insert(
+        "anthropic.claude-3-opus-20240229",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -61,9 +63,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.015,
             output_cost_per_1k: 0.075,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-3-sonnet-20240229", ModelConfig {
+    configs.insert(
+        "anthropic.claude-3-sonnet-20240229",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -73,9 +78,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.003,
             output_cost_per_1k: 0.015,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-3-haiku-20240307", ModelConfig {
+    configs.insert(
+        "anthropic.claude-3-haiku-20240307",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -85,9 +93,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00025,
             output_cost_per_1k: 0.00125,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-3-5-sonnet-20241022", ModelConfig {
+    configs.insert(
+        "anthropic.claude-3-5-sonnet-20241022",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -97,9 +108,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.003,
             output_cost_per_1k: 0.015,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-3-5-haiku-20241022", ModelConfig {
+    configs.insert(
+        "anthropic.claude-3-5-haiku-20241022",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -109,9 +123,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.001,
             output_cost_per_1k: 0.005,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-v2:1", ModelConfig {
+    configs.insert(
+        "anthropic.claude-v2:1",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -121,9 +138,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.008,
             output_cost_per_1k: 0.024,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-v2", ModelConfig {
+    configs.insert(
+        "anthropic.claude-v2",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -133,9 +153,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.008,
             output_cost_per_1k: 0.024,
-        });
+        },
+    );
 
-        configs.insert("anthropic.claude-instant-v1", ModelConfig {
+    configs.insert(
+        "anthropic.claude-instant-v1",
+        ModelConfig {
             family: BedrockModelFamily::Claude,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -145,10 +168,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00163,
             output_cost_per_1k: 0.00551,
-        });
+        },
+    );
 
-        // Titan models
-        configs.insert("amazon.titan-text-express-v1", ModelConfig {
+    // Titan models
+    configs.insert(
+        "amazon.titan-text-express-v1",
+        ModelConfig {
             family: BedrockModelFamily::TitanText,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -158,9 +184,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(8000),
             input_cost_per_1k: 0.0002,
             output_cost_per_1k: 0.0006,
-        });
+        },
+    );
 
-        configs.insert("amazon.titan-text-lite-v1", ModelConfig {
+    configs.insert(
+        "amazon.titan-text-lite-v1",
+        ModelConfig {
             family: BedrockModelFamily::TitanText,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -170,9 +199,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4000),
             input_cost_per_1k: 0.00015,
             output_cost_per_1k: 0.0002,
-        });
+        },
+    );
 
-        configs.insert("amazon.titan-text-premier-v1:0", ModelConfig {
+    configs.insert(
+        "amazon.titan-text-premier-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::TitanText,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -182,9 +214,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(32000),
             input_cost_per_1k: 0.0005,
             output_cost_per_1k: 0.0015,
-        });
+        },
+    );
 
-        configs.insert("amazon.titan-embed-text-v1", ModelConfig {
+    configs.insert(
+        "amazon.titan-embed-text-v1",
+        ModelConfig {
             family: BedrockModelFamily::TitanEmbedding,
             api_type: BedrockApiType::Invoke,
             supports_streaming: false,
@@ -194,10 +229,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: None,
             input_cost_per_1k: 0.0001,
             output_cost_per_1k: 0.0,
-        });
+        },
+    );
 
-        // Nova models
-        configs.insert("amazon.nova-micro-v1:0", ModelConfig {
+    // Nova models
+    configs.insert(
+        "amazon.nova-micro-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Nova,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -207,9 +245,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.000035,
             output_cost_per_1k: 0.00014,
-        });
+        },
+    );
 
-        configs.insert("amazon.nova-lite-v1:0", ModelConfig {
+    configs.insert(
+        "amazon.nova-lite-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Nova,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -219,9 +260,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00006,
             output_cost_per_1k: 0.00024,
-        });
+        },
+    );
 
-        configs.insert("amazon.nova-pro-v1:0", ModelConfig {
+    configs.insert(
+        "amazon.nova-pro-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Nova,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -231,10 +275,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0008,
             output_cost_per_1k: 0.0032,
-        });
+        },
+    );
 
-        // Meta Llama models
-        configs.insert("meta.llama3-2-1b-instruct-v1:0", ModelConfig {
+    // Meta Llama models
+    configs.insert(
+        "meta.llama3-2-1b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -244,9 +291,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00001,
             output_cost_per_1k: 0.00001,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-2-3b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-2-3b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -256,9 +306,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.000015,
             output_cost_per_1k: 0.000015,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-2-11b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-2-11b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -268,9 +321,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.000032,
             output_cost_per_1k: 0.000032,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-2-90b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-2-90b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -280,9 +336,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00072,
             output_cost_per_1k: 0.00072,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-1-8b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-1-8b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -292,9 +351,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00022,
             output_cost_per_1k: 0.00022,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-1-70b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-1-70b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -304,9 +366,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00099,
             output_cost_per_1k: 0.00099,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-1-405b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-1-405b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -316,9 +381,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00532,
             output_cost_per_1k: 0.016,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-8b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-8b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -328,9 +396,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0003,
             output_cost_per_1k: 0.0006,
-        });
+        },
+    );
 
-        configs.insert("meta.llama3-70b-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "meta.llama3-70b-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Converse,
             supports_streaming: true,
@@ -340,9 +411,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00265,
             output_cost_per_1k: 0.0035,
-        });
+        },
+    );
 
-        configs.insert("meta.llama2-13b-chat-v1", ModelConfig {
+    configs.insert(
+        "meta.llama2-13b-chat-v1",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -352,9 +426,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00075,
             output_cost_per_1k: 0.001,
-        });
+        },
+    );
 
-        configs.insert("meta.llama2-70b-chat-v1", ModelConfig {
+    configs.insert(
+        "meta.llama2-70b-chat-v1",
+        ModelConfig {
             family: BedrockModelFamily::Llama,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -364,10 +441,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00195,
             output_cost_per_1k: 0.00256,
-        });
+        },
+    );
 
-        // AI21 models
-        configs.insert("ai21.jamba-1-5-large-v1:0", ModelConfig {
+    // AI21 models
+    configs.insert(
+        "ai21.jamba-1-5-large-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::AI21,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -377,9 +457,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.002,
             output_cost_per_1k: 0.008,
-        });
+        },
+    );
 
-        configs.insert("ai21.jamba-1-5-mini-v1:0", ModelConfig {
+    configs.insert(
+        "ai21.jamba-1-5-mini-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::AI21,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -389,9 +472,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0002,
             output_cost_per_1k: 0.0004,
-        });
+        },
+    );
 
-        configs.insert("ai21.jamba-instruct-v1:0", ModelConfig {
+    configs.insert(
+        "ai21.jamba-instruct-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::AI21,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -401,10 +487,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0005,
             output_cost_per_1k: 0.0007,
-        });
+        },
+    );
 
-        // Cohere models
-        configs.insert("cohere.command-r-plus-v1:0", ModelConfig {
+    // Cohere models
+    configs.insert(
+        "cohere.command-r-plus-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Cohere,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -414,9 +503,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.003,
             output_cost_per_1k: 0.015,
-        });
+        },
+    );
 
-        configs.insert("cohere.command-r-v1:0", ModelConfig {
+    configs.insert(
+        "cohere.command-r-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Cohere,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -426,9 +518,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0005,
             output_cost_per_1k: 0.0015,
-        });
+        },
+    );
 
-        configs.insert("cohere.command-text-v14", ModelConfig {
+    configs.insert(
+        "cohere.command-text-v14",
+        ModelConfig {
             family: BedrockModelFamily::Cohere,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -438,9 +533,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0015,
             output_cost_per_1k: 0.002,
-        });
+        },
+    );
 
-        configs.insert("cohere.command-light-text-v14", ModelConfig {
+    configs.insert(
+        "cohere.command-light-text-v14",
+        ModelConfig {
             family: BedrockModelFamily::Cohere,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -450,10 +548,13 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.0003,
             output_cost_per_1k: 0.0006,
-        });
+        },
+    );
 
-        // Mistral models
-        configs.insert("mistral.mistral-7b-instruct-v0:2", ModelConfig {
+    // Mistral models
+    configs.insert(
+        "mistral.mistral-7b-instruct-v0:2",
+        ModelConfig {
             family: BedrockModelFamily::Mistral,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -463,9 +564,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00015,
             output_cost_per_1k: 0.0002,
-        });
+        },
+    );
 
-        configs.insert("mistral.mixtral-8x7b-instruct-v0:1", ModelConfig {
+    configs.insert(
+        "mistral.mixtral-8x7b-instruct-v0:1",
+        ModelConfig {
             family: BedrockModelFamily::Mistral,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -475,9 +579,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.00045,
             output_cost_per_1k: 0.0007,
-        });
+        },
+    );
 
-        configs.insert("mistral.mistral-large-2402-v1:0", ModelConfig {
+    configs.insert(
+        "mistral.mistral-large-2402-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Mistral,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -487,9 +594,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.004,
             output_cost_per_1k: 0.012,
-        });
+        },
+    );
 
-        configs.insert("mistral.mistral-large-2407-v1:0", ModelConfig {
+    configs.insert(
+        "mistral.mistral-large-2407-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Mistral,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -499,9 +609,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.002,
             output_cost_per_1k: 0.006,
-        });
+        },
+    );
 
-        configs.insert("mistral.mistral-small-2402-v1:0", ModelConfig {
+    configs.insert(
+        "mistral.mistral-small-2402-v1:0",
+        ModelConfig {
             family: BedrockModelFamily::Mistral,
             api_type: BedrockApiType::Invoke,
             supports_streaming: true,
@@ -511,9 +624,10 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelConfig>> = LazyLock::n
             max_output_length: Some(4096),
             input_cost_per_1k: 0.001,
             output_cost_per_1k: 0.003,
-        });
+        },
+    );
 
-        configs
+    configs
 });
 
 /// Get model configuration for a specific model ID
@@ -558,12 +672,27 @@ mod tests {
 
     #[test]
     fn test_model_capabilities() {
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "streaming"));
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "function_calling"));
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "multimodal"));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "streaming"
+        ));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "function_calling"
+        ));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "multimodal"
+        ));
 
-        assert!(!model_supports_capability("amazon.titan-text-express-v1", "function_calling"));
-        assert!(!model_supports_capability("amazon.titan-text-express-v1", "multimodal"));
+        assert!(!model_supports_capability(
+            "amazon.titan-text-express-v1",
+            "function_calling"
+        ));
+        assert!(!model_supports_capability(
+            "amazon.titan-text-express-v1",
+            "multimodal"
+        ));
     }
 
     #[test]

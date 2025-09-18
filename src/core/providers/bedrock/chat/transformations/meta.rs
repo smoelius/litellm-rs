@@ -1,9 +1,9 @@
 //! Meta Llama Model Transformations
 
-use serde_json::{json, Value};
+use crate::core::providers::bedrock::model_config::ModelConfig;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::ModelConfig;
+use serde_json::{Value, json};
 
 /// Transform request for Meta Llama models
 pub fn transform_request(
@@ -11,8 +11,10 @@ pub fn transform_request(
     model_config: &ModelConfig,
 ) -> Result<Value, ProviderError> {
     // Newer Llama models support message format, older ones need prompt format
-    if model_config.family == crate::core::providers::bedrock::model_config::BedrockModelFamily::Llama
-        && request.model.contains("llama3") {
+    if model_config.family
+        == crate::core::providers::bedrock::model_config::BedrockModelFamily::Llama
+        && request.model.contains("llama3")
+    {
         // Llama 3 uses message format similar to Claude
         transform_llama3_request(request)
     } else {
@@ -61,7 +63,7 @@ fn transform_llama2_request(request: &ChatRequest) -> Result<Value, ProviderErro
 
 /// Format messages for Llama 2 prompt format
 fn format_llama2_prompt(messages: &[crate::core::types::ChatMessage]) -> String {
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
     let mut prompt = String::from("<s>");
     let mut system_prompt = None;
@@ -69,18 +71,17 @@ fn format_llama2_prompt(messages: &[crate::core::types::ChatMessage]) -> String 
     for message in messages {
         let content = match &message.content {
             Some(MessageContent::Text(text)) => text.clone(),
-            Some(MessageContent::Parts(parts)) => {
-                parts.iter()
-                    .filter_map(|part| {
-                        if let crate::core::types::requests::ContentPart::Text { text } = part {
-                            Some(text.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            Some(MessageContent::Parts(parts)) => parts
+                .iter()
+                .filter_map(|part| {
+                    if let crate::core::types::requests::ContentPart::Text { text } = part {
+                        Some(text.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
             None => continue,
         };
 
@@ -90,7 +91,10 @@ fn format_llama2_prompt(messages: &[crate::core::types::ChatMessage]) -> String 
             }
             MessageRole::User => {
                 if let Some(sys) = &system_prompt {
-                    prompt.push_str(&format!("[INST] <<SYS>>\n{}\n<</SYS>>\n\n{} [/INST]", sys, content));
+                    prompt.push_str(&format!(
+                        "[INST] <<SYS>>\n{}\n<</SYS>>\n\n{} [/INST]",
+                        sys, content
+                    ));
                     system_prompt = None; // Use system prompt only once
                 } else {
                     prompt.push_str(&format!("[INST] {} [/INST]", content));

@@ -4,21 +4,21 @@
 
 use async_trait::async_trait;
 use futures::Stream;
-use std::pin::Pin;
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use tracing::debug;
 
 use super::config::GroqConfig;
 use super::error::{GroqError, GroqErrorMapper};
-use super::model_info::{get_model_info, is_reasoning_model, get_available_models};
+use super::model_info::{get_available_models, get_model_info, is_reasoning_model};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 use crate::core::traits::{LLMProvider, ProviderConfig as _};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, MessageRole},
     responses::{ChatChunk, ChatResponse, EmbeddingResponse},
 };
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 
 /// Static capabilities for Groq provider
 const GROQ_CAPABILITIES: &[ProviderCapability] = &[
@@ -39,13 +39,12 @@ impl GroqProvider {
     /// Create a new Groq provider instance
     pub async fn new(config: GroqConfig) -> Result<Self, GroqError> {
         // Validate configuration
-        config.validate().map_err(GroqError::ConfigurationError
-        )?;
+        config.validate().map_err(GroqError::ConfigurationError)?;
 
         // Create pool manager
-        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e|
+        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e| {
             GroqError::ConfigurationError(format!("Failed to create pool manager: {}", e))
-        )?);
+        })?);
 
         // Build model list from static configuration
         let models = get_available_models()
@@ -132,12 +131,15 @@ impl GroqProvider {
         }
         headers.push(("Content-Type".to_string(), "application/json".to_string()));
 
-        let response = self.pool_manager
+        let response = self
+            .pool_manager
             .execute_request(&url, HttpMethod::POST, headers, Some(body))
             .await
             .map_err(|e| GroqError::NetworkError(e.to_string()))?;
 
-        let response_bytes = response.bytes().await
+        let response_bytes = response
+            .bytes()
+            .await
             .map_err(|e| GroqError::NetworkError(e.to_string()))?;
 
         serde_json::from_slice(&response_bytes)
@@ -178,7 +180,10 @@ impl GroqProvider {
             req = req.header(key, value);
         }
 
-        let response = req.multipart(form).send().await
+        let response = req
+            .multipart(form)
+            .send()
+            .await
             .map_err(|e| GroqError::NetworkError(e.to_string()))?;
 
         if !response.status().is_success() {
@@ -186,20 +191,26 @@ impl GroqProvider {
             let body = response.text().await.ok();
             return Err(match status {
                 400 => GroqError::InvalidRequestError(
-                    body.unwrap_or_else(|| "Invalid audio format or parameters".to_string())
+                    body.unwrap_or_else(|| "Invalid audio format or parameters".to_string()),
                 ),
                 401 => GroqError::AuthenticationError("Invalid API key".to_string()),
-                413 => GroqError::InvalidRequestError("Audio file too large (max 25MB)".to_string()),
+                413 => {
+                    GroqError::InvalidRequestError("Audio file too large (max 25MB)".to_string())
+                }
                 429 => GroqError::RateLimitError("Rate limit exceeded".to_string()),
                 _ => GroqError::ApiError(format!("Transcription failed: {}", status)),
             });
         }
 
-        let response_text = response.text().await
+        let response_text = response
+            .text()
+            .await
             .map_err(|e| GroqError::ApiError(format!("Failed to read response: {}", e)))?;
 
         // Try to parse as JSON first
-        if let Ok(json_response) = serde_json::from_str::<super::stt::TranscriptionResponse>(&response_text) {
+        if let Ok(json_response) =
+            serde_json::from_str::<super::stt::TranscriptionResponse>(&response_text)
+        {
             Ok(json_response)
         } else {
             // If not JSON, assume it's plain text response
@@ -301,8 +312,7 @@ impl LLMProvider for GroqProvider {
         self.handle_response_format(&mut request);
 
         // Convert to JSON value
-        serde_json::to_value(&request)
-            .map_err(|e| GroqError::InvalidRequestError(e.to_string()))
+        serde_json::to_value(&request).map_err(|e| GroqError::InvalidRequestError(e.to_string()))
     }
 
     async fn transform_response(
@@ -338,7 +348,9 @@ impl LLMProvider for GroqProvider {
         let request_json = serde_json::to_value(&request)
             .map_err(|e| GroqError::InvalidRequestError(e.to_string()))?;
 
-        let response = self.execute_request("/chat/completions", request_json).await?;
+        let response = self
+            .execute_request("/chat/completions", request_json)
+            .await?;
 
         serde_json::from_value(response)
             .map_err(|e| GroqError::ApiError(format!("Failed to parse chat response: {}", e)))
@@ -348,7 +360,8 @@ impl LLMProvider for GroqProvider {
         &self,
         mut request: ChatRequest,
         context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         debug!("Groq streaming request: model={}", request.model);
 
         // Check if fake streaming is needed
@@ -363,7 +376,9 @@ impl LLMProvider for GroqProvider {
         request.stream = true;
 
         // Get API configuration
-        let api_key = self.config.get_api_key()
+        let api_key = self
+            .config
+            .get_api_key()
             .ok_or_else(|| GroqError::AuthenticationError("API key is required".to_string()))?;
 
         // Execute streaming request using reqwest directly for SSE
@@ -383,7 +398,9 @@ impl LLMProvider for GroqProvider {
             let status = response.status().as_u16();
             let body = response.text().await.ok();
             return Err(match status {
-                400 => GroqError::InvalidRequestError(body.unwrap_or_else(|| "Bad request".to_string())),
+                400 => GroqError::InvalidRequestError(
+                    body.unwrap_or_else(|| "Bad request".to_string()),
+                ),
                 401 => GroqError::AuthenticationError("Invalid API key".to_string()),
                 429 => GroqError::RateLimitError("Rate limit exceeded".to_string()),
                 _ => GroqError::StreamingError(format!("Stream request failed: {}", status)),
@@ -401,7 +418,7 @@ impl LLMProvider for GroqProvider {
         _context: RequestContext,
     ) -> Result<EmbeddingResponse, Self::Error> {
         Err(GroqError::InvalidRequestError(
-            "Groq does not support embeddings. Use text generation models instead.".to_string()
+            "Groq does not support embeddings. Use text generation models instead.".to_string(),
         ))
     }
 
@@ -413,9 +430,11 @@ impl LLMProvider for GroqProvider {
             headers.push(("Authorization".to_string(), format!("Bearer {}", api_key)));
         }
 
-        match self.pool_manager
+        match self
+            .pool_manager
             .execute_request(&url, HttpMethod::GET, headers, None::<serde_json::Value>)
-            .await {
+            .await
+        {
             Ok(_) => HealthStatus::Healthy,
             Err(_) => HealthStatus::Unhealthy,
         }
@@ -431,7 +450,8 @@ impl LLMProvider for GroqProvider {
             .ok_or_else(|| GroqError::ModelNotFoundError(format!("Unknown model: {}", model)))?;
 
         let input_cost = (input_tokens as f64) * (model_info.input_cost_per_million / 1_000_000.0);
-        let output_cost = (output_tokens as f64) * (model_info.output_cost_per_million / 1_000_000.0);
+        let output_cost =
+            (output_tokens as f64) * (model_info.output_cost_per_million / 1_000_000.0);
         Ok(input_cost + output_cost)
     }
 }

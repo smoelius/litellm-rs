@@ -342,13 +342,12 @@ impl AdvancedChatUtils {
     /// Validate advanced chat request
     pub fn validate_request(request: &AdvancedChatRequest) -> Result<(), ProviderError> {
         // Check structured outputs support
-        if request.response_format.is_some()
-            && !Self::supports_structured_outputs(&request.model) {
-                return Err(ProviderError::InvalidRequest {
-                    provider: "openai",
-                    message: "Model does not support structured outputs".to_string(),
-                });
-            }
+        if request.response_format.is_some() && !Self::supports_structured_outputs(&request.model) {
+            return Err(ProviderError::InvalidRequest {
+                provider: "openai",
+                message: "Model does not support structured outputs".to_string(),
+            });
+        }
 
         // Check reasoning model constraints
         if let Some(reasoning_config) = &request.reasoning {
@@ -386,13 +385,12 @@ impl AdvancedChatUtils {
         }
 
         // Check audio response support
-        if request.audio.is_some()
-            && !Self::supports_audio_responses(&request.model) {
-                return Err(ProviderError::InvalidRequest {
-                    provider: "openai",
-                    message: "Model does not support audio responses".to_string(),
-                });
-            }
+        if request.audio.is_some() && !Self::supports_audio_responses(&request.model) {
+            return Err(ProviderError::InvalidRequest {
+                provider: "openai",
+                message: "Model does not support audio responses".to_string(),
+            });
+        }
 
         // Standard parameter validation
         if let Some(temp) = request.temperature {

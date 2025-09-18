@@ -13,16 +13,16 @@ use tracing::debug;
 
 // Use base infrastructure instead of common_utils
 use crate::core::providers::base_provider::{
-    BaseHttpClient, BaseProviderConfig, HeaderBuilder, OpenAIRequestTransformer,
-    UrlBuilder, HttpErrorMapper, CostCalculator
+    BaseHttpClient, BaseProviderConfig, CostCalculator, HeaderBuilder, HttpErrorMapper,
+    OpenAIRequestTransformer, UrlBuilder,
 };
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{ErrorMapper, ProviderConfig, provider::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
     responses::{ChatChunk, ChatResponse, EmbeddingResponse},
 };
-use crate::core::providers::unified_provider::ProviderError;
 
 // Re-export submodules
 pub mod chat;
@@ -113,7 +113,10 @@ impl ErrorMapper<MoonshotError> for MoonshotErrorMapper {
     }
 
     fn map_timeout_error(&self, timeout_duration: std::time::Duration) -> MoonshotError {
-        ProviderError::timeout("moonshot", format!("Request timed out after {:?}", timeout_duration))
+        ProviderError::timeout(
+            "moonshot",
+            format!("Request timed out after {:?}", timeout_duration),
+        )
     }
 }
 
@@ -129,9 +132,9 @@ impl MoonshotProvider {
     /// Create a new Moonshot provider instance
     pub async fn new(config: MoonshotConfig) -> Result<Self, MoonshotError> {
         // Validate configuration
-        config.validate().map_err(|e|
-            ProviderError::configuration("moonshot", e)
-        )?;
+        config
+            .validate()
+            .map_err(|e| ProviderError::configuration("moonshot", e))?;
 
         // Create base HTTP client using our infrastructure
         let base_config = BaseProviderConfig {
@@ -207,9 +210,7 @@ impl MoonshotProvider {
             models,
         })
     }
-
 }
-
 
 #[async_trait]
 impl LLMProvider for MoonshotProvider {
@@ -250,7 +251,9 @@ impl LLMProvider for MoonshotProvider {
             .build_reqwest()
             .map_err(|e| ProviderError::invalid_request("moonshot", e.to_string()))?;
 
-        let response = self.base_client.inner()
+        let response = self
+            .base_client
+            .inner()
             .post(&url)
             .headers(headers)
             .json(&body)
@@ -264,7 +267,9 @@ impl LLMProvider for MoonshotProvider {
             return Err(ProviderError::api_error("moonshot", status, body));
         }
 
-        response.json().await
+        response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("moonshot", e.to_string()))
     }
 
@@ -291,7 +296,9 @@ impl LLMProvider for MoonshotProvider {
             .build_reqwest()
             .map_err(|e| ProviderError::invalid_request("moonshot", e.to_string()))?;
 
-        let response = self.base_client.inner()
+        let response = self
+            .base_client
+            .inner()
             .post(&url)
             .headers(headers)
             .json(&body)
@@ -306,7 +313,7 @@ impl LLMProvider for MoonshotProvider {
         }
 
         // Parse SSE stream using shared infrastructure
-        use crate::core::providers::base::sse::{UnifiedSSEParser, OpenAICompatibleTransformer};
+        use crate::core::providers::base::sse::{OpenAICompatibleTransformer, UnifiedSSEParser};
         use futures::StreamExt;
 
         let transformer = OpenAICompatibleTransformer::new("moonshot");
@@ -317,22 +324,18 @@ impl LLMProvider for MoonshotProvider {
         let stream = byte_stream
             .scan((parser, Vec::new()), |(parser, buffer), bytes_result| {
                 futures::future::ready(match bytes_result {
-                    Ok(bytes) => {
-                        match parser.process_bytes(&bytes) {
-                            Ok(chunks) => {
-                                *buffer = chunks;
-                                Some(Ok(buffer.clone()))
-                            }
-                            Err(e) => Some(Err(e)),
+                    Ok(bytes) => match parser.process_bytes(&bytes) {
+                        Ok(chunks) => {
+                            *buffer = chunks;
+                            Some(Ok(buffer.clone()))
                         }
-                    }
+                        Err(e) => Some(Err(e)),
+                    },
                     Err(e) => Some(Err(ProviderError::network("moonshot", e.to_string()))),
                 })
             })
             .map(|result| match result {
-                Ok(chunks) => {
-                    chunks.into_iter().map(Ok).collect::<Vec<_>>()
-                }
+                Ok(chunks) => chunks.into_iter().map(Ok).collect::<Vec<_>>(),
                 Err(e) => vec![Err(e)],
             })
             .flat_map(futures::stream::iter);
@@ -360,7 +363,9 @@ impl LLMProvider for MoonshotProvider {
 
         match headers {
             Ok(headers) => {
-                match self.base_client.inner()
+                match self
+                    .base_client
+                    .inner()
                     .get(&url)
                     .headers(headers)
                     .send()
@@ -437,7 +442,9 @@ impl LLMProvider for MoonshotProvider {
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
         // Find model pricing
-        let model_info = self.models.iter()
+        let model_info = self
+            .models
+            .iter()
             .find(|m| m.id == model)
             .ok_or_else(|| ProviderError::model_not_found("moonshot", model.to_string()))?;
 
@@ -452,7 +459,6 @@ impl LLMProvider for MoonshotProvider {
         ))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -470,7 +476,11 @@ mod tests {
 
         let provider = provider.unwrap();
         assert_eq!(provider.name(), "moonshot");
-        assert!(provider.capabilities().contains(&ProviderCapability::ChatCompletionStream));
+        assert!(
+            provider
+                .capabilities()
+                .contains(&ProviderCapability::ChatCompletionStream)
+        );
     }
 
     #[test]

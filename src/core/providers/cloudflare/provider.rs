@@ -4,21 +4,21 @@
 
 use async_trait::async_trait;
 use futures::Stream;
-use std::pin::Pin;
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use tracing::debug;
 
 use super::config::CloudflareConfig;
 use super::error::{CloudflareError, CloudflareErrorMapper};
-use super::model_info::{get_model_info, get_available_models, calculate_cost};
+use super::model_info::{calculate_cost, get_available_models, get_model_info};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 use crate::core::traits::{LLMProvider, ProviderConfig as _};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
     responses::{ChatChunk, ChatResponse, EmbeddingResponse, FinishReason},
 };
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 
 /// Static capabilities for Cloudflare provider
 const CLOUDFLARE_CAPABILITIES: &[ProviderCapability] = &[
@@ -38,13 +38,14 @@ impl CloudflareProvider {
     /// Create a new Cloudflare provider instance
     pub async fn new(config: CloudflareConfig) -> Result<Self, CloudflareError> {
         // Validate configuration
-        config.validate().map_err(CloudflareError::ConfigurationError
-        )?;
+        config
+            .validate()
+            .map_err(CloudflareError::ConfigurationError)?;
 
         // Create pool manager
-        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e|
+        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e| {
             CloudflareError::ConfigurationError(format!("Failed to create pool manager: {}", e))
-        )?);
+        })?);
 
         // Build model list from static configuration
         let models = get_available_models()
@@ -86,7 +87,7 @@ impl CloudflareProvider {
     /// Create provider with account ID and token
     pub async fn with_credentials(
         account_id: impl Into<String>,
-        api_token: impl Into<String>
+        api_token: impl Into<String>,
     ) -> Result<Self, CloudflareError> {
         let mut config = CloudflareConfig::default();
         config.account_id = Some(account_id.into());
@@ -100,8 +101,9 @@ impl CloudflareProvider {
         endpoint: &str,
         body: serde_json::Value,
     ) -> Result<serde_json::Value, CloudflareError> {
-        let account_id = self.config.get_account_id()
-            .ok_or_else(|| CloudflareError::ConfigurationError("Account ID is required".to_string()))?;
+        let account_id = self.config.get_account_id().ok_or_else(|| {
+            CloudflareError::ConfigurationError("Account ID is required".to_string())
+        })?;
 
         let url = format!(
             "{}/accounts/{}/ai/run/{}",
@@ -116,12 +118,15 @@ impl CloudflareProvider {
         }
         headers.push(("Content-Type".to_string(), "application/json".to_string()));
 
-        let response = self.pool_manager
+        let response = self
+            .pool_manager
             .execute_request(&url, HttpMethod::POST, headers, Some(body))
             .await
             .map_err(|e| CloudflareError::NetworkError(e.to_string()))?;
 
-        let response_bytes = response.bytes().await
+        let response_bytes = response
+            .bytes()
+            .await
             .map_err(|e| CloudflareError::NetworkError(e.to_string()))?;
 
         serde_json::from_slice(&response_bytes)
@@ -238,21 +243,19 @@ impl LLMProvider for CloudflareProvider {
             object: "chat.completion".to_string(),
             created: chrono::Utc::now().timestamp(),
             model: model.to_string(),
-            choices: vec![
-                crate::core::types::responses::ChatChoice {
-                    index: 0,
-                    message: crate::core::types::requests::ChatMessage {
-                        role: crate::core::types::requests::MessageRole::Assistant,
-                        content: Some(crate::core::types::requests::MessageContent::Text(content)),
-                        name: None,
-                        function_call: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    },
-                    finish_reason: Some(FinishReason::Stop),
-                    logprobs: None,
-                }
-            ],
+            choices: vec![crate::core::types::responses::ChatChoice {
+                index: 0,
+                message: crate::core::types::requests::ChatMessage {
+                    role: crate::core::types::requests::MessageRole::Assistant,
+                    content: Some(crate::core::types::requests::MessageContent::Text(content)),
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                finish_reason: Some(FinishReason::Stop),
+                logprobs: None,
+            }],
             usage: None, // Cloudflare doesn't provide usage stats
             system_fingerprint: None,
         })
@@ -270,7 +273,9 @@ impl LLMProvider for CloudflareProvider {
         debug!("Cloudflare chat request: model={}", request.model);
 
         // Remove cloudflare/ prefix if present
-        let model = request.model.strip_prefix("cloudflare/")
+        let model = request
+            .model
+            .strip_prefix("cloudflare/")
             .unwrap_or(&request.model);
 
         // Transform request
@@ -292,21 +297,19 @@ impl LLMProvider for CloudflareProvider {
             object: "chat.completion".to_string(),
             created: chrono::Utc::now().timestamp(),
             model: request.model.clone(),
-            choices: vec![
-                crate::core::types::responses::ChatChoice {
-                    index: 0,
-                    message: crate::core::types::requests::ChatMessage {
-                        role: crate::core::types::requests::MessageRole::Assistant,
-                        content: Some(crate::core::types::requests::MessageContent::Text(content)),
-                        name: None,
-                        function_call: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                    },
-                    finish_reason: Some(FinishReason::Stop),
-                    logprobs: None,
-                }
-            ],
+            choices: vec![crate::core::types::responses::ChatChoice {
+                index: 0,
+                message: crate::core::types::requests::ChatMessage {
+                    role: crate::core::types::requests::MessageRole::Assistant,
+                    content: Some(crate::core::types::requests::MessageContent::Text(content)),
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                finish_reason: Some(FinishReason::Stop),
+                logprobs: None,
+            }],
             usage: None,
             system_fingerprint: None,
         })
@@ -316,7 +319,8 @@ impl LLMProvider for CloudflareProvider {
         &self,
         mut request: ChatRequest,
         _context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         debug!("Cloudflare streaming request: model={}", request.model);
 
         // Set streaming flag
@@ -325,7 +329,7 @@ impl LLMProvider for CloudflareProvider {
         // TODO: Implement proper SSE streaming for Cloudflare
         // For now, return an error as streaming implementation needs more work
         Err(CloudflareError::InvalidRequestError(
-            "Streaming is not yet fully implemented for Cloudflare provider".to_string()
+            "Streaming is not yet fully implemented for Cloudflare provider".to_string(),
         ))
     }
 
@@ -336,7 +340,7 @@ impl LLMProvider for CloudflareProvider {
     ) -> Result<EmbeddingResponse, Self::Error> {
         // Cloudflare also supports embeddings models, but we'll implement text generation first
         Err(CloudflareError::InvalidRequestError(
-            "Embeddings are not yet implemented for Cloudflare provider".to_string()
+            "Embeddings are not yet implemented for Cloudflare provider".to_string(),
         ))
     }
 
@@ -358,9 +362,11 @@ impl LLMProvider for CloudflareProvider {
             headers.push(("Authorization".to_string(), format!("Bearer {}", api_token)));
         }
 
-        match self.pool_manager
+        match self
+            .pool_manager
             .execute_request(&url, HttpMethod::GET, headers, None::<serde_json::Value>)
-            .await {
+            .await
+        {
             Ok(_) => HealthStatus::Healthy,
             Err(_) => HealthStatus::Unhealthy,
         }
@@ -430,16 +436,14 @@ mod tests {
 
         let request = ChatRequest {
             model: "@cf/meta/llama-3-8b-instruct".to_string(),
-            messages: vec![
-                ChatMessage {
-                    role: MessageRole::User,
-                    content: Some(MessageContent::Text("Hello".to_string())),
-                    name: None,
-                    function_call: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                },
-            ],
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
             temperature: Some(0.7),
             max_tokens: Some(100),
             stream: false,

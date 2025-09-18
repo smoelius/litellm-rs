@@ -3,12 +3,12 @@
 //! Handles streaming chat completions with support for fake streaming when
 //! response_format is used (Groq limitation).
 
+use super::error::GroqError;
+use crate::core::types::requests::{MessageContent, MessageRole};
+use crate::core::types::responses::{ChatChunk, ChatDelta, ChatResponse, ChatStreamChoice};
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use crate::core::types::responses::{ChatChunk, ChatResponse, ChatStreamChoice, ChatDelta};
-use crate::core::types::requests::{MessageContent, MessageRole};
-use super::error::GroqError;
 
 /// Groq SSE stream implementation
 pub struct GroqStream {
@@ -17,7 +17,9 @@ pub struct GroqStream {
 }
 
 impl GroqStream {
-    pub fn new(stream: impl Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static) -> Self {
+    pub fn new(
+        stream: impl Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
+    ) -> Self {
         Self {
             inner: Box::pin(stream),
             buffer: String::new(),

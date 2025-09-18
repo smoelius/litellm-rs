@@ -194,7 +194,6 @@ impl Default for ImageSize {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

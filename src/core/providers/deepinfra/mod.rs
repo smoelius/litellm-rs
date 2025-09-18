@@ -12,7 +12,7 @@ pub use rerank::DeepInfraRerankTransformation;
 
 use async_trait::async_trait;
 use futures::Stream;
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use thiserror::Error;
@@ -210,7 +210,10 @@ impl DeepInfraProvider {
         let base_client = BaseHttpClient::new(base_config)
             .map_err(|e| DeepInfraError::Configuration(e.to_string()))?;
 
-        Ok(Self { config, base_client })
+        Ok(Self {
+            config,
+            base_client,
+        })
     }
 
     /// Build request headers
@@ -234,7 +237,10 @@ impl DeepInfraProvider {
         request: ChatRequest,
         stream: bool,
     ) -> Result<reqwest::Response, DeepInfraError> {
-        let url = format!("{}/v1/chat/completions", self.config.get_effective_api_base());
+        let url = format!(
+            "{}/v1/chat/completions",
+            self.config.get_effective_api_base()
+        );
         let headers = self.build_headers()?;
 
         // Transform request to DeepInfra format
@@ -255,7 +261,8 @@ impl DeepInfraProvider {
         }
 
         // Send request using base HTTP client
-        let response = self.base_client
+        let response = self
+            .base_client
             .inner()
             .post(&url)
             .headers(headers)
@@ -266,7 +273,10 @@ impl DeepInfraProvider {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(DeepInfraError::Api {
                 status,
                 message: error_body,
@@ -449,12 +459,14 @@ impl LLMProvider for DeepInfraProvider {
         let response = self.send_chat_request(request.clone(), false).await?;
 
         // Parse response
-        let response_json: serde_json::Value = response.json().await
-            .map_err(|e| DeepInfraError::Serialization(format!("Failed to parse response: {}", e)))?;
+        let response_json: serde_json::Value = response.json().await.map_err(|e| {
+            DeepInfraError::Serialization(format!("Failed to parse response: {}", e))
+        })?;
 
         // Transform to ChatResponse
-        let chat_response: ChatResponse = serde_json::from_value(response_json)
-            .map_err(|e| DeepInfraError::Serialization(format!("Failed to parse ChatResponse: {}", e)))?;
+        let chat_response: ChatResponse = serde_json::from_value(response_json).map_err(|e| {
+            DeepInfraError::Serialization(format!("Failed to parse ChatResponse: {}", e))
+        })?;
 
         Ok(chat_response)
     }

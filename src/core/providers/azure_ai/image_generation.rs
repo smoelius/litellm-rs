@@ -3,14 +3,14 @@
 //! Basic image generation functionality for Azure AI using FLUX models
 
 // use reqwest::header::HeaderMap;  // Not used in simplified version
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::config::{AzureAIConfig, AzureAIEndpointType};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::{
     common::RequestContext,
     requests::ImageGenerationRequest,
-    responses::{ImageGenerationResponse, ImageData},
+    responses::{ImageData, ImageGenerationResponse},
 };
 
 /// Azure AI image generation handler
@@ -35,7 +35,10 @@ impl AzureAIImageHandler {
     ) -> Result<ImageGenerationResponse, ProviderError> {
         // Validate request
         if request.prompt.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Prompt cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Prompt cannot be empty",
+            ));
         }
 
         // Build request
@@ -48,15 +51,24 @@ impl AzureAIImageHandler {
         });
 
         // Build URL
-        let url = self.config.build_endpoint_url(AzureAIEndpointType::ImageGeneration.as_path())
+        let url = self
+            .config
+            .build_endpoint_url(AzureAIEndpointType::ImageGeneration.as_path())
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute request
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
-            .header("Authorization", format!("Bearer {}", 
-                self.config.base.api_key.as_ref().ok_or_else(|| 
-                    ProviderError::authentication("azure_ai", "API key not set"))?))
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.config.base.api_key.as_ref().ok_or_else(|| {
+                        ProviderError::authentication("azure_ai", "API key not set")
+                    })?
+                ),
+            )
             .header("Content-Type", "application/json")
             .json(&azure_request)
             .send()
@@ -66,13 +78,17 @@ impl AzureAIImageHandler {
         // Handle error responses
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(ProviderError::api_error("azure_ai", status, &error_body));
         }
 
         // Parse response
-        let _response_json: Value = response.json().await
-            .map_err(|e| ProviderError::serialization("azure_ai", format!("Failed to parse response: {}", e)))?;
+        let _response_json: Value = response.json().await.map_err(|e| {
+            ProviderError::serialization("azure_ai", format!("Failed to parse response: {}", e))
+        })?;
 
         // Create response
         let data = vec![ImageData {

@@ -37,10 +37,10 @@ path = "src/bin/google_gateway.rs"
 
 [dependencies]
 # Web framework and async runtime
-actix-web = { version = "4.4", features = ["rustls"] }
+actix-web = { version = "4.9", features = ["rustls-0_23"] }
 actix-cors = "0.7"
-actix-ws = "0.2"
-actix-multipart = "0.6"
+actix-ws = "0.3"
+actix-multipart = "0.7"
 actix-files = "0.6"
 tokio = { version = "1.35", features = ["full"] }
 tokio-stream = "0.1"
@@ -92,7 +92,7 @@ base64 = "0.21"
 
 # Monitoring and tracing
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
 tracing-actix-web = "0.7"
 opentelemetry = { version = "0.21", optional = true }
 opentelemetry-jaeger = { version = "0.20", optional = true }

@@ -2,10 +2,10 @@
 //!
 //! Handles text and multimodal embeddings for Titan and Cohere models
 
-use serde::{Deserialize, Serialize};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::EmbeddingRequest;
-use crate::core::types::responses::{EmbeddingResponse, EmbeddingData, Usage};
+use crate::core::types::responses::{EmbeddingData, EmbeddingResponse, Usage};
+use serde::{Deserialize, Serialize};
 
 /// Titan embedding request
 #[derive(Debug, Serialize)]
@@ -76,7 +76,10 @@ pub async fn execute_embedding(
     } else if model.contains("cohere") && model.contains("embed") {
         execute_cohere_embedding(client, request).await
     } else {
-        Err(ProviderError::model_not_found("bedrock", format!("Embedding model {} not supported", model)))
+        Err(ProviderError::model_not_found(
+            "bedrock",
+            format!("Embedding model {} not supported", model),
+        ))
     }
 }
 
@@ -90,7 +93,10 @@ async fn execute_titan_embedding(
         crate::core::types::requests::EmbeddingInput::Text(text) => text.clone(),
         crate::core::types::requests::EmbeddingInput::Array(texts) => {
             if texts.is_empty() {
-                return Err(ProviderError::invalid_request("bedrock", "No input text provided"));
+                return Err(ProviderError::invalid_request(
+                    "bedrock",
+                    "No input text provided",
+                ));
             }
             texts[0].clone()
         }
@@ -100,7 +106,9 @@ async fn execute_titan_embedding(
     let body = serde_json::to_value(titan_request)?;
 
     let response = client.send_request(&request.model, "invoke", &body).await?;
-    let titan_response: TitanEmbeddingResponse = response.json().await
+    let titan_response: TitanEmbeddingResponse = response
+        .json()
+        .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
     // Convert to OpenAI format
@@ -154,7 +162,9 @@ async fn execute_titan_multimodal_embedding(
 
     let body = serde_json::to_value(titan_request)?;
     let response = client.send_request(&request.model, "invoke", &body).await?;
-    let titan_response: TitanEmbeddingResponse = response.json().await
+    let titan_response: TitanEmbeddingResponse = response
+        .json()
+        .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
     // Convert to OpenAI format
@@ -200,11 +210,14 @@ async fn execute_cohere_embedding(
 
     let body = serde_json::to_value(cohere_request)?;
     let response = client.send_request(&request.model, "invoke", &body).await?;
-    let cohere_response: CohereEmbeddingResponse = response.json().await
+    let cohere_response: CohereEmbeddingResponse = response
+        .json()
+        .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
     // Convert to OpenAI format
-    let data: Vec<EmbeddingData> = cohere_response.embeddings
+    let data: Vec<EmbeddingData> = cohere_response
+        .embeddings
         .into_iter()
         .enumerate()
         .map(|(index, embedding)| EmbeddingData {

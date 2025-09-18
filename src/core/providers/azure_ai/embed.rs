@@ -3,14 +3,14 @@
 //! Complete embedding functionality for Azure AI services following unified architecture
 
 use reqwest::header::HeaderMap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::config::{AzureAIConfig, AzureAIEndpointType};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::{
     common::RequestContext,
     requests::EmbeddingRequest,
-    responses::{EmbeddingResponse, EmbeddingData},
+    responses::{EmbeddingData, EmbeddingResponse},
 };
 
 /// Azure AI embedding handler following unified architecture
@@ -25,23 +25,32 @@ impl AzureAIEmbeddingHandler {
     pub fn new(config: AzureAIConfig) -> Result<Self, ProviderError> {
         // Create headers for the client
         let mut headers = HeaderMap::new();
-        let default_headers = config.create_default_headers()
+        let default_headers = config
+            .create_default_headers()
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
-        
+
         for (key, value) in default_headers {
-            let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e)))?;
-            let header_value = reqwest::header::HeaderValue::from_str(&value)
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e)))?;
+            let header_name =
+                reqwest::header::HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
+                    ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e))
+                })?;
+            let header_value = reqwest::header::HeaderValue::from_str(&value).map_err(|e| {
+                ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e))
+            })?;
             headers.insert(header_name, header_value);
         }
-        
+
         let client = reqwest::Client::builder()
             .timeout(config.timeout())
             .default_headers(headers)
             .build()
-            .map_err(|e| ProviderError::configuration("azure_ai", format!("Failed to create HTTP client: {}", e)))?;
-        
+            .map_err(|e| {
+                ProviderError::configuration(
+                    "azure_ai",
+                    format!("Failed to create HTTP client: {}", e),
+                )
+            })?;
+
         Ok(Self { config, client })
     }
 
@@ -60,11 +69,14 @@ impl AzureAIEmbeddingHandler {
         // Build URL
         let url = if self.is_multimodal_embedding_model(&request.model) {
             // Use image embeddings endpoint for multimodal models
-            self.config.build_endpoint_url(AzureAIEndpointType::ImageEmbeddings.as_path())
+            self.config
+                .build_endpoint_url(AzureAIEndpointType::ImageEmbeddings.as_path())
         } else {
             // Use regular embeddings endpoint
-            self.config.build_endpoint_url(AzureAIEndpointType::Embeddings.as_path())
-        }.map_err(|e| ProviderError::configuration("azure_ai", &e))?;
+            self.config
+                .build_endpoint_url(AzureAIEndpointType::Embeddings.as_path())
+        }
+        .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute request
         let response = self
@@ -86,10 +98,9 @@ impl AzureAIEmbeddingHandler {
         }
 
         // Parse response
-        let response_json: Value = response
-            .json()
-            .await
-            .map_err(|e| ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e)))?;
+        let response_json: Value = response.json().await.map_err(|e| {
+            ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e))
+        })?;
 
         // Transform to standard format
         AzureAIEmbeddingUtils::transform_response(response_json, &request.model)
@@ -112,13 +123,19 @@ impl AzureAIEmbeddingUtils {
             crate::core::types::requests::EmbeddingInput::Text(text) => text.is_empty(),
             crate::core::types::requests::EmbeddingInput::Array(array) => array.is_empty(),
         };
-        
+
         if is_empty {
-            return Err(ProviderError::invalid_request("azure_ai", "Input cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Input cannot be empty",
+            ));
         }
 
         if request.model.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Model cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Model cannot be empty",
+            ));
         }
 
         // Validate dimensions if specified
@@ -158,18 +175,23 @@ impl AzureAIEmbeddingUtils {
     }
 
     /// Transform Azure AI response to EmbeddingResponse
-    pub fn transform_response(response: Value, model: &str) -> Result<EmbeddingResponse, ProviderError> {
+    pub fn transform_response(
+        response: Value,
+        model: &str,
+    ) -> Result<EmbeddingResponse, ProviderError> {
         // Parse data array
-        let data_array = response["data"]
-            .as_array()
-            .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Missing or invalid 'data' field"))?;
+        let data_array = response["data"].as_array().ok_or_else(|| {
+            ProviderError::response_parsing("azure_ai", "Missing or invalid 'data' field")
+        })?;
 
         let mut embedding_data = Vec::new();
-        
+
         for (index, item) in data_array.iter().enumerate() {
             let embedding_vec = item["embedding"]
                 .as_array()
-                .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Missing embedding vector"))?
+                .ok_or_else(|| {
+                    ProviderError::response_parsing("azure_ai", "Missing embedding vector")
+                })?
                 .iter()
                 .map(|v| v.as_f64().unwrap_or(0.0) as f32)
                 .collect::<Vec<f32>>();
@@ -182,7 +204,9 @@ impl AzureAIEmbeddingUtils {
         }
 
         // Parse usage information
-        let usage = response.get("usage").map(|usage_data| crate::core::types::responses::Usage {
+        let usage = response
+            .get("usage")
+            .map(|usage_data| crate::core::types::responses::Usage {
                 prompt_tokens: usage_data["prompt_tokens"].as_u64().unwrap_or(0) as u32,
                 completion_tokens: 0, // Embeddings don't have completion tokens
                 total_tokens: usage_data["total_tokens"].as_u64().unwrap_or(0) as u32,
@@ -302,7 +326,7 @@ mod tests {
     #[test]
     fn test_embedding_utils_validation() {
         use crate::core::types::requests::EmbeddingInput;
-        
+
         let mut request = EmbeddingRequest {
             model: "text-embedding-3-large".to_string(),
             input: EmbeddingInput::Array(vec!["test".to_string()]),
@@ -349,7 +373,7 @@ mod tests {
     #[test]
     fn test_request_transformation() {
         use crate::core::types::requests::EmbeddingInput;
-        
+
         let request = EmbeddingRequest {
             model: "text-embedding-3-large".to_string(),
             input: EmbeddingInput::Array(vec!["test input".to_string()]),
@@ -361,7 +385,7 @@ mod tests {
 
         let result = AzureAIEmbeddingUtils::transform_request(&request);
         assert!(result.is_ok());
-        
+
         let azure_request = result.unwrap();
         assert_eq!(azure_request["model"], "text-embedding-3-large");
         assert_eq!(azure_request["encoding_format"], "float");

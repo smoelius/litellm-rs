@@ -18,7 +18,7 @@ pub enum HttpMethod {
 pub struct PoolConfig;
 impl PoolConfig {
     pub const TIMEOUT_SECS: u64 = 600;
-    pub const POOL_SIZE: usize = 80; 
+    pub const POOL_SIZE: usize = 80;
     pub const KEEPALIVE_SECS: u64 = 90;
 }
 
@@ -36,13 +36,15 @@ impl ConnectionPool {
             .pool_idle_timeout(Duration::from_secs(PoolConfig::KEEPALIVE_SECS))
             .pool_max_idle_per_host(PoolConfig::POOL_SIZE)
             .build()
-            .map_err(|e| ProviderError::configuration("Failed to create HTTP client", e.to_string()))?;
-        
+            .map_err(|e| {
+                ProviderError::configuration("Failed to create HTTP client", e.to_string())
+            })?;
+
         Ok(Self {
             client: Arc::new(client),
         })
     }
-    
+
     /// Get the underlying reqwest client
     pub fn client(&self) -> &Client {
         &self.client
@@ -62,7 +64,7 @@ impl GlobalPoolManager {
             pool: Arc::new(ConnectionPool::new()?),
         })
     }
-    
+
     /// Execute an HTTP request
     pub async fn execute_request(
         &self,
@@ -72,32 +74,32 @@ impl GlobalPoolManager {
         body: Option<serde_json::Value>,
     ) -> Result<reqwest::Response, ProviderError> {
         let client = self.pool.client();
-        
+
         let mut request_builder = match method {
             HttpMethod::GET => client.get(url),
             HttpMethod::POST => client.post(url),
             HttpMethod::PUT => client.put(url),
             HttpMethod::DELETE => client.delete(url),
         };
-        
+
         // Add headers
         for (key, value) in headers {
             request_builder = request_builder.header(&key, &value);
         }
-        
+
         // Add body if present
         if let Some(body_data) = body {
             request_builder = request_builder
                 .header("Content-Type", "application/json")
                 .json(&body_data);
         }
-        
+
         request_builder
             .send()
             .await
             .map_err(|e| ProviderError::network("common", e.to_string()))
     }
-    
+
     /// Get the underlying client for direct use
     pub fn client(&self) -> &Client {
         self.pool.client()
@@ -117,13 +119,13 @@ pub use GlobalPoolManager as ConnectionGuard;
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_pool_creation() {
         let pool = ConnectionPool::new();
         assert!(pool.is_ok());
     }
-    
+
     #[tokio::test]
     async fn test_global_manager() {
         let manager = GlobalPoolManager::new();

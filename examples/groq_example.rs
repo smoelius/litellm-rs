@@ -1,8 +1,8 @@
 //! Example of using the Groq provider
 
-use litellm_rs::core::providers::groq::{GroqProvider, GroqConfig};
+use litellm_rs::core::providers::groq::{GroqConfig, GroqProvider};
 use litellm_rs::core::traits::LLMProvider;
-use litellm_rs::core::types::requests::{ChatRequest, ChatMessage, MessageRole, MessageContent};
+use litellm_rs::core::types::requests::{ChatMessage, ChatRequest, MessageContent, MessageRole};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,7 +37,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let params = provider.get_supported_openai_params(model);
     println!("\nSupported parameters for {}:", model);
     for (i, param) in params.iter().enumerate() {
-        if i % 4 == 0 && i > 0 { println!(); }
+        if i % 4 == 0 && i > 0 {
+            println!();
+        }
         print!("  {:<20}", param);
     }
     println!();

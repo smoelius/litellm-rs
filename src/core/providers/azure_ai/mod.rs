@@ -4,24 +4,24 @@
 
 // Complete Azure AI modules
 pub mod chat;
-pub mod embed;
-pub mod rerank;
-pub mod error;
 pub mod config;
+pub mod embed;
+pub mod error;
 pub mod image_generation;
 pub mod models;
+pub mod rerank;
 
 // Keep simplified chat for backward compatibility during transition
 mod chat_simple;
 
 // Re-export main components
 pub use chat::{AzureAIChatHandler, AzureAIChatUtils};
-pub use embed::{AzureAIEmbeddingHandler, AzureAIEmbeddingUtils};
-pub use rerank::{AzureAIRerankHandler, AzureAIRerankUtils, RerankRequest, RerankResponse};
-pub use error::AzureAIErrorMapper;
 pub use config::{AzureAIConfig, AzureAIEndpointType};
+pub use embed::{AzureAIEmbeddingHandler, AzureAIEmbeddingUtils};
+pub use error::AzureAIErrorMapper;
 pub use image_generation::AzureAIImageHandler;
 pub use models::{AzureAIModelRegistry, AzureAIModelSpec, AzureAIModelType, get_azure_ai_registry};
+pub use rerank::{AzureAIRerankHandler, AzureAIRerankUtils, RerankRequest, RerankResponse};
 
 use async_trait::async_trait;
 use futures::Stream;
@@ -52,8 +52,10 @@ impl AzureAIProvider {
     /// Create new Azure AI provider
     pub fn new(config: AzureAIConfig) -> Result<Self, ProviderError> {
         // Configuration
-        config.validate().map_err(|e| ProviderError::configuration("azure_ai", &e))?;
-        
+        config
+            .validate()
+            .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
+
         let chat_handler = AzureAIChatHandler::new(config.clone())
             .map_err(|e| ProviderError::configuration("azure_ai", e.to_string()))?;
         let embedding_handler = AzureAIEmbeddingHandler::new(config.clone())
@@ -78,15 +80,18 @@ impl AzureAIProvider {
     pub fn get_config(&self) -> &AzureAIConfig {
         &self.config
     }
-    
+
     /// Create from environment variables
     pub fn from_env() -> Result<Self, ProviderError> {
         let config = AzureAIConfig::from_env();
         Self::new(config)
     }
-    
+
     /// Create with API key
-    pub fn with_api_key(api_key: impl Into<String>, api_base: impl Into<String>) -> Result<Self, ProviderError> {
+    pub fn with_api_key(
+        api_key: impl Into<String>,
+        api_base: impl Into<String>,
+    ) -> Result<Self, ProviderError> {
         let mut config = AzureAIConfig::new("azure_ai");
         config.base.api_key = Some(api_key.into());
         config.base.api_base = Some(api_base.into());
@@ -113,7 +118,6 @@ impl AzureAIProvider {
         &self.rerank_handler
     }
 
-    
     /// Get model registry
     pub fn get_model_registry(&self) -> &AzureAIModelRegistry {
         self.model_registry
@@ -144,7 +148,6 @@ impl LLMProvider for AzureAIProvider {
         static MODELS: std::sync::OnceLock<Vec<ModelInfo>> = std::sync::OnceLock::new();
         MODELS.get_or_init(|| self.model_registry.to_model_infos())
     }
-
 
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
         &[
@@ -187,7 +190,7 @@ impl LLMProvider for AzureAIProvider {
         // Parse Azure AI response to ChatResponse
         let response_json: Value = serde_json::from_slice(raw_response)
             .map_err(|e| ProviderError::response_parsing("azure_ai", e.to_string()))?;
-        
+
         AzureAIChatUtils::transform_response(response_json, model)
     }
 
@@ -200,15 +203,21 @@ impl LLMProvider for AzureAIProvider {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse, Self::Error> {
-        self.chat_handler.create_chat_completion(request, context).await
+        self.chat_handler
+            .create_chat_completion(request, context)
+            .await
     }
 
     async fn chat_completion_stream(
         &self,
         request: ChatRequest,
         context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
-        let stream = self.chat_handler.create_chat_completion_stream(request, context).await?;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
+        let stream = self
+            .chat_handler
+            .create_chat_completion_stream(request, context)
+            .await?;
         Ok(Box::pin(stream))
     }
 
@@ -246,11 +255,16 @@ impl LLMProvider for AzureAIProvider {
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
         if let Some(model_spec) = self.model_registry.get_model(model) {
-            let input_cost = model_spec.input_price_per_1k.unwrap_or(0.0) * (input_tokens as f64 / 1000.0);
-            let output_cost = model_spec.output_price_per_1k.unwrap_or(0.0) * (output_tokens as f64 / 1000.0);
+            let input_cost =
+                model_spec.input_price_per_1k.unwrap_or(0.0) * (input_tokens as f64 / 1000.0);
+            let output_cost =
+                model_spec.output_price_per_1k.unwrap_or(0.0) * (output_tokens as f64 / 1000.0);
             Ok(input_cost + output_cost)
         } else {
-            Err(ProviderError::model_not_found("azure_ai", "Model not found for cost calculation"))
+            Err(ProviderError::model_not_found(
+                "azure_ai",
+                "Model not found for cost calculation",
+            ))
         }
     }
 }
@@ -266,9 +280,7 @@ impl AzureAIProviderFactory {
     }
 
     /// Create provider with custom configuration
-    pub fn create_with_config(
-        config: AzureAIConfig,
-    ) -> Result<AzureAIProvider, ProviderError> {
+    pub fn create_with_config(config: AzureAIConfig) -> Result<AzureAIProvider, ProviderError> {
         AzureAIProvider::new(config)
     }
 
@@ -299,9 +311,11 @@ mod tests {
     #[test]
     fn test_model_capabilities() {
         let registry = get_azure_ai_registry();
-        
+
         assert!(registry.supports_capability("gpt-4o", &ProviderCapability::ChatCompletion));
-        assert!(registry.supports_capability("text-embedding-3-large", &ProviderCapability::Embeddings));
+        assert!(
+            registry.supports_capability("text-embedding-3-large", &ProviderCapability::Embeddings)
+        );
         assert!(!registry.supports_capability("dall-e-3", &ProviderCapability::ChatCompletion));
     }
 }

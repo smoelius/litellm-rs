@@ -11,7 +11,6 @@ pub struct ConfigManager {
     pub env_vars: HashMap<String, String>,
 }
 
-
 pub struct ConfigUtils;
 
 impl ConfigUtils {

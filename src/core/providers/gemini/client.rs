@@ -5,21 +5,23 @@
 
 use std::time::Duration;
 
-use reqwest::{Client, ClientBuilder, Response, header::{HeaderMap, HeaderValue, CONTENT_TYPE, AUTHORIZATION}};
-use serde_json::{json, Value};
+use reqwest::{
+    Client, ClientBuilder, Response,
+    header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue},
+};
+use serde_json::{Value, json};
 use tokio::time::timeout;
 
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::{
-    requests::{ChatMessage, ChatRequest, ContentPart, MessageRole, MessageContent},
+    requests::{ChatMessage, ChatRequest, ContentPart, MessageContent, MessageRole},
     responses::{ChatChoice, ChatResponse, Usage},
 };
 
 use super::config::GeminiConfig;
 use super::error::{
-    gemini_auth_error, gemini_network_error, 
-    gemini_multimodal_error, gemini_parse_error,
-    GeminiErrorMapper
+    GeminiErrorMapper, gemini_auth_error, gemini_multimodal_error, gemini_network_error,
+    gemini_parse_error,
 };
 
 /// Gemini API client
@@ -43,7 +45,8 @@ impl GeminiClient {
             builder = builder.proxy(proxy);
         }
 
-        let http_client = builder.build()
+        let http_client = builder
+            .build()
             .map_err(|e| gemini_network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         Ok(Self {
@@ -56,33 +59,47 @@ impl GeminiClient {
     pub async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
         // Request
         let gemini_request = self.transform_chat_request(&request)?;
-        
+
         // Request
         let endpoint = "generateContent";
-        let response = self.send_request(&request.model, endpoint, gemini_request).await?;
-        
+        let response = self
+            .send_request(&request.model, endpoint, gemini_request)
+            .await?;
+
         // Response
         self.transform_chat_response(response, &request)
     }
 
     /// Request
-    pub async fn chat_stream(&self, request: ChatRequest) -> Result<reqwest::Response, ProviderError> {
+    pub async fn chat_stream(
+        &self,
+        request: ChatRequest,
+    ) -> Result<reqwest::Response, ProviderError> {
         // Request
         let gemini_request = self.transform_chat_request(&request)?;
-        
+
         // Request
         let endpoint = "streamGenerateContent";
-        self.send_stream_request(&request.model, endpoint, gemini_request).await
+        self.send_stream_request(&request.model, endpoint, gemini_request)
+            .await
     }
 
     /// Request
-    async fn send_request(&self, model: &str, operation: &str, body: Value) -> Result<Value, ProviderError> {
+    async fn send_request(
+        &self,
+        model: &str,
+        operation: &str,
+        body: Value,
+    ) -> Result<Value, ProviderError> {
         let url = self.config.get_endpoint(model, operation);
         let headers = self.build_headers()?;
 
         if self.config.debug {
             tracing::debug!("Gemini request URL: {}", url);
-            tracing::debug!("Gemini request body: {}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            tracing::debug!(
+                "Gemini request body: {}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
         }
 
         let response = timeout(
@@ -91,8 +108,9 @@ impl GeminiClient {
                 .post(&url)
                 .json(&body)
                 .headers(headers)
-                .send()
-        ).await
+                .send(),
+        )
+        .await
         .map_err(|_| gemini_network_error("Request timeout"))?
         .map_err(|e| gemini_network_error(format!("Network error: {}", e)))?;
 
@@ -100,13 +118,21 @@ impl GeminiClient {
     }
 
     /// Request
-    async fn send_stream_request(&self, model: &str, operation: &str, body: Value) -> Result<Response, ProviderError> {
+    async fn send_stream_request(
+        &self,
+        model: &str,
+        operation: &str,
+        body: Value,
+    ) -> Result<Response, ProviderError> {
         let url = self.config.get_endpoint(model, operation);
         let headers = self.build_headers()?;
 
         if self.config.debug {
             tracing::debug!("Gemini stream request URL: {}", url);
-            tracing::debug!("Gemini stream request body: {}", serde_json::to_string_pretty(&body).unwrap_or_default());
+            tracing::debug!(
+                "Gemini stream request body: {}",
+                serde_json::to_string_pretty(&body).unwrap_or_default()
+            );
         }
 
         let response = timeout(
@@ -115,8 +141,9 @@ impl GeminiClient {
                 .post(&url)
                 .json(&body)
                 .headers(headers)
-                .send()
-        ).await
+                .send(),
+        )
+        .await
         .map_err(|_| gemini_network_error("Request timeout"))?
         .map_err(|e| gemini_network_error(format!("Network error: {}", e)))?;
 
@@ -124,9 +151,13 @@ impl GeminiClient {
         let status = response.status();
         if !status.is_success() {
             // Request
-            let error_text = response.text().await
-                .map_err(|e| gemini_network_error(format!("Failed to read error response: {}", e)))?;
-            return Err(GeminiErrorMapper::from_http_status(status.as_u16(), &error_text));
+            let error_text = response.text().await.map_err(|e| {
+                gemini_network_error(format!("Failed to read error response: {}", e))
+            })?;
+            return Err(GeminiErrorMapper::from_http_status(
+                status.as_u16(),
+                &error_text,
+            ));
         }
 
         Ok(response)
@@ -145,7 +176,7 @@ impl GeminiClient {
                 headers.insert(
                     AUTHORIZATION,
                     HeaderValue::from_str(&format!("Bearer {}", api_key))
-                        .map_err(|e| gemini_auth_error(format!("Invalid API key format: {}", e)))?
+                        .map_err(|e| gemini_auth_error(format!("Invalid API key format: {}", e)))?,
                 );
             }
         }
@@ -165,7 +196,9 @@ impl GeminiClient {
     /// Handle
     async fn handle_response(&self, response: Response) -> Result<Value, ProviderError> {
         let status = response.status();
-        let response_text = response.text().await
+        let response_text = response
+            .text()
+            .await
             .map_err(|e| gemini_network_error(format!("Failed to read response: {}", e)))?;
 
         if self.config.debug {
@@ -174,7 +207,10 @@ impl GeminiClient {
         }
 
         if !status.is_success() {
-            return Err(GeminiErrorMapper::from_http_status(status.as_u16(), &response_text));
+            return Err(GeminiErrorMapper::from_http_status(
+                status.as_u16(),
+                &response_text,
+            ));
         }
 
         // Response
@@ -213,10 +249,17 @@ impl GeminiClient {
         }
 
         // Handle
-        if let Some(system_msg) = request.messages.iter().find(|m| m.role == MessageRole::System) {
+        if let Some(system_msg) = request
+            .messages
+            .iter()
+            .find(|m| m.role == MessageRole::System)
+        {
             if let Some(system_text) = system_msg.content.as_ref() {
                 if let Some(first_content) = contents.first_mut() {
-                    if let Some(parts) = first_content.get_mut("parts").and_then(|p| p.as_array_mut()) {
+                    if let Some(parts) = first_content
+                        .get_mut("parts")
+                        .and_then(|p| p.as_array_mut())
+                    {
                         parts.insert(0, json!({"text": format!("System: {}", system_text)}));
                     }
                 }
@@ -229,15 +272,15 @@ impl GeminiClient {
 
         // Configuration
         let mut generation_config = json!({});
-        
+
         if let Some(max_tokens) = request.max_tokens {
             generation_config["maxOutputTokens"] = json!(max_tokens);
         }
-        
+
         if let Some(temperature) = request.temperature {
             generation_config["temperature"] = json!(temperature);
         }
-        
+
         if let Some(top_p) = request.top_p {
             generation_config["topP"] = json!(top_p);
         }
@@ -257,10 +300,12 @@ impl GeminiClient {
         if let Some(safety_settings) = &self.config.safety_settings {
             let gemini_safety: Vec<Value> = safety_settings
                 .iter()
-                .map(|setting| json!({
-                    "category": setting.category,
-                    "threshold": setting.threshold
-                }))
+                .map(|setting| {
+                    json!({
+                        "category": setting.category,
+                        "threshold": setting.threshold
+                    })
+                })
                 .collect();
             gemini_request["safetySettings"] = json!(gemini_safety);
         }
@@ -269,7 +314,10 @@ impl GeminiClient {
     }
 
     /// Transform message content
-    fn transform_message_content(&self, message: &ChatMessage) -> Result<Vec<Value>, ProviderError> {
+    fn transform_message_content(
+        &self,
+        message: &ChatMessage,
+    ) -> Result<Vec<Value>, ProviderError> {
         let mut parts = Vec::new();
 
         match &message.content {
@@ -291,7 +339,9 @@ impl GeminiClient {
                             // Gemini supports inline image data
                             if image_url.url.starts_with("data:") {
                                 // parsedata URL
-                                if let Some((mime_type, data)) = self.parse_data_url(&image_url.url)? {
+                                if let Some((mime_type, data)) =
+                                    self.parse_data_url(&image_url.url)?
+                                {
                                     parts.push(json!({
                                         "inlineData": {
                                             "mimeType": mime_type,
@@ -301,11 +351,15 @@ impl GeminiClient {
                                 }
                             } else {
                                 // External image URL - Gemini doesn't support directly, need to download first
-                                return Err(gemini_multimodal_error("External image URLs not supported directly. Please convert to base64 data URL"));
+                                return Err(gemini_multimodal_error(
+                                    "External image URLs not supported directly. Please convert to base64 data URL",
+                                ));
                             }
                         }
                         ContentPart::Audio { .. } => {
-                            return Err(gemini_multimodal_error("Audio content not yet implemented"));
+                            return Err(gemini_multimodal_error(
+                                "Audio content not yet implemented",
+                            ));
                         }
                         ContentPart::Image { source, .. } => {
                             // Handle
@@ -317,13 +371,19 @@ impl GeminiClient {
                             }));
                         }
                         ContentPart::Document { .. } => {
-                            return Err(gemini_multimodal_error("Document content not yet supported in Gemini"));
+                            return Err(gemini_multimodal_error(
+                                "Document content not yet supported in Gemini",
+                            ));
                         }
                         ContentPart::ToolResult { .. } => {
-                            return Err(gemini_multimodal_error("Tool result content should be handled separately"));
+                            return Err(gemini_multimodal_error(
+                                "Tool result content should be handled separately",
+                            ));
                         }
                         ContentPart::ToolUse { .. } => {
-                            return Err(gemini_multimodal_error("Tool use content should be handled separately"));
+                            return Err(gemini_multimodal_error(
+                                "Tool use content should be handled separately",
+                            ));
                         }
                     }
                 }
@@ -363,14 +423,21 @@ impl GeminiClient {
 
         // Parse MIME type
         let mime_parts: Vec<&str> = header.split(';').collect();
-        let mime_type = mime_parts[0].strip_prefix("data:").unwrap_or("application/octet-stream");
+        let mime_type = mime_parts[0]
+            .strip_prefix("data:")
+            .unwrap_or("application/octet-stream");
 
         Ok(Some((mime_type.to_string(), data.to_string())))
     }
 
     /// Response
-    pub fn transform_chat_response(&self, response: Value, request: &ChatRequest) -> Result<ChatResponse, ProviderError> {
-        let candidates = response.get("candidates")
+    pub fn transform_chat_response(
+        &self,
+        response: Value,
+        request: &ChatRequest,
+    ) -> Result<ChatResponse, ProviderError> {
+        let candidates = response
+            .get("candidates")
             .and_then(|c| c.as_array())
             .ok_or_else(|| gemini_parse_error("No candidates in response"))?;
 
@@ -398,7 +465,7 @@ impl GeminiClient {
                 .and_then(|r| r.as_str())
                 .map(|r| match r {
                     "STOP" => "stop",
-                    "MAX_TOKENS" => "length", 
+                    "MAX_TOKENS" => "length",
                     "SAFETY" => "content_filter",
                     "RECITATION" => "content_filter",
                     _ => "stop",
@@ -427,17 +494,35 @@ impl GeminiClient {
 
         // Extract usage_stats
         let usage = response.get("usageMetadata").map(|usage_metadata| Usage {
-                prompt_tokens: usage_metadata.get("promptTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                completion_tokens: usage_metadata.get("candidatesTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                total_tokens: usage_metadata.get("totalTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            });
+            prompt_tokens: usage_metadata
+                .get("promptTokenCount")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            completion_tokens: usage_metadata
+                .get("candidatesTokenCount")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            total_tokens: usage_metadata
+                .get("totalTokenCount")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        });
 
         Ok(ChatResponse {
-            id: format!("gemini-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()),
+            id: format!(
+                "gemini-{}",
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ),
             object: "chat.completion".to_string(),
-            created: std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64,
+            created: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64,
             model: request.model.clone(),
             choices,
             usage,
@@ -461,10 +546,10 @@ mod tests {
     fn test_data_url_parsing() {
         let config = GeminiConfig::new_google_ai("test-key");
         let client = GeminiClient::new(config).unwrap();
-        
+
         let data_url = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
         let result = client.parse_data_url(data_url).unwrap();
-        
+
         assert!(result.is_some());
         let (mime_type, _data) = result.unwrap();
         assert_eq!(mime_type, "image/png");
@@ -497,14 +582,16 @@ mod tests {
         let message = ChatMessage {
             role: MessageRole::User,
             content: Some(MessageContent::Parts(vec![
-                ContentPart::Text { text: "What's in this image?".to_string() },
+                ContentPart::Text {
+                    text: "What's in this image?".to_string(),
+                },
                 ContentPart::Image {
                     source: crate::core::types::requests::ImageSource {
                         data: "test".to_string(),
                         media_type: "image/png".to_string(),
                     },
                     image_url: None,
-                    detail: None
+                    detail: None,
                 },
             ])),
             name: None,

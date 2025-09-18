@@ -1,7 +1,7 @@
 //! xAI Provider Configuration
 
-use serde::{Deserialize, Serialize};
 use crate::core::traits::ProviderConfig;
+use serde::{Deserialize, Serialize};
 
 /// xAI provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,14 +79,16 @@ impl ProviderConfig for XAIConfig {
 impl XAIConfig {
     /// Get the API base URL
     pub fn get_api_base(&self) -> String {
-        self.api_base.clone()
+        self.api_base
+            .clone()
             .or_else(|| std::env::var("XAI_API_BASE").ok())
             .unwrap_or_else(|| "https://api.x.ai/v1".to_string())
     }
 
     /// Get the API key
     pub fn get_api_key(&self) -> Option<String> {
-        self.api_key.clone()
+        self.api_key
+            .clone()
             .or_else(|| std::env::var("XAI_API_KEY").ok())
     }
 }

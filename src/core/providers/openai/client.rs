@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{
-    GlobalPoolManager, HttpMethod,
-};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 use crate::core::traits::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
@@ -98,10 +96,11 @@ impl OpenAIProvider {
             headers.insert(key.clone(), value.clone());
         }
 
-        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e| OpenAIError::Network {
-            provider: "openai",
-            message: e.to_string(),
-        })?);
+        let pool_manager =
+            Arc::new(GlobalPoolManager::new().map_err(|e| OpenAIError::Network {
+                provider: "openai",
+                message: e.to_string(),
+            })?);
         let model_registry = get_openai_registry();
 
         Ok(Self {
@@ -283,7 +282,10 @@ impl OpenAIProvider {
     }
 
     /// Get model information with validation
-    pub fn get_model_info(&self, model_id: &str) -> Result<crate::core::types::common::ModelInfo, OpenAIError> {
+    pub fn get_model_info(
+        &self,
+        model_id: &str,
+    ) -> Result<crate::core::types::common::ModelInfo, OpenAIError> {
         // Return a default ModelInfo for any model
         // Like Python LiteLLM, we don't validate models locally
         use crate::core::types::common::ModelInfo;
@@ -368,7 +370,7 @@ impl LLMProvider for OpenAIProvider {
     ) -> Result<ChatResponse, Self::Error> {
         // Like Python LiteLLM, we don't validate models locally
         // OpenAI API will handle invalid models
-        
+
         // Execute request
         self.execute_chat_completion(request).await
     }
@@ -381,7 +383,7 @@ impl LLMProvider for OpenAIProvider {
     {
         // Like Python LiteLLM, we don't validate models locally
         // OpenAI API will handle invalid models
-        
+
         self.execute_chat_completion_stream(request).await
     }
 
@@ -539,7 +541,7 @@ impl OpenAIProvider {
     ) -> Result<EmbeddingResponse, OpenAIError> {
         // Like Python LiteLLM, we don't validate models locally
         // OpenAI API will handle invalid models
-        
+
         // Transform to OpenAI format
         let openai_request = serde_json::json!({
             "input": request.input,

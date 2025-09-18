@@ -2,13 +2,13 @@
 //!
 //! Handles AWS Event Stream parsing and streaming responses
 
+use crate::core::providers::unified_provider::ProviderError;
+use crate::core::types::responses::ChatChunk;
 use bytes::Bytes;
 use futures::{Stream, StreamExt};
 use serde_json::Value;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use crate::core::providers::unified_provider::ProviderError;
-use crate::core::types::responses::ChatChunk;
 
 /// AWS Event Stream message
 #[derive(Debug)]
@@ -51,9 +51,8 @@ impl BedrockStream {
         stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
         model_family: crate::core::providers::bedrock::model_config::BedrockModelFamily,
     ) -> Self {
-        let mapped_stream = stream.map(|result| {
-            result.map_err(|e| ProviderError::network("bedrock", e.to_string()))
-        });
+        let mapped_stream = stream
+            .map(|result| result.map_err(|e| ProviderError::network("bedrock", e.to_string())));
 
         Self {
             inner: Box::pin(mapped_stream),
@@ -65,7 +64,10 @@ impl BedrockStream {
     /// Parse event stream message from bytes
     fn parse_event_message(data: &[u8]) -> Result<EventStreamMessage, ProviderError> {
         if data.len() < 16 {
-            return Err(ProviderError::response_parsing("bedrock", "Invalid event stream message"));
+            return Err(ProviderError::response_parsing(
+                "bedrock",
+                "Invalid event stream message",
+            ));
         }
 
         // Parse prelude (12 bytes)
@@ -74,7 +76,10 @@ impl BedrockStream {
         // let prelude_crc = u32::from_be_bytes([data[8], data[9], data[10], data[11]]);
 
         if data.len() < total_length {
-            return Err(ProviderError::response_parsing("bedrock", "Incomplete event stream message"));
+            return Err(ProviderError::response_parsing(
+                "bedrock",
+                "Incomplete event stream message",
+            ));
         }
 
         // Parse headers
@@ -105,16 +110,19 @@ impl BedrockStream {
             offset += 1;
 
             let value = match header_type {
-                5 => { // String type
+                5 => {
+                    // String type
                     if offset + 2 > data.len() {
                         break;
                     }
-                    let string_length = u16::from_be_bytes([data[offset], data[offset + 1]]) as usize;
+                    let string_length =
+                        u16::from_be_bytes([data[offset], data[offset + 1]]) as usize;
                     offset += 2;
                     if offset + string_length > data.len() {
                         break;
                     }
-                    let string_value = String::from_utf8_lossy(&data[offset..offset + string_length]).to_string();
+                    let string_value =
+                        String::from_utf8_lossy(&data[offset..offset + string_length]).to_string();
                     offset += string_length;
                     HeaderValue::String(string_value)
                 }
@@ -172,7 +180,8 @@ impl BedrockStream {
 
         match event_type {
             Some("content_block_delta") => {
-                let delta = value.get("delta")
+                let delta = value
+                    .get("delta")
                     .and_then(|d| d.get("text"))
                     .and_then(|t| t.as_str())
                     .unwrap_or("");
@@ -197,27 +206,25 @@ impl BedrockStream {
                     system_fingerprint: None,
                 }))
             }
-            Some("message_stop") => {
-                Ok(Some(ChatChunk {
-                    id: format!("bedrock-{}", uuid::Uuid::new_v4()),
-                    object: "chat.completion.chunk".to_string(),
-                    created: chrono::Utc::now().timestamp(),
-                    model: String::new(),
-                    choices: vec![ChatStreamChoice {
-                        index: 0,
-                        delta: ChatDelta {
-                            role: None,
-                            content: None,
-                            tool_calls: None,
-                            function_call: None,
-                        },
-                        finish_reason: Some(crate::core::types::FinishReason::Stop),
-                        logprobs: None,
-                    }],
-                    usage: None,
-                    system_fingerprint: None,
-                }))
-            }
+            Some("message_stop") => Ok(Some(ChatChunk {
+                id: format!("bedrock-{}", uuid::Uuid::new_v4()),
+                object: "chat.completion.chunk".to_string(),
+                created: chrono::Utc::now().timestamp(),
+                model: String::new(),
+                choices: vec![ChatStreamChoice {
+                    index: 0,
+                    delta: ChatDelta {
+                        role: None,
+                        content: None,
+                        tool_calls: None,
+                        function_call: None,
+                    },
+                    finish_reason: Some(crate::core::types::FinishReason::Stop),
+                    logprobs: None,
+                }],
+                usage: None,
+                system_fingerprint: None,
+            })),
             _ => Ok(None),
         }
     }
@@ -226,11 +233,12 @@ impl BedrockStream {
     fn parse_nova_chunk(&self, value: &Value) -> Result<Option<ChatChunk>, ProviderError> {
         use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
 
-        if let Some(content) = value.get("contentBlockDelta")
+        if let Some(content) = value
+            .get("contentBlockDelta")
             .and_then(|c| c.get("delta"))
             .and_then(|d| d.get("text"))
-            .and_then(|t| t.as_str()) {
-
+            .and_then(|t| t.as_str())
+        {
             Ok(Some(ChatChunk {
                 id: format!("bedrock-{}", uuid::Uuid::new_v4()),
                 object: "chat.completion.chunk".to_string(),
@@ -293,7 +301,8 @@ impl BedrockStream {
         use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
 
         // Try to find content in common locations
-        let content = value.get("completion")
+        let content = value
+            .get("completion")
             .or_else(|| value.get("generation"))
             .or_else(|| value.get("text"))
             .and_then(|t| t.as_str());

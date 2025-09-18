@@ -30,14 +30,15 @@ impl DeepSeekClient {
 
     /// Response
     pub fn transform_chat_response(response: Value) -> Result<ChatResponse, ProviderError> {
-
         // Response
         if let Some(error) = response.get("error") {
-            let error_message = error.get("message")
+            let error_message = error
+                .get("message")
                 .and_then(|m| m.as_str())
                 .unwrap_or("Unknown error from DeepSeek API");
-            
-            let error_code = error.get("code")
+
+            let error_code = error
+                .get("code")
                 .and_then(|c| c.as_str())
                 .unwrap_or("unknown_error");
 
@@ -45,10 +46,8 @@ impl DeepSeekClient {
                 "authentication_error" | "invalid_request_error" => {
                     ProviderError::authentication("deepseek", error_message)
                 }
-                "rate_limit_exceeded" => {
-                    ProviderError::rate_limit("deepseek", None)
-                }
-                _ => ProviderError::api_error("deepseek", 400, error_message)
+                "rate_limit_exceeded" => ProviderError::rate_limit("deepseek", None),
+                _ => ProviderError::api_error("deepseek", 400, error_message),
             });
         }
 
@@ -58,32 +57,53 @@ impl DeepSeekClient {
         }
 
         // Build
-        let mut response_obj = response.as_object()
-            .ok_or_else(|| ProviderError::response_parsing("deepseek", "Response is not an object".to_string()))?
+        let mut response_obj = response
+            .as_object()
+            .ok_or_else(|| {
+                ProviderError::response_parsing("deepseek", "Response is not an object".to_string())
+            })?
             .clone();
 
         // If no id field, generate one
         if !response_obj.contains_key("id") {
             use std::time::{SystemTime, UNIX_EPOCH};
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
-            response_obj.insert("id".to_string(), Value::String(format!("chatcmpl-deepseek-{}", timestamp)));
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_millis();
+            response_obj.insert(
+                "id".to_string(),
+                Value::String(format!("chatcmpl-deepseek-{}", timestamp)),
+            );
         }
 
         // Default
         if !response_obj.contains_key("object") {
-            response_obj.insert("object".to_string(), Value::String("chat.completion".to_string()));
+            response_obj.insert(
+                "object".to_string(),
+                Value::String("chat.completion".to_string()),
+            );
         }
 
         // If no created field, add current timestamp
         if !response_obj.contains_key("created") {
             use std::time::{SystemTime, UNIX_EPOCH};
-            let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-            response_obj.insert("created".to_string(), Value::Number(serde_json::Number::from(timestamp)));
+            let timestamp = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
+            response_obj.insert(
+                "created".to_string(),
+                Value::Number(serde_json::Number::from(timestamp)),
+            );
         }
 
         // Default
         if !response_obj.contains_key("model") {
-            response_obj.insert("model".to_string(), Value::String("deepseek-chat".to_string()));
+            response_obj.insert(
+                "model".to_string(),
+                Value::String("deepseek-chat".to_string()),
+            );
         }
 
         // Try deserialization again

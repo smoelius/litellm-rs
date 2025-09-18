@@ -2,9 +2,9 @@
 //!
 //! Handles S3-based batch processing jobs
 
+use crate::core::providers::unified_provider::ProviderError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::core::providers::unified_provider::ProviderError;
 
 /// Batch inference job request
 #[derive(Debug, Serialize, Deserialize)]
@@ -130,31 +130,32 @@ impl<'a> BatchClient<'a> {
         &self,
         request: CreateBatchJobRequest,
     ) -> Result<BatchJobResponse, ProviderError> {
-        let response = self.client.send_request("", "model-invocation-job", &serde_json::to_value(request)?).await?;
-        let job_response: BatchJobResponse = response.json().await
+        let response = self
+            .client
+            .send_request("", "model-invocation-job", &serde_json::to_value(request)?)
+            .await?;
+        let job_response: BatchJobResponse = response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
         Ok(job_response)
     }
 
     /// Get batch job details
-    pub async fn get_job(
-        &self,
-        job_identifier: &str,
-    ) -> Result<BatchJobDetails, ProviderError> {
+    pub async fn get_job(&self, job_identifier: &str) -> Result<BatchJobDetails, ProviderError> {
         let url = format!("model-invocation-job/{}", job_identifier);
         let response = self.client.send_get_request(&url).await?;
-        let job_details: BatchJobDetails = response.json().await
+        let job_details: BatchJobDetails = response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
         Ok(job_details)
     }
 
     /// Stop a batch job
-    pub async fn stop_job(
-        &self,
-        job_identifier: &str,
-    ) -> Result<(), ProviderError> {
+    pub async fn stop_job(&self, job_identifier: &str) -> Result<(), ProviderError> {
         let url = format!("model-invocation-job/{}/stop", job_identifier);
         self.client.send_request("", &url, &Value::Null).await?;
         Ok(())

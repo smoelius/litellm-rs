@@ -2,10 +2,10 @@
 //!
 //! Handles Stability AI and Amazon Nova Canvas image generation
 
-use serde::{Deserialize, Serialize};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ImageGenerationRequest;
-use crate::core::types::responses::{ImageGenerationResponse, ImageData};
+use crate::core::types::responses::{ImageData, ImageGenerationResponse};
+use serde::{Deserialize, Serialize};
 
 /// Stability AI text to image request
 #[derive(Debug, Serialize)]
@@ -102,7 +102,10 @@ pub async fn execute_image_generation(
     } else if model.contains("nova-canvas") {
         execute_nova_generation(client, request, model).await
     } else {
-        Err(ProviderError::model_not_found("bedrock", format!("Image generation model {} not supported", model)))
+        Err(ProviderError::model_not_found(
+            "bedrock",
+            format!("Image generation model {} not supported", model),
+        ))
     }
 }
 
@@ -118,30 +121,33 @@ async fn execute_stability_generation(
             weight: Some(1.0),
         }],
         cfg_scale: Some(7.0),
-        height: request.size.as_ref().and_then(|s| {
-            s.split('x').next().and_then(|h| h.parse().ok())
-        }),
-        width: request.size.as_ref().and_then(|s| {
-            s.split('x').nth(1).and_then(|w| w.parse().ok())
-        }),
+        height: request
+            .size
+            .as_ref()
+            .and_then(|s| s.split('x').next().and_then(|h| h.parse().ok())),
+        width: request
+            .size
+            .as_ref()
+            .and_then(|s| s.split('x').nth(1).and_then(|w| w.parse().ok())),
         samples: request.n,
         seed: None,
-        steps: request.quality.as_ref().and_then(|q| {
-            match q.as_str() {
-                "standard" => Some(30),
-                "hd" => Some(50),
-                _ => None,
-            }
+        steps: request.quality.as_ref().and_then(|q| match q.as_str() {
+            "standard" => Some(30),
+            "hd" => Some(50),
+            _ => None,
         }),
     };
 
     let body = serde_json::to_value(stability_request)?;
     let response = client.send_request(model, "invoke", &body).await?;
-    let stability_response: StabilityResponse = response.json().await
+    let stability_response: StabilityResponse = response
+        .json()
+        .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
     // Convert to OpenAI format
-    let data: Vec<ImageData> = stability_response.artifacts
+    let data: Vec<ImageData> = stability_response
+        .artifacts
         .into_iter()
         .map(|artifact| ImageData {
             url: None,
@@ -166,12 +172,14 @@ async fn execute_nova_generation(
         text_to_image_params: TextToImageParams {
             text: request.prompt.clone(),
             negative_text: None,
-            height: request.size.as_ref().and_then(|s| {
-                s.split('x').next().and_then(|h| h.parse().ok())
-            }),
-            width: request.size.as_ref().and_then(|s| {
-                s.split('x').nth(1).and_then(|w| w.parse().ok())
-            }),
+            height: request
+                .size
+                .as_ref()
+                .and_then(|s| s.split('x').next().and_then(|h| h.parse().ok())),
+            width: request
+                .size
+                .as_ref()
+                .and_then(|s| s.split('x').nth(1).and_then(|w| w.parse().ok())),
             cfg_scale: Some(7.0),
             seed: None,
             number_of_images: request.n,
@@ -181,11 +189,14 @@ async fn execute_nova_generation(
 
     let body = serde_json::to_value(nova_request)?;
     let response = client.send_request(model, "invoke", &body).await?;
-    let nova_response: NovaCanvasResponse = response.json().await
+    let nova_response: NovaCanvasResponse = response
+        .json()
+        .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
     // Convert to OpenAI format
-    let data: Vec<ImageData> = nova_response.images
+    let data: Vec<ImageData> = nova_response
+        .images
         .into_iter()
         .map(|image| ImageData {
             url: None,

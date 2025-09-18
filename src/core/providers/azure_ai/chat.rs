@@ -4,14 +4,14 @@
 
 use futures::{Stream, StreamExt};
 use reqwest::header::HeaderMap;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::pin::Pin;
 
 // Type system imports
 use crate::core::types::{
     common::RequestContext,
-    requests::{ChatRequest, ChatMessage, MessageContent, MessageRole},
-    responses::{ChatResponse, ChatChoice, ChatChunk, FinishReason, Usage},
+    requests::{ChatMessage, ChatRequest, MessageContent, MessageRole},
+    responses::{ChatChoice, ChatChunk, ChatResponse, FinishReason, Usage},
 };
 
 use super::config::{AzureAIConfig, AzureAIEndpointType};
@@ -29,23 +29,32 @@ impl AzureAIChatHandler {
     pub fn new(config: AzureAIConfig) -> Result<Self, ProviderError> {
         // Create headers for the client
         let mut headers = HeaderMap::new();
-        let default_headers = config.create_default_headers()
+        let default_headers = config
+            .create_default_headers()
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
-        
+
         for (key, value) in default_headers {
-            let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e)))?;
-            let header_value = reqwest::header::HeaderValue::from_str(&value)
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e)))?;
+            let header_name =
+                reqwest::header::HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
+                    ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e))
+                })?;
+            let header_value = reqwest::header::HeaderValue::from_str(&value).map_err(|e| {
+                ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e))
+            })?;
             headers.insert(header_name, header_value);
         }
-        
+
         let client = reqwest::Client::builder()
             .timeout(config.timeout())
             .default_headers(headers)
             .build()
-            .map_err(|e| ProviderError::configuration("azure_ai", format!("Failed to create HTTP client: {}", e)))?;
-        
+            .map_err(|e| {
+                ProviderError::configuration(
+                    "azure_ai",
+                    format!("Failed to create HTTP client: {}", e),
+                )
+            })?;
+
         Ok(Self { config, client })
     }
 
@@ -62,7 +71,9 @@ impl AzureAIChatHandler {
         let azure_request = AzureAIChatUtils::transform_request(&request)?;
 
         // Build URL
-        let url = self.config.build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
+        let url = self
+            .config
+            .build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute request
@@ -85,10 +96,9 @@ impl AzureAIChatHandler {
         }
 
         // Parse response
-        let response_json: Value = response
-            .json()
-            .await
-            .map_err(|e| ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e)))?;
+        let response_json: Value = response.json().await.map_err(|e| {
+            ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e))
+        })?;
 
         // Transform to standard format
         AzureAIChatUtils::transform_response(response_json, &request.model)
@@ -109,7 +119,9 @@ impl AzureAIChatHandler {
         azure_request["stream"] = json!(true);
 
         // Build URL
-        let url = self.config.build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
+        let url = self
+            .config
+            .build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute streaming request
@@ -153,11 +165,17 @@ impl AzureAIChatUtils {
     /// Validate chat request
     pub fn validate_request(request: &ChatRequest) -> Result<(), ProviderError> {
         if request.messages.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Messages cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Messages cannot be empty",
+            ));
         }
 
         if request.model.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Model cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Model cannot be empty",
+            ));
         }
 
         // Validate temperature range
@@ -225,13 +243,25 @@ impl AzureAIChatUtils {
 
         // Add tools if present
         if let Some(tools) = &request.tools {
-            azure_request["tools"] = serde_json::to_value(tools)
-                .map_err(|e| ProviderError::transformation_error("azure_ai", "request", "azure_ai", format!("Failed to serialize tools: {}", e)))?;
+            azure_request["tools"] = serde_json::to_value(tools).map_err(|e| {
+                ProviderError::transformation_error(
+                    "azure_ai",
+                    "request",
+                    "azure_ai",
+                    format!("Failed to serialize tools: {}", e),
+                )
+            })?;
         }
 
         if let Some(tool_choice) = &request.tool_choice {
-            azure_request["tool_choice"] = serde_json::to_value(tool_choice)
-                .map_err(|e| ProviderError::transformation_error("azure_ai", "request", "azure_ai", format!("Failed to serialize tool_choice: {}", e)))?;
+            azure_request["tool_choice"] = serde_json::to_value(tool_choice).map_err(|e| {
+                ProviderError::transformation_error(
+                    "azure_ai",
+                    "request",
+                    "azure_ai",
+                    format!("Failed to serialize tool_choice: {}", e),
+                )
+            })?;
         }
 
         Ok(azure_request)
@@ -254,11 +284,14 @@ impl AzureAIChatUtils {
                     }
                     MessageContent::Parts(parts) => {
                         // Multi-modal content - transform parts to Azure AI format
-                        let content_parts = parts.iter().map(|part| {
-                            // Transform ContentPart to Azure AI format
-                            // This is a simplified transformation - expand as needed based on ContentPart structure
-                            json!(part)
-                        }).collect::<Vec<_>>();
+                        let content_parts = parts
+                            .iter()
+                            .map(|part| {
+                                // Transform ContentPart to Azure AI format
+                                // This is a simplified transformation - expand as needed based on ContentPart structure
+                                json!(part)
+                            })
+                            .collect::<Vec<_>>();
                         azure_message["content"] = json!(content_parts);
                     }
                 }
@@ -271,14 +304,27 @@ impl AzureAIChatUtils {
 
             // Add function call if present
             if let Some(function_call) = &message.function_call {
-                azure_message["function_call"] = serde_json::to_value(function_call)
-                    .map_err(|e| ProviderError::transformation_error("azure_ai", "request", "azure_ai", format!("Failed to serialize function_call: {}", e)))?;
+                azure_message["function_call"] =
+                    serde_json::to_value(function_call).map_err(|e| {
+                        ProviderError::transformation_error(
+                            "azure_ai",
+                            "request",
+                            "azure_ai",
+                            format!("Failed to serialize function_call: {}", e),
+                        )
+                    })?;
             }
 
             // Add tool calls if present
             if let Some(tool_calls) = &message.tool_calls {
-                azure_message["tool_calls"] = serde_json::to_value(tool_calls)
-                    .map_err(|e| ProviderError::transformation_error("azure_ai", "request", "azure_ai", format!("Failed to serialize tool_calls: {}", e)))?;
+                azure_message["tool_calls"] = serde_json::to_value(tool_calls).map_err(|e| {
+                    ProviderError::transformation_error(
+                        "azure_ai",
+                        "request",
+                        "azure_ai",
+                        format!("Failed to serialize tool_calls: {}", e),
+                    )
+                })?;
             }
 
             // Add tool call ID if present
@@ -305,15 +351,12 @@ impl AzureAIChatUtils {
 
     /// Transform Azure AI response to ChatResponse
     pub fn transform_response(response: Value, model: &str) -> Result<ChatResponse, ProviderError> {
-        let id = response["id"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
-        
+        let id = response["id"].as_str().unwrap_or("unknown").to_string();
+
         let created = response["created"]
             .as_i64()
             .unwrap_or_else(|| chrono::Utc::now().timestamp());
-        
+
         let choices = response["choices"]
             .as_array()
             .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Invalid choices format"))?
@@ -323,12 +366,12 @@ impl AzureAIChatUtils {
             .collect::<Result<Vec<_>, _>>()?;
 
         let usage = response.get("usage").map(|usage_data| Usage {
-                prompt_tokens: usage_data["prompt_tokens"].as_u64().unwrap_or(0) as u32,
-                completion_tokens: usage_data["completion_tokens"].as_u64().unwrap_or(0) as u32,
-                total_tokens: usage_data["total_tokens"].as_u64().unwrap_or(0) as u32,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            });
+            prompt_tokens: usage_data["prompt_tokens"].as_u64().unwrap_or(0) as u32,
+            completion_tokens: usage_data["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            total_tokens: usage_data["total_tokens"].as_u64().unwrap_or(0) as u32,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        });
 
         Ok(ChatResponse {
             id,
@@ -391,11 +434,11 @@ impl AzureAIChatUtils {
     pub fn parse_streaming_chunk(chunk_str: &str, model: &str) -> Result<ChatChunk, ProviderError> {
         // Parse SSE format
         let lines: Vec<&str> = chunk_str.split("\n").collect();
-        
+
         for line in lines {
             if let Some(data) = line.strip_prefix("data: ") {
                 // Remove "data: " prefix
-                
+
                 if data == "[DONE]" {
                     // End of stream marker
                     return Ok(ChatChunk {
@@ -408,15 +451,19 @@ impl AzureAIChatUtils {
                         system_fingerprint: None,
                     });
                 }
-                
+
                 // Parse JSON data
-                let chunk_data: Value = serde_json::from_str(data)
-                    .map_err(|e| ProviderError::response_parsing("azure_ai", format!("Failed to parse chunk: {}", e)))?;
-                
+                let chunk_data: Value = serde_json::from_str(data).map_err(|e| {
+                    ProviderError::response_parsing(
+                        "azure_ai",
+                        format!("Failed to parse chunk: {}", e),
+                    )
+                })?;
+
                 return Self::transform_streaming_chunk(chunk_data, model);
             }
         }
-        
+
         // Empty chunk
         Ok(ChatChunk {
             id: "empty".to_string(),
@@ -430,16 +477,16 @@ impl AzureAIChatUtils {
     }
 
     /// Transform streaming chunk data
-    fn transform_streaming_chunk(chunk_data: Value, model: &str) -> Result<ChatChunk, ProviderError> {
-        let id = chunk_data["id"]
-            .as_str()
-            .unwrap_or("unknown")
-            .to_string();
-        
+    fn transform_streaming_chunk(
+        chunk_data: Value,
+        model: &str,
+    ) -> Result<ChatChunk, ProviderError> {
+        let id = chunk_data["id"].as_str().unwrap_or("unknown").to_string();
+
         let created = chunk_data["created"]
             .as_i64()
             .unwrap_or_else(|| chrono::Utc::now().timestamp());
-        
+
         // Transform choices
         let choices = if let Some(choices_array) = chunk_data["choices"].as_array() {
             choices_array

@@ -52,15 +52,12 @@ mod tests {
             assert!(!models.is_empty());
 
             // Check if Llama models are present
-            let llama_models: Vec<_> = models.iter()
-                .filter(|m| m.id.contains("llama"))
-                .collect();
+            let llama_models: Vec<_> = models.iter().filter(|m| m.id.contains("llama")).collect();
             assert!(!llama_models.is_empty());
 
             // Check if Mixtral models are present
-            let mixtral_models: Vec<_> = models.iter()
-                .filter(|m| m.id.contains("mixtral"))
-                .collect();
+            let mixtral_models: Vec<_> =
+                models.iter().filter(|m| m.id.contains("mixtral")).collect();
             assert!(!mixtral_models.is_empty());
         });
     }
@@ -93,14 +90,15 @@ mod tests {
             assert!(params.contains(&"response_format"));
 
             // Test reasoning model params (use model that actually supports reasoning in Python LiteLLM)
-            let reasoning_params = provider.get_supported_openai_params("deepseek-r1-distill-llama-70b");
+            let reasoning_params =
+                provider.get_supported_openai_params("deepseek-r1-distill-llama-70b");
             assert!(reasoning_params.contains(&"reasoning_effort"));
         });
     }
 
     #[test]
     fn test_should_fake_stream() {
-        use crate::core::types::requests::{ChatRequest, ChatMessage, MessageRole};
+        use crate::core::types::requests::{ChatMessage, ChatRequest, MessageRole};
 
         tokio::runtime::Runtime::new().unwrap().block_on(async {
             let provider = GroqProvider::with_api_key("test-key").await.unwrap();
@@ -108,16 +106,16 @@ mod tests {
             // Test without response_format
             let request = ChatRequest {
                 model: "llama-3.1-70b-versatile".to_string(),
-                messages: vec![
-                    ChatMessage {
-                        role: MessageRole::User,
-                        content: Some(crate::core::types::requests::MessageContent::Text("Hello".to_string())),
-                        name: None,
-                        tool_calls: None,
-                        tool_call_id: None,
-                        function_call: None,
-                    }
-                ],
+                messages: vec![ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(crate::core::types::requests::MessageContent::Text(
+                        "Hello".to_string(),
+                    )),
+                    name: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                    function_call: None,
+                }],
                 stream: true,
                 ..Default::default()
             };
@@ -125,11 +123,12 @@ mod tests {
 
             // Test with response_format and stream
             let mut request_with_format = request.clone();
-            request_with_format.response_format = Some(crate::core::types::requests::ResponseFormat {
-                format_type: "json_object".to_string(),
-                json_schema: None,
-                response_type: None,
-            });
+            request_with_format.response_format =
+                Some(crate::core::types::requests::ResponseFormat {
+                    format_type: "json_object".to_string(),
+                    json_schema: None,
+                    response_type: None,
+                });
             assert!(provider.should_fake_stream(&request_with_format));
 
             // Test with response_format but no stream
@@ -143,7 +142,9 @@ mod tests {
         let provider = GroqProvider::with_api_key("test-key").await.unwrap();
 
         // Test cost calculation for a known model
-        let cost = provider.calculate_cost("llama-3.1-70b-versatile", 1000, 1000).await;
+        let cost = provider
+            .calculate_cost("llama-3.1-70b-versatile", 1000, 1000)
+            .await;
         assert!(cost.is_ok());
 
         let total_cost = cost.unwrap();
@@ -163,21 +164,21 @@ mod tests {
         // Test 401 error mapping
         let auth_error = mapper.map_http_error(401, "Unauthorized");
         match auth_error {
-            error::GroqError::AuthenticationError(_) => {},
+            error::GroqError::AuthenticationError(_) => {}
             _ => panic!("Expected AuthenticationError"),
         }
 
         // Test 429 error mapping
         let rate_error = mapper.map_http_error(429, "Too many requests");
         match rate_error {
-            error::GroqError::RateLimitError(_) => {},
+            error::GroqError::RateLimitError(_) => {}
             _ => panic!("Expected RateLimitError"),
         }
 
         // Test 404 error mapping
         let not_found = mapper.map_http_error(404, "Not found");
         match not_found {
-            error::GroqError::ModelNotFoundError(_) => {},
+            error::GroqError::ModelNotFoundError(_) => {}
             _ => panic!("Expected ModelNotFoundError"),
         }
     }
@@ -209,19 +210,22 @@ mod tests {
             let models = provider.models();
 
             // Check tool-use models have proper capabilities
-            let tool_models: Vec<_> = models.iter()
+            let tool_models: Vec<_> = models
+                .iter()
                 .filter(|m| m.id.contains("tool-use"))
                 .collect();
 
             for model in tool_models {
                 assert!(model.supports_tools);
-                assert!(model.capabilities.contains(&ProviderCapability::ToolCalling));
+                assert!(
+                    model
+                        .capabilities
+                        .contains(&ProviderCapability::ToolCalling)
+                );
             }
 
             // Check vision models have multimodal support
-            let vision_models: Vec<_> = models.iter()
-                .filter(|m| m.id.contains("vision"))
-                .collect();
+            let vision_models: Vec<_> = models.iter().filter(|m| m.id.contains("vision")).collect();
 
             for model in vision_models {
                 assert!(model.supports_multimodal);

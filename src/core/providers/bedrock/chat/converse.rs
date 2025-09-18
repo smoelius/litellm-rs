@@ -2,11 +2,11 @@
 //!
 //! Modern unified API for chat completions in Bedrock
 
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::types::{MessageRole, MessageContent};
+use crate::core::types::{MessageContent, MessageRole};
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 /// Converse API request format
 #[derive(Debug, Serialize, Deserialize)]
@@ -188,11 +188,17 @@ pub async fn execute_converse(
     let converse_request = transform_to_converse(request)?;
 
     // Send request using the client
-    let response = client.send_request(&request.model, "converse", &serde_json::to_value(converse_request)?)
+    let response = client
+        .send_request(
+            &request.model,
+            "converse",
+            &serde_json::to_value(converse_request)?,
+        )
         .await?;
 
     // Parse response and return as Value
-    response.json::<Value>()
+    response
+        .json::<Value>()
         .await
         .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))
 }
@@ -211,9 +217,13 @@ fn transform_to_converse(request: &ChatRequest) -> Result<ConverseRequest, Provi
                         MessageContent::Text(text) => text.clone(),
                         MessageContent::Parts(parts) => {
                             // Extract text from parts
-                            parts.iter()
+                            parts
+                                .iter()
                                 .filter_map(|part| {
-                                    if let crate::core::types::requests::ContentPart::Text { text } = part {
+                                    if let crate::core::types::requests::ContentPart::Text {
+                                        text,
+                                    } = part
+                                    {
                                         Some(text.clone())
                                     } else {
                                         None
@@ -235,7 +245,8 @@ fn transform_to_converse(request: &ChatRequest) -> Result<ConverseRequest, Provi
                     MessageRole::User => "user",
                     MessageRole::Assistant => "assistant",
                     _ => continue,
-                }.to_string();
+                }
+                .to_string();
 
                 let content = if let Some(msg_content) = &msg.content {
                     match msg_content {
@@ -243,37 +254,52 @@ fn transform_to_converse(request: &ChatRequest) -> Result<ConverseRequest, Provi
                             vec![ContentBlock::Text { text: text.clone() }]
                         }
                         MessageContent::Parts(parts) => {
-                            parts.iter().filter_map(|part| {
-                                match part {
-                                    crate::core::types::requests::ContentPart::Text { text } => {
-                                        Some(ContentBlock::Text { text: text.clone() })
+                            parts
+                                .iter()
+                                .filter_map(|part| {
+                                    match part {
+                                        crate::core::types::requests::ContentPart::Text {
+                                            text,
+                                        } => Some(ContentBlock::Text { text: text.clone() }),
+                                        crate::core::types::requests::ContentPart::Image {
+                                            ..
+                                        } => {
+                                            // TODO: Handle image content
+                                            None
+                                        }
+                                        crate::core::types::requests::ContentPart::ImageUrl {
+                                            ..
+                                        } => {
+                                            // TODO: Handle image URL content
+                                            None
+                                        }
+                                        crate::core::types::requests::ContentPart::Audio {
+                                            ..
+                                        } => {
+                                            // TODO: Handle audio content
+                                            None
+                                        }
+                                        crate::core::types::requests::ContentPart::Document {
+                                            ..
+                                        } => {
+                                            // TODO: Handle document content
+                                            None
+                                        }
+                                        crate::core::types::requests::ContentPart::ToolResult {
+                                            ..
+                                        } => {
+                                            // TODO: Handle tool result content
+                                            None
+                                        }
+                                        crate::core::types::requests::ContentPart::ToolUse {
+                                            ..
+                                        } => {
+                                            // TODO: Handle tool use content
+                                            None
+                                        }
                                     }
-                                    crate::core::types::requests::ContentPart::Image { .. } => {
-                                        // TODO: Handle image content
-                                        None
-                                    }
-                                    crate::core::types::requests::ContentPart::ImageUrl { .. } => {
-                                        // TODO: Handle image URL content
-                                        None
-                                    }
-                                    crate::core::types::requests::ContentPart::Audio { .. } => {
-                                        // TODO: Handle audio content
-                                        None
-                                    }
-                                    crate::core::types::requests::ContentPart::Document { .. } => {
-                                        // TODO: Handle document content
-                                        None
-                                    }
-                                    crate::core::types::requests::ContentPart::ToolResult { .. } => {
-                                        // TODO: Handle tool result content
-                                        None
-                                    }
-                                    crate::core::types::requests::ContentPart::ToolUse { .. } => {
-                                        // TODO: Handle tool use content
-                                        None
-                                    }
-                                }
-                            }).collect()
+                                })
+                                .collect()
                         }
                     }
                 } else {
@@ -299,17 +325,22 @@ fn transform_to_converse(request: &ChatRequest) -> Result<ConverseRequest, Provi
 
     // Build tool config if tools are present
     let tool_config = if let Some(tools) = &request.tools {
-        let tool_specs: Vec<ToolSpec> = tools.iter().map(|tool| {
-            ToolSpec {
+        let tool_specs: Vec<ToolSpec> = tools
+            .iter()
+            .map(|tool| ToolSpec {
                 tool_spec: ToolSpecDefinition {
                     name: tool.function.name.clone(),
                     description: tool.function.description.clone().unwrap_or_default(),
                     input_schema: InputSchema {
-                        json: tool.function.parameters.clone().unwrap_or(Value::Object(Default::default())),
+                        json: tool
+                            .function
+                            .parameters
+                            .clone()
+                            .unwrap_or(Value::Object(Default::default())),
                     },
-                }
-            }
-        }).collect();
+                },
+            })
+            .collect();
 
         Some(ToolConfig {
             tools: tool_specs,
@@ -321,7 +352,11 @@ fn transform_to_converse(request: &ChatRequest) -> Result<ConverseRequest, Provi
 
     Ok(ConverseRequest {
         messages,
-        system: if system_messages.is_empty() { None } else { Some(system_messages) },
+        system: if system_messages.is_empty() {
+            None
+        } else {
+            Some(system_messages)
+        },
         inference_config,
         tool_config,
         guardrail_config: None, // TODO: Add guardrail support

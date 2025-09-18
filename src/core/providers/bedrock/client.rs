@@ -33,7 +33,7 @@ impl BedrockClient {
 
         // Create base HTTP client
         let base_config = BaseProviderConfig {
-            api_key: None, // Bedrock uses AWS credentials
+            api_key: None,  // Bedrock uses AWS credentials
             api_base: None, // Dynamic based on region and model
             timeout: Some(config.timeout_seconds),
             max_retries: Some(config.max_retries),
@@ -85,7 +85,7 @@ impl BedrockClient {
     /// Build Bedrock API URL for a model and operation
     pub fn build_url(&self, model_id: &str, operation: &str) -> String {
         let region = &self.auth.credentials().region;
-        
+
         // Different URL patterns for different operations
         match operation {
             "invoke" => {
@@ -113,10 +113,7 @@ impl BedrockClient {
                 )
             }
             "list-foundation-models" => {
-                format!(
-                    "https://bedrock.{}.amazonaws.com/foundation-models",
-                    region
-                )
+                format!("https://bedrock.{}.amazonaws.com/foundation-models", region)
             }
             _ => {
                 format!(
@@ -137,9 +134,12 @@ impl BedrockClient {
         let timestamp = chrono::Utc::now();
         let headers = HashMap::new(); // Start with empty headers
 
-        let signed_headers = self.signer
+        let signed_headers = self
+            .signer
             .sign_request(method, url, &headers, body, timestamp)
-            .map_err(|e| ProviderError::configuration("bedrock", format!("Signing failed: {}", e)))?;
+            .map_err(|e| {
+                ProviderError::configuration("bedrock", format!("Signing failed: {}", e))
+            })?;
 
         // Convert to reqwest HeaderMap
         let mut header_map = reqwest::header::HeaderMap::new();
@@ -173,7 +173,8 @@ impl BedrockClient {
         let headers = self.create_signed_headers(&url, &body_str, "POST").await?;
 
         // Send request
-        let response = self.inner()
+        let response = self
+            .inner()
             .post(&url)
             .headers(headers)
             .body(body_str)
@@ -184,7 +185,10 @@ impl BedrockClient {
         // Check for errors
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             error!("Bedrock API error: {} - {}", status, error_body);
             return Err(self.error_mapper.map_http_error(status, &error_body));
         }
@@ -209,7 +213,8 @@ impl BedrockClient {
         let headers = self.create_signed_headers(&url, &body_str, "POST").await?;
 
         // Send streaming request
-        let response = self.inner()
+        let response = self
+            .inner()
             .post(&url)
             .headers(headers)
             .body(body_str)
@@ -220,7 +225,10 @@ impl BedrockClient {
         // Check for errors
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             error!("Bedrock streaming API error: {} - {}", status, error_body);
             return Err(self.error_mapper.map_http_error(status, &error_body));
         }
@@ -239,7 +247,8 @@ impl BedrockClient {
         let headers = self.create_signed_headers(&url, body, "GET").await?;
 
         // Send GET request
-        let response = self.inner()
+        let response = self
+            .inner()
             .get(&url)
             .headers(headers)
             .send()
@@ -249,7 +258,10 @@ impl BedrockClient {
         // Check for errors
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             error!("Bedrock GET API error: {} - {}", status, error_body);
             return Err(self.error_mapper.map_http_error(status, &error_body));
         }
@@ -291,7 +303,10 @@ mod tests {
         );
 
         // Test streaming URL
-        let url = client.build_url("amazon.titan-text-express-v1", "invoke-with-response-stream");
+        let url = client.build_url(
+            "amazon.titan-text-express-v1",
+            "invoke-with-response-stream",
+        );
         assert_eq!(
             url,
             "https://bedrock-runtime.us-east-1.amazonaws.com/model/amazon.titan-text-express-v1/invoke-with-response-stream"

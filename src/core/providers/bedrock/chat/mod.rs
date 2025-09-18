@@ -6,10 +6,10 @@ pub mod converse;
 pub mod invoke;
 pub mod transformations;
 
-use serde_json::Value;
+use super::model_config::{BedrockApiType, get_model_config};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use super::model_config::{BedrockApiType, get_model_config};
+use serde_json::Value;
 
 /// Route a chat request to the appropriate API based on model capabilities
 pub async fn route_chat_request(
@@ -31,7 +31,10 @@ pub async fn route_chat_request(
 /// Check if a model supports the converse API
 pub fn supports_converse(model_id: &str) -> bool {
     if let Ok(config) = get_model_config(model_id) {
-        matches!(config.api_type, BedrockApiType::Converse | BedrockApiType::ConverseStream)
+        matches!(
+            config.api_type,
+            BedrockApiType::Converse | BedrockApiType::ConverseStream
+        )
     } else {
         false
     }

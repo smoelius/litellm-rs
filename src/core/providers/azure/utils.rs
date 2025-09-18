@@ -147,8 +147,9 @@ impl AzureUtils {
         for (key, value) in &config.custom_headers {
             let header_name = HeaderName::from_bytes(key.as_bytes())
                 .map_err(|e| azure_header_error(format!("Invalid header name {}: {}", key, e)))?;
-            let header_value = HeaderValue::from_str(value)
-                .map_err(|e| azure_header_error(format!("Invalid header value for {}: {}", key, e)))?;
+            let header_value = HeaderValue::from_str(value).map_err(|e| {
+                azure_header_error(format!("Invalid header value for {}: {}", key, e))
+            })?;
             headers.insert(header_name, header_value);
         }
 

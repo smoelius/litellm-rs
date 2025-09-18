@@ -1,6 +1,8 @@
 //! Integration test for connection pool
 
-use litellm_rs::core::providers::base::{ConnectionPool, GlobalPoolManager, HttpMethod, PoolConfig};
+use litellm_rs::core::providers::base::{
+    ConnectionPool, GlobalPoolManager, HttpMethod, PoolConfig,
+};
 
 #[tokio::test]
 async fn test_pool_creation() {
@@ -11,7 +13,10 @@ async fn test_pool_creation() {
 #[tokio::test]
 async fn test_global_manager_creation() {
     let manager = GlobalPoolManager::new();
-    assert!(manager.is_ok(), "Should create global pool manager successfully");
+    assert!(
+        manager.is_ok(),
+        "Should create global pool manager successfully"
+    );
 }
 
 #[tokio::test]

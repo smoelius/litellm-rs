@@ -2,8 +2,8 @@
 //!
 //! Provides audio transcription capabilities using Groq's Whisper models.
 
-use serde::{Deserialize, Serialize};
 use super::error::GroqError;
+use serde::{Deserialize, Serialize};
 
 /// Speech-to-text request
 #[derive(Debug, Clone, Serialize)]
@@ -114,7 +114,9 @@ pub struct SegmentTimestamp {
 }
 
 /// Create multipart form for audio upload
-pub fn create_multipart_form(request: SpeechToTextRequest) -> Result<reqwest::multipart::Form, GroqError> {
+pub fn create_multipart_form(
+    request: SpeechToTextRequest,
+) -> Result<reqwest::multipart::Form, GroqError> {
     use reqwest::multipart;
 
     let mut form = multipart::Form::new();

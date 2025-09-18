@@ -2,8 +2,8 @@
 //!
 //! HTTP client wrapper for Azure OpenAI Service
 
-use serde::{Deserialize, Serialize};
 use reqwest::header::HeaderMap;
+use serde::{Deserialize, Serialize};
 
 use super::config::AzureConfig;
 use super::error::azure_config_error;
@@ -41,7 +41,9 @@ impl AzureClient {
         deployment_name: &str,
         endpoint_type: AzureEndpointType,
     ) -> Result<String, ProviderError> {
-        let endpoint = self.config.get_effective_azure_endpoint()
+        let endpoint = self
+            .config
+            .get_effective_azure_endpoint()
             .ok_or_else(|| azure_config_error("Azure endpoint not configured"))?;
 
         Ok(AzureUtils::build_azure_url(

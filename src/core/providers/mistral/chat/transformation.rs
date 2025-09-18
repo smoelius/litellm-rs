@@ -207,7 +207,10 @@ impl MistralChatTransformation {
         choices_value: Option<&Value>,
     ) -> Result<Vec<ChatChoice>, MistralError> {
         let choices_array = choices_value.and_then(|v| v.as_array()).ok_or_else(|| {
-            ProviderError::response_parsing("mistral", "Missing or invalid choices in response".to_string())
+            ProviderError::response_parsing(
+                "mistral",
+                "Missing or invalid choices in response".to_string(),
+            )
         })?;
 
         let mut choices = Vec::new();
@@ -247,8 +250,9 @@ impl MistralChatTransformation {
         &self,
         message_value: Option<&Value>,
     ) -> Result<ChatMessage, MistralError> {
-        let message_obj = message_value
-            .ok_or_else(|| ProviderError::response_parsing("mistral", "Missing message in choice".to_string()))?;
+        let message_obj = message_value.ok_or_else(|| {
+            ProviderError::response_parsing("mistral", "Missing message in choice".to_string())
+        })?;
 
         let role = match message_obj
             .get("role")

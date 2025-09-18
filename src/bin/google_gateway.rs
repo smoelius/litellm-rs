@@ -219,7 +219,10 @@ async fn chat_completions(
     state: web::Data<AppState>,
     request: web::Json<ChatRequest>,
 ) -> ActixResult<HttpResponse> {
-    info!("🤖 Processing actual Google API request: model={}", request.model);
+    info!(
+        "🤖 Processing actual Google API request: model={}",
+        request.model
+    );
 
     let mut count = state.request_count.write().await;
     *count += 1;
@@ -315,7 +318,10 @@ async fn chat_completions(
         .map(|p| p.text.clone())
         .unwrap_or_else(|| "Sorry, unable to generate response.".to_string());
 
-    info!("✅ Google API response successful, content length: {}", content.len());
+    info!(
+        "✅ Google API response successful, content length: {}",
+        content.len()
+    );
 
     let openai_response = json!({
         "id": format!("chatcmpl-{}", uuid::Uuid::new_v4()),
@@ -416,8 +422,8 @@ fn load_config(
     let config_content = std::fs::read_to_string(config_path)
         .map_err(|e| format!("Unable to read config file {}: {}", config_path, e))?;
 
-    let config: GatewayConfig =
-        serde_yaml::from_str(&config_content).map_err(|e| format!("Config file format error: {}", e))?;
+    let config: GatewayConfig = serde_yaml::from_str(&config_content)
+        .map_err(|e| format!("Config file format error: {}", e))?;
 
     Ok(config)
 }

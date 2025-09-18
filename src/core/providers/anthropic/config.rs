@@ -5,8 +5,8 @@
 use std::collections::HashMap;
 use std::env;
 
-use crate::core::traits::ProviderConfig;
 use crate::core::providers::unified_provider::ProviderError;
+use crate::core::traits::ProviderConfig;
 
 /// Configuration
 #[derive(Debug, Clone)]
@@ -85,10 +85,12 @@ impl AnthropicConfig {
         config.api_key = env::var("ANTHROPIC_API_KEY")
             .or_else(|_| env::var("CLAUDE_API_KEY"))
             .map(Some)
-            .map_err(|_| ProviderError::configuration(
-                "anthropic", 
-                "ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable is required"
-            ))?;
+            .map_err(|_| {
+                ProviderError::configuration(
+                    "anthropic",
+                    "ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable is required",
+                )
+            })?;
 
         // Configuration
         if let Ok(base_url) = env::var("ANTHROPIC_BASE_URL") {
@@ -217,7 +219,9 @@ impl ProviderConfig for AnthropicConfig {
         }
 
         if !api_key.starts_with("sk-ant-") {
-            return Err("Invalid Anthropic API key format. Keys should start with 'sk-ant-'".to_string());
+            return Err(
+                "Invalid Anthropic API key format. Keys should start with 'sk-ant-'".to_string(),
+            );
         }
 
         if api_key.len() < 20 {
@@ -319,9 +323,9 @@ impl AnthropicConfigBuilder {
 
     /// Configuration
     pub fn build(self) -> Result<AnthropicConfig, ProviderError> {
-        self.config.validate().map_err(|e| {
-            ProviderError::configuration("anthropic", e)
-        })?;
+        self.config
+            .validate()
+            .map_err(|e| ProviderError::configuration("anthropic", e))?;
         Ok(self.config)
     }
 }
@@ -349,14 +353,14 @@ mod tests {
     #[test]
     fn test_config_validation() {
         let mut config = AnthropicConfig::default();
-        
+
         // Should fail without API key
         assert!(config.validate().is_err());
-        
+
         // Should pass with valid API key
         config.api_key = Some("sk-ant-api03-test".to_string());
         assert!(config.validate().is_ok());
-        
+
         // Should fail with invalid API key format
         config.api_key = Some("invalid-key".to_string());
         assert!(config.validate().is_err());
@@ -370,7 +374,7 @@ mod tests {
             .timeout(60)
             .multimodal(false)
             .build();
-        
+
         assert!(config.is_ok());
         let config = config.unwrap();
         assert_eq!(config.api_key, Some("sk-ant-test".to_string()));
@@ -391,10 +395,16 @@ mod tests {
     #[test]
     fn test_api_url_generation() {
         let config = AnthropicConfig::default();
-        assert_eq!(config.get_api_url("/v1/messages"), "https://api.anthropic.com/v1/messages");
-        
+        assert_eq!(
+            config.get_api_url("/v1/messages"),
+            "https://api.anthropic.com/v1/messages"
+        );
+
         // Test trailing slash removal
         let config = config.with_base_url("https://api.anthropic.com/");
-        assert_eq!(config.get_api_url("/v1/messages"), "https://api.anthropic.com/v1/messages");
+        assert_eq!(
+            config.get_api_url("/v1/messages"),
+            "https://api.anthropic.com/v1/messages"
+        );
     }
 }

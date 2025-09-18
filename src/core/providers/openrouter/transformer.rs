@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// OpenRouter specific parameters
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OpenRouterExtraParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transforms: Option<Vec<String>>,
@@ -25,7 +24,6 @@ pub struct OpenRouterExtraParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
 }
-
 
 /// Error
 #[derive(Debug, Clone, Serialize, Deserialize)]

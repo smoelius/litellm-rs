@@ -1,9 +1,9 @@
 //! Cohere Model Transformations
 
-use serde_json::{json, Value};
+use crate::core::providers::bedrock::model_config::ModelConfig;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::ModelConfig;
+use serde_json::{Value, json};
 
 /// Transform request for Cohere models
 pub fn transform_request(
@@ -21,7 +21,7 @@ pub fn transform_request(
 
 /// Transform request for Command R models (chat format)
 fn transform_command_r_request(request: &ChatRequest) -> Result<Value, ProviderError> {
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
     let mut chat_history = Vec::new();
     let mut message = String::new();
@@ -30,18 +30,17 @@ fn transform_command_r_request(request: &ChatRequest) -> Result<Value, ProviderE
     for msg in &request.messages {
         let content = match &msg.content {
             Some(MessageContent::Text(text)) => text.clone(),
-            Some(MessageContent::Parts(parts)) => {
-                parts.iter()
-                    .filter_map(|part| {
-                        if let crate::core::types::requests::ContentPart::Text { text } = part {
-                            Some(text.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            Some(MessageContent::Parts(parts)) => parts
+                .iter()
+                .filter_map(|part| {
+                    if let crate::core::types::requests::ContentPart::Text { text } = part {
+                        Some(text.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
             None => continue,
         };
 

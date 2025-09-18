@@ -16,13 +16,17 @@ impl AnthropicErrorMapper {
         match status {
             400 => ProviderError::invalid_request("anthropic", format!("Bad request: {}", body)),
             401 => ProviderError::authentication("anthropic", "Invalid or missing API key"),
-            403 => ProviderError::authentication("anthropic", "Forbidden: insufficient permissions"),
+            403 => {
+                ProviderError::authentication("anthropic", "Forbidden: insufficient permissions")
+            }
             404 => ProviderError::model_not_found("anthropic", "Model or endpoint not found"),
             429 => {
                 let retry_after = Self::extract_retry_after(body);
                 ProviderError::rate_limit("anthropic", retry_after)
             }
-            500..=599 => ProviderError::api_error("anthropic", status, format!("Server error: {}", body)),
+            500..=599 => {
+                ProviderError::api_error("anthropic", status, format!("Server error: {}", body))
+            }
             _ => ProviderError::api_error("anthropic", status, body),
         }
     }
@@ -31,9 +35,15 @@ impl AnthropicErrorMapper {
     pub fn from_api_response(response: &serde_json::Value) -> ProviderError {
         // Error
         if let Some(error) = response.get("error") {
-            let error_type = error.get("type").and_then(|t| t.as_str()).unwrap_or("unknown");
-            let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error");
-            
+            let error_type = error
+                .get("type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("unknown");
+            let message = error
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown error");
+
             return match error_type {
                 "authentication_error" => ProviderError::authentication("anthropic", message),
                 "permission_error" => ProviderError::authentication("anthropic", message),
@@ -50,19 +60,25 @@ impl AnthropicErrorMapper {
                         current_usage: None,
                     }
                 }
-                "overloaded_error" => ProviderError::provider_unavailable("anthropic", "Service overloaded"),
+                "overloaded_error" => {
+                    ProviderError::provider_unavailable("anthropic", "Service overloaded")
+                }
                 "api_error" => ProviderError::api_error("anthropic", 500, message),
-                _ => ProviderError::api_error("anthropic", 500, format!("{}: {}", error_type, message)),
+                _ => ProviderError::api_error(
+                    "anthropic",
+                    500,
+                    format!("{}: {}", error_type, message),
+                ),
             };
         }
-        
+
         // Try top-level message
         if let Some(message) = response.get("message") {
             if let Some(msg_str) = message.as_str() {
                 return ProviderError::api_error("anthropic", 500, msg_str);
             }
         }
-        
+
         // Default error
         ProviderError::api_error("anthropic", 500, "Unknown API error")
     }
@@ -73,7 +89,7 @@ impl AnthropicErrorMapper {
             if let Some(retry_after) = json.get("retry_after") {
                 return retry_after.as_u64();
             }
-            
+
             if let Some(error) = json.get("error") {
                 if let Some(retry_after) = error.get("retry_after") {
                     return retry_after.as_u64();
@@ -155,7 +171,7 @@ mod tests {
                 "message": "Invalid API key"
             }
         });
-        
+
         let error = AnthropicErrorMapper::from_api_response(&response);
         match error {
             ProviderError::Authentication { provider, message } => {
@@ -175,10 +191,14 @@ mod tests {
                 "retry_after": 60
             }
         });
-        
+
         let error = AnthropicErrorMapper::from_api_response(&response);
         match error {
-            ProviderError::RateLimit { provider, retry_after, .. } => {
+            ProviderError::RateLimit {
+                provider,
+                retry_after,
+                ..
+            } => {
                 assert_eq!(provider, "anthropic");
                 assert_eq!(retry_after, Some(60));
             }
@@ -202,7 +222,9 @@ mod tests {
 
         let api_err = anthropic_api_error(400, "Test API error");
         match api_err {
-            ProviderError::ApiError { provider, status, .. } => {
+            ProviderError::ApiError {
+                provider, status, ..
+            } => {
                 assert_eq!(provider, "anthropic");
                 assert_eq!(status, 400);
             }

@@ -1,9 +1,9 @@
 //! Cloudflare-specific error types and error mapping
 
-use thiserror::Error;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::ErrorMapper;
 use crate::core::types::errors::ProviderErrorTrait;
+use thiserror::Error;
 
 /// Cloudflare-specific error types
 #[derive(Debug, Error)]
@@ -68,7 +68,7 @@ impl ProviderErrorTrait for CloudflareError {
         match self {
             CloudflareError::RateLimitError(_) => Some(60), // Default 60 seconds for rate limit
             CloudflareError::ServiceUnavailableError(_) => Some(5), // 5 seconds for service unavailable
-            CloudflareError::NetworkError(_) => Some(2), // 2 seconds for network errors
+            CloudflareError::NetworkError(_) => Some(2),            // 2 seconds for network errors
             _ => None,
         }
     }
@@ -96,9 +96,10 @@ impl ProviderErrorTrait for CloudflareError {
 
     fn rate_limited(retry_after: Option<u64>) -> Self {
         match retry_after {
-            Some(seconds) => CloudflareError::RateLimitError(
-                format!("Rate limit exceeded, retry after {} seconds", seconds)
-            ),
+            Some(seconds) => CloudflareError::RateLimitError(format!(
+                "Rate limit exceeded, retry after {} seconds",
+                seconds
+            )),
             None => CloudflareError::RateLimitError("Rate limit exceeded".to_string()),
         }
     }
@@ -120,15 +121,29 @@ impl From<CloudflareError> for ProviderError {
     fn from(error: CloudflareError) -> Self {
         match error {
             CloudflareError::ApiError(msg) => ProviderError::api_error("cloudflare", 500, msg),
-            CloudflareError::AuthenticationError(msg) => ProviderError::authentication("cloudflare", msg),
+            CloudflareError::AuthenticationError(msg) => {
+                ProviderError::authentication("cloudflare", msg)
+            }
             CloudflareError::RateLimitError(_) => ProviderError::rate_limit("cloudflare", None),
-            CloudflareError::InvalidRequestError(msg) => ProviderError::invalid_request("cloudflare", msg),
-            CloudflareError::ModelNotFoundError(msg) => ProviderError::model_not_found("cloudflare", msg),
-            CloudflareError::ServiceUnavailableError(msg) => ProviderError::api_error("cloudflare", 503, msg),
-            CloudflareError::ConfigurationError(msg) => ProviderError::configuration("cloudflare", msg),
+            CloudflareError::InvalidRequestError(msg) => {
+                ProviderError::invalid_request("cloudflare", msg)
+            }
+            CloudflareError::ModelNotFoundError(msg) => {
+                ProviderError::model_not_found("cloudflare", msg)
+            }
+            CloudflareError::ServiceUnavailableError(msg) => {
+                ProviderError::api_error("cloudflare", 503, msg)
+            }
+            CloudflareError::ConfigurationError(msg) => {
+                ProviderError::configuration("cloudflare", msg)
+            }
             CloudflareError::NetworkError(msg) => ProviderError::network("cloudflare", msg),
-            CloudflareError::QuotaExceededError(msg) => ProviderError::token_limit_exceeded("cloudflare", msg),
-            CloudflareError::WorkersAIError(msg) => ProviderError::api_error("cloudflare", 500, msg),
+            CloudflareError::QuotaExceededError(msg) => {
+                ProviderError::token_limit_exceeded("cloudflare", msg)
+            }
+            CloudflareError::WorkersAIError(msg) => {
+                ProviderError::api_error("cloudflare", 500, msg)
+            }
         }
     }
 }

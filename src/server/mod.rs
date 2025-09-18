@@ -312,7 +312,10 @@ pub async fn run_server() -> Result<()> {
             config
         }
         Err(e) => {
-            info!("⚠️  Configuration file loading failed, using default config: {}", e);
+            info!(
+                "⚠️  Configuration file loading failed, using default config: {}",
+                e
+            );
             info!("💡 Please ensure config/gateway.yaml exists with correct API keys");
             Config::default()
         }

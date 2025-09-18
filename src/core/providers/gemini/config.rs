@@ -100,10 +100,7 @@ impl GeminiConfig {
     }
 
     /// Create
-    pub fn new_vertex_ai(
-        project_id: impl Into<String>,
-        location: impl Into<String>,
-    ) -> Self {
+    pub fn new_vertex_ai(project_id: impl Into<String>, location: impl Into<String>) -> Self {
         let location_str = location.into();
         Self {
             api_key: None,
@@ -133,29 +130,29 @@ impl GeminiConfig {
         if let Ok(api_key) = std::env::var("GOOGLE_API_KEY") {
             return Ok(Self::new_google_ai(api_key));
         }
-        
+
         if let Ok(api_key) = std::env::var("GEMINI_API_KEY") {
             return Ok(Self::new_google_ai(api_key));
         }
-        
+
         // Try Vertex AI
         if let (Ok(project_id), Ok(location)) = (
             std::env::var("GOOGLE_CLOUD_PROJECT"),
             std::env::var("GOOGLE_CLOUD_LOCATION"),
         ) {
             let mut config = Self::new_vertex_ai(project_id, location);
-            
+
             // Optional service account
             if let Ok(sa_json) = std::env::var("GOOGLE_APPLICATION_CREDENTIALS") {
                 config.service_account_json = Some(sa_json);
             }
-            
+
             return Ok(config);
         }
-        
+
         Err(ProviderError::configuration(
             "gemini",
-            "No valid Gemini configuration found in environment variables"
+            "No valid Gemini configuration found in environment variables",
         ))
     }
 
@@ -257,7 +254,7 @@ impl ProviderConfig for GeminiConfig {
             if self.project_id.is_none() || self.project_id.as_ref().unwrap().is_empty() {
                 return Err("Project ID is required for Vertex AI".to_string());
             }
-            
+
             if self.location.is_none() || self.location.as_ref().unwrap().is_empty() {
                 return Err("Location is required for Vertex AI".to_string());
             }
@@ -266,7 +263,7 @@ impl ProviderConfig for GeminiConfig {
             if self.api_key.is_none() || self.api_key.as_ref().unwrap().is_empty() {
                 return Err("API key is required for Google AI Studio".to_string());
             }
-            
+
             let api_key = self.api_key.as_ref().unwrap();
             if api_key.len() < 20 {
                 return Err("API key appears to be too short".to_string());
@@ -277,19 +274,19 @@ impl ProviderConfig for GeminiConfig {
         if self.request_timeout == 0 {
             return Err("Request timeout must be greater than 0".to_string());
         }
-        
+
         if self.connect_timeout == 0 {
             return Err("Connect timeout must be greater than 0".to_string());
         }
-        
+
         if self.connect_timeout > self.request_timeout {
             return Err("Connect timeout cannot be greater than request timeout".to_string());
         }
-        
+
         if self.max_retries > 10 {
             return Err("Max retries cannot exceed 10".to_string());
         }
-        
+
         Ok(())
     }
 
@@ -362,7 +359,8 @@ impl GeminiConfigBuilder {
 
     /// Configuration
     pub fn build(self) -> Result<GeminiConfig, ProviderError> {
-        self.config.validate()
+        self.config
+            .validate()
             .map_err(|e| ProviderError::configuration("gemini", e))?;
         Ok(self.config)
     }
@@ -393,7 +391,7 @@ mod tests {
     fn test_config_validation() {
         let mut config = GeminiConfig::new_google_ai("");
         assert!(config.validate().is_err());
-        
+
         config.api_key = Some("valid-api-key-12345678901234567890".to_string());
         assert!(config.validate().is_ok());
     }
@@ -415,7 +413,7 @@ mod tests {
             .with_debug(true)
             .build()
             .unwrap();
-        
+
         assert_eq!(config.request_timeout, 300);
         assert_eq!(config.max_retries, 5);
         assert!(config.debug);

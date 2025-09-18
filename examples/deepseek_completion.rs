@@ -33,7 +33,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let reasoning_messages = vec![
         system_message("You are a helpful assistant capable of deep reasoning."),
-        user_message("Solve this step by step: If a train travels 60 mph for 2 hours, then 80 mph for 1.5 hours, what's the total distance?"),
+        user_message(
+            "Solve this step by step: If a train travels 60 mph for 2 hours, then 80 mph for 1.5 hours, what's the total distance?",
+        ),
     ];
 
     match completion("deepseek/deepseek-reasoner", reasoning_messages, None).await {
@@ -67,7 +69,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let complex_messages = vec![
         system_message("You are a helpful assistant that thinks step by step."),
-        user_message("Explain the philosophical implications of artificial intelligence achieving human-level reasoning capabilities."),
+        user_message(
+            "Explain the philosophical implications of artificial intelligence achieving human-level reasoning capabilities.",
+        ),
     ];
 
     match completion("deepseek/deepseek-reasoner", complex_messages, None).await {
@@ -78,7 +82,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => println!("❌ Error: {}\n", e),
     }
-
 
     Ok(())
 }

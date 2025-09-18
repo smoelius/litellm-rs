@@ -2,8 +2,8 @@
 //!
 //! Configuration for Groq API access including authentication and model settings.
 
-use serde::{Deserialize, Serialize};
 use crate::core::traits::ProviderConfig;
+use serde::{Deserialize, Serialize};
 
 /// Groq provider configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,7 +47,10 @@ impl ProviderConfig for GroqConfig {
     fn validate(&self) -> Result<(), String> {
         // API key can come from environment variable
         if self.api_key.is_none() && std::env::var("GROQ_API_KEY").is_err() {
-            return Err("Groq API key not provided and GROQ_API_KEY environment variable not set".to_string());
+            return Err(
+                "Groq API key not provided and GROQ_API_KEY environment variable not set"
+                    .to_string(),
+            );
         }
 
         // Validate timeout
@@ -78,13 +81,15 @@ impl ProviderConfig for GroqConfig {
 impl GroqConfig {
     /// Get API key with environment variable fallback
     pub fn get_api_key(&self) -> Option<String> {
-        self.api_key.clone()
+        self.api_key
+            .clone()
             .or_else(|| std::env::var("GROQ_API_KEY").ok())
     }
 
     /// Get API base with environment variable fallback
     pub fn get_api_base(&self) -> String {
-        self.api_base.clone()
+        self.api_base
+            .clone()
             .or_else(|| std::env::var("GROQ_API_BASE").ok())
             .unwrap_or_else(|| "https://api.groq.com/openai/v1".to_string())
     }

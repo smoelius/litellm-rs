@@ -28,14 +28,14 @@ pub use client::BedrockClient;
 pub use config::BedrockConfig;
 pub use error::{BedrockError, BedrockErrorMapper};
 pub use model_config::{
-    BedrockModelFamily, BedrockApiType, ModelConfig, get_model_config,
-    model_supports_capability, get_all_model_ids
+    BedrockApiType, BedrockModelFamily, ModelConfig, get_all_model_ids, get_model_config,
+    model_supports_capability,
 };
 pub use provider::BedrockProvider;
 pub use sigv4::SigV4Signer;
 pub use utils::{
-    AwsAuth, AwsCredentials, CostCalculator, ModelPricing,
-    validate_region, is_model_available_in_region, AWS_REGIONS
+    AWS_REGIONS, AwsAuth, AwsCredentials, CostCalculator, ModelPricing,
+    is_model_available_in_region, validate_region,
 };
 
 // Re-export feature modules
@@ -78,11 +78,26 @@ mod tests {
 
     #[test]
     fn test_model_capabilities() {
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "streaming"));
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "function_calling"));
-        assert!(model_supports_capability("anthropic.claude-3-opus-20240229", "multimodal"));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "streaming"
+        ));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "function_calling"
+        ));
+        assert!(model_supports_capability(
+            "anthropic.claude-3-opus-20240229",
+            "multimodal"
+        ));
 
-        assert!(!model_supports_capability("amazon.titan-text-express-v1", "function_calling"));
-        assert!(!model_supports_capability("amazon.titan-text-express-v1", "multimodal"));
+        assert!(!model_supports_capability(
+            "amazon.titan-text-express-v1",
+            "function_calling"
+        ));
+        assert!(!model_supports_capability(
+            "amazon.titan-text-express-v1",
+            "multimodal"
+        ));
     }
 }

@@ -7,8 +7,8 @@
 // Core modules
 mod config;
 mod error;
-mod provider;
 mod model_info;
+mod provider;
 
 // Feature modules
 pub mod streaming;
@@ -21,8 +21,8 @@ mod tests;
 // Re-export main types for external use
 pub use config::GroqConfig;
 pub use error::{GroqError, GroqErrorMapper};
-pub use provider::GroqProvider;
 pub use model_info::{GroqModel, get_model_info, is_reasoning_model};
+pub use provider::GroqProvider;
 
 // Re-export feature types
 pub use stt::SpeechToTextRequest;

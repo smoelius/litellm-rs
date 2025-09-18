@@ -17,18 +17,17 @@ pub mod streaming;
 pub use client::AnthropicClient;
 pub use config::{AnthropicConfig, AnthropicConfigBuilder};
 pub use error::{
-    AnthropicError, AnthropicErrorMapper,
-    anthropic_api_error, anthropic_auth_error, anthropic_config_error,
-    anthropic_model_error, anthropic_network_error, anthropic_parse_error,
+    AnthropicError, AnthropicErrorMapper, anthropic_api_error, anthropic_auth_error,
+    anthropic_config_error, anthropic_model_error, anthropic_network_error, anthropic_parse_error,
     anthropic_rate_limit_error, anthropic_stream_error, anthropic_validation_error,
 };
 pub use models::{
-    AnthropicModelFamily, AnthropicModelRegistry, CostCalculator, ModelConfig,
-    ModelFeature, ModelLimits, ModelPricing, ModelSpec, get_anthropic_registry,
+    AnthropicModelFamily, AnthropicModelRegistry, CostCalculator, ModelConfig, ModelFeature,
+    ModelLimits, ModelPricing, ModelSpec, get_anthropic_registry,
 };
 pub use provider::{
-    AnthropicProvider, AnthropicProviderBuilder,
-    create_anthropic_provider, create_anthropic_provider_from_env,
+    AnthropicProvider, AnthropicProviderBuilder, create_anthropic_provider,
+    create_anthropic_provider_from_env,
 };
 pub use streaming::{AnthropicStream, SSEEvent, SSEParser, StreamUtils};
 
@@ -78,15 +77,17 @@ pub fn validate_api_key(api_key: &str) -> Result<(), String> {
     if api_key.is_empty() {
         return Err("API key cannot be empty".to_string());
     }
-    
+
     if !api_key.starts_with("sk-ant-") {
-        return Err("Invalid Anthropic API key format. Keys should start with 'sk-ant-'".to_string());
+        return Err(
+            "Invalid Anthropic API key format. Keys should start with 'sk-ant-'".to_string(),
+        );
     }
-    
+
     if api_key.len() < 20 {
         return Err("API key appears to be too short".to_string());
     }
-    
+
     Ok(())
 }
 
@@ -123,9 +124,9 @@ pub fn model_supports_feature(model_id: &str, feature: ModelFeature) -> bool {
 
 /// Request
 pub fn estimate_cost(
-    model_id: &str, 
-    estimated_input_tokens: u32, 
-    estimated_output_tokens: u32
+    model_id: &str,
+    estimated_input_tokens: u32,
+    estimated_output_tokens: u32,
 ) -> Option<f64> {
     CostCalculator::calculate_cost(model_id, estimated_input_tokens, estimated_output_tokens)
 }
@@ -133,22 +134,22 @@ pub fn estimate_cost(
 /// Module information
 pub mod info {
     use super::*;
-    
+
     /// Get
     pub fn version() -> &'static str {
         VERSION
     }
-    
+
     /// Get
     pub fn provider_name() -> &'static str {
         PROVIDER_NAME
     }
-    
+
     /// Default
     pub fn default_config() -> AnthropicConfig {
         AnthropicConfig::default()
     }
-    
+
     /// Get
     pub fn supported_features() -> Vec<&'static str> {
         vec![
@@ -164,7 +165,7 @@ pub mod info {
             "computer_use",
         ]
     }
-    
+
     /// Get
     pub fn api_limits() -> std::collections::HashMap<&'static str, u32> {
         let mut limits = std::collections::HashMap::new();
@@ -207,7 +208,7 @@ mod tests {
     fn test_model_features() {
         let features = get_model_features("claude-3-5-sonnet-20241022");
         assert!(features.is_some());
-        
+
         let features = features.unwrap();
         assert!(features.contains(&ModelFeature::MultimodalSupport));
         assert!(features.contains(&ModelFeature::ToolCalling));
@@ -216,9 +217,18 @@ mod tests {
 
     #[test]
     fn test_feature_support() {
-        assert!(model_supports_feature("claude-3-5-sonnet-20241022", ModelFeature::ComputerUse));
-        assert!(!model_supports_feature("claude-2.1", ModelFeature::ComputerUse));
-        assert!(model_supports_feature("claude-3-haiku-20240307", ModelFeature::StreamingSupport));
+        assert!(model_supports_feature(
+            "claude-3-5-sonnet-20241022",
+            ModelFeature::ComputerUse
+        ));
+        assert!(!model_supports_feature(
+            "claude-2.1",
+            ModelFeature::ComputerUse
+        ));
+        assert!(model_supports_feature(
+            "claude-3-haiku-20240307",
+            ModelFeature::StreamingSupport
+        ));
     }
 
     #[test]

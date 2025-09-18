@@ -9,9 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{
-    GlobalPoolManager, HttpMethod, get_pricing_db,
-};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod, get_pricing_db};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{LLMProvider, ProviderConfig};
 use crate::core::types::{
@@ -52,7 +50,10 @@ impl DeepSeekProvider {
             .validate()
             .map_err(|e| ProviderError::configuration("deepseek", e))?;
 
-        let pool_manager = Arc::new(GlobalPoolManager::new().map_err(|e| ProviderError::configuration("deepseek", e.to_string()))?);
+        let pool_manager = Arc::new(
+            GlobalPoolManager::new()
+                .map_err(|e| ProviderError::configuration("deepseek", e.to_string()))?,
+        );
         let supported_models = DeepSeekClient::supported_models();
 
         Ok(Self {

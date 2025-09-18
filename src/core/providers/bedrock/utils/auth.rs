@@ -42,20 +42,22 @@ impl AwsAuth {
 
     /// Create AWS auth from environment variables
     pub fn from_env() -> Result<Self, ProviderError> {
-        let access_key_id = env::var("AWS_ACCESS_KEY_ID")
-            .map_err(|_| ProviderError::configuration(
+        let access_key_id = env::var("AWS_ACCESS_KEY_ID").map_err(|_| {
+            ProviderError::configuration(
                 "bedrock",
                 "AWS_ACCESS_KEY_ID environment variable not found".to_string(),
-            ))?;
+            )
+        })?;
 
-        let secret_access_key = env::var("AWS_SECRET_ACCESS_KEY")
-            .map_err(|_| ProviderError::configuration(
+        let secret_access_key = env::var("AWS_SECRET_ACCESS_KEY").map_err(|_| {
+            ProviderError::configuration(
                 "bedrock",
                 "AWS_SECRET_ACCESS_KEY environment variable not found".to_string(),
-            ))?;
+            )
+        })?;
 
         let session_token = env::var("AWS_SESSION_TOKEN").ok();
-        
+
         let region = env::var("AWS_REGION")
             .or_else(|_| env::var("AWS_DEFAULT_REGION"))
             .unwrap_or_else(|_| "us-east-1".to_string());
@@ -97,8 +99,9 @@ impl AwsAuth {
         }
 
         // Basic format validation for access key
-        if !self.credentials.access_key_id.starts_with("AKIA") 
-            && !self.credentials.access_key_id.starts_with("ASIA") {
+        if !self.credentials.access_key_id.starts_with("AKIA")
+            && !self.credentials.access_key_id.starts_with("ASIA")
+        {
             return Err(ProviderError::configuration(
                 "bedrock",
                 "Invalid AWS access key format".to_string(),
@@ -111,14 +114,23 @@ impl AwsAuth {
     /// Get special auth parameter mappings for Bedrock
     pub fn get_mapped_auth_params(&self) -> HashMap<String, String> {
         let mut params = HashMap::new();
-        params.insert("aws_access_key_id".to_string(), self.credentials.access_key_id.clone());
-        params.insert("aws_secret_access_key".to_string(), self.credentials.secret_access_key.clone());
-        params.insert("aws_region_name".to_string(), self.credentials.region.clone());
-        
+        params.insert(
+            "aws_access_key_id".to_string(),
+            self.credentials.access_key_id.clone(),
+        );
+        params.insert(
+            "aws_secret_access_key".to_string(),
+            self.credentials.secret_access_key.clone(),
+        );
+        params.insert(
+            "aws_region_name".to_string(),
+            self.credentials.region.clone(),
+        );
+
         if let Some(ref token) = self.credentials.session_token {
             params.insert("aws_session_token".to_string(), token.clone());
         }
-        
+
         params
     }
 
@@ -140,8 +152,7 @@ impl AwsAuth {
 }
 
 /// Authentication configuration for special cases
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct BedrockAuthConfig {
     /// Enable cross-region access
     pub cross_region_access: bool,
@@ -150,7 +161,6 @@ pub struct BedrockAuthConfig {
     /// Additional headers
     pub additional_headers: HashMap<String, String>,
 }
-
 
 /// Map special authentication parameters
 pub fn map_special_auth_params(
@@ -174,29 +184,37 @@ pub fn map_special_auth_params(
 
 /// Extract AWS credentials from various parameter formats
 pub fn extract_credentials_from_params(
-    params: &HashMap<String, String>
+    params: &HashMap<String, String>,
 ) -> Result<AwsCredentials, ProviderError> {
-    let access_key_id = params.get("aws_access_key_id")
+    let access_key_id = params
+        .get("aws_access_key_id")
         .or_else(|| params.get("access_key"))
-        .ok_or_else(|| ProviderError::configuration(
-            "bedrock",
-            "AWS access key ID not found in parameters".to_string(),
-        ))?
+        .ok_or_else(|| {
+            ProviderError::configuration(
+                "bedrock",
+                "AWS access key ID not found in parameters".to_string(),
+            )
+        })?
         .clone();
 
-    let secret_access_key = params.get("aws_secret_access_key")
+    let secret_access_key = params
+        .get("aws_secret_access_key")
         .or_else(|| params.get("secret_key"))
-        .ok_or_else(|| ProviderError::configuration(
-            "bedrock",
-            "AWS secret access key not found in parameters".to_string(),
-        ))?
+        .ok_or_else(|| {
+            ProviderError::configuration(
+                "bedrock",
+                "AWS secret access key not found in parameters".to_string(),
+            )
+        })?
         .clone();
 
-    let session_token = params.get("aws_session_token")
+    let session_token = params
+        .get("aws_session_token")
         .or_else(|| params.get("session_token"))
         .cloned();
 
-    let region = params.get("aws_region_name")
+    let region = params
+        .get("aws_region_name")
         .or_else(|| params.get("region"))
         .or_else(|| params.get("aws_region"))
         .cloned()
@@ -274,8 +292,14 @@ mod tests {
         );
 
         let params = auth.get_mapped_auth_params();
-        assert_eq!(params.get("aws_access_key_id").unwrap(), "AKIATEST123456789012");
-        assert_eq!(params.get("aws_secret_access_key").unwrap(), "test-secret-key");
+        assert_eq!(
+            params.get("aws_access_key_id").unwrap(),
+            "AKIATEST123456789012"
+        );
+        assert_eq!(
+            params.get("aws_secret_access_key").unwrap(),
+            "test-secret-key"
+        );
         assert_eq!(params.get("aws_session_token").unwrap(), "session-token");
         assert_eq!(params.get("aws_region_name").unwrap(), "us-east-1");
     }
@@ -283,8 +307,14 @@ mod tests {
     #[test]
     fn test_extract_credentials_from_params() {
         let mut params = HashMap::new();
-        params.insert("aws_access_key_id".to_string(), "AKIATEST123456789012".to_string());
-        params.insert("aws_secret_access_key".to_string(), "test-secret-key".to_string());
+        params.insert(
+            "aws_access_key_id".to_string(),
+            "AKIATEST123456789012".to_string(),
+        );
+        params.insert(
+            "aws_secret_access_key".to_string(),
+            "test-secret-key".to_string(),
+        );
         params.insert("aws_region_name".to_string(), "us-west-2".to_string());
 
         let credentials = extract_credentials_from_params(&params).unwrap();

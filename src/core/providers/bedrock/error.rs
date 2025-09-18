@@ -16,10 +16,9 @@ pub struct BedrockErrorMapper;
 impl ErrorMapper<BedrockError> for BedrockErrorMapper {
     fn map_http_error(&self, status_code: u16, response_body: &str) -> BedrockError {
         match status_code {
-            400 => ProviderError::invalid_request(
-                "bedrock",
-                format!("Bad request: {}", response_body),
-            ),
+            400 => {
+                ProviderError::invalid_request("bedrock", format!("Bad request: {}", response_body))
+            }
             401 => ProviderError::authentication(
                 "bedrock",
                 "Invalid AWS credentials or insufficient permissions".to_string(),
@@ -32,24 +31,10 @@ impl ErrorMapper<BedrockError> for BedrockErrorMapper {
                 "bedrock",
                 "Model not found or not available in region".to_string(),
             ),
-            429 => ProviderError::rate_limit(
-                "bedrock",
-                None,
-            ),
-            500 => ProviderError::api_error(
-                "bedrock",
-                500,
-                "Internal server error".to_string(),
-            ),
-            502 => ProviderError::network(
-                "bedrock",
-                "Bad gateway".to_string(),
-            ),
-            503 => ProviderError::api_error(
-                "bedrock",
-                503,
-                "Service unavailable".to_string(),
-            ),
+            429 => ProviderError::rate_limit("bedrock", None),
+            500 => ProviderError::api_error("bedrock", 500, "Internal server error".to_string()),
+            502 => ProviderError::network("bedrock", "Bad gateway".to_string()),
+            503 => ProviderError::api_error("bedrock", 503, "Service unavailable".to_string()),
             _ => ProviderError::api_error(
                 "bedrock",
                 status_code,
@@ -78,18 +63,12 @@ impl ErrorMapper<BedrockError> for BedrockErrorMapper {
                     "bedrock",
                     format!("Unauthorized: {}", error_message),
                 ),
-                "ThrottlingException" => ProviderError::rate_limit(
-                    "bedrock",
-                    None,
-                ),
+                "ThrottlingException" => ProviderError::rate_limit("bedrock", None),
                 "ModelNotReadyException" => ProviderError::model_not_found(
                     "bedrock",
                     format!("Model not ready: {}", error_message),
                 ),
-                "ServiceQuotaExceededException" => ProviderError::rate_limit(
-                    "bedrock",
-                    None,
-                ),
+                "ServiceQuotaExceededException" => ProviderError::rate_limit("bedrock", None),
                 "InternalServerException" => ProviderError::api_error(
                     "bedrock",
                     500,
@@ -102,10 +81,7 @@ impl ErrorMapper<BedrockError> for BedrockErrorMapper {
                 ),
             }
         } else {
-            ProviderError::response_parsing(
-                "bedrock",
-                "Unknown error response format".to_string(),
-            )
+            ProviderError::response_parsing("bedrock", "Unknown error response format".to_string())
         }
     }
 
@@ -129,18 +105,12 @@ impl ErrorMapper<BedrockError> for BedrockErrorMapper {
 impl BedrockError {
     /// Create a model-specific error
     pub fn model_error(model_id: &str, message: &str) -> Self {
-        ProviderError::model_not_found(
-            "bedrock",
-            format!("{}: {}", model_id, message),
-        )
+        ProviderError::model_not_found("bedrock", format!("{}: {}", model_id, message))
     }
 
     /// Create a region-specific error
     pub fn region_error(region: &str, message: &str) -> Self {
-        ProviderError::configuration(
-            "bedrock",
-            format!("Region {}: {}", region, message),
-        )
+        ProviderError::configuration("bedrock", format!("Region {}: {}", region, message))
     }
 
     /// Create a transform-specific error
@@ -160,7 +130,7 @@ mod tests {
     #[test]
     fn test_http_error_mapping() {
         let mapper = BedrockErrorMapper;
-        
+
         let error = mapper.map_http_error(400, "Bad request");
         assert!(matches!(error, ProviderError::InvalidRequest { .. }));
 
@@ -174,14 +144,14 @@ mod tests {
     #[test]
     fn test_json_error_mapping() {
         let mapper = BedrockErrorMapper;
-        
+
         let error_json = json!({
             "error": {
                 "code": "ValidationException",
                 "message": "Invalid input"
             }
         });
-        
+
         let error = mapper.map_json_error(&error_json);
         assert!(matches!(error, ProviderError::InvalidRequest { .. }));
     }

@@ -234,9 +234,7 @@ impl CorsConfig {
 
             // Warn about insecure configurations
             if self.allows_all_origins() {
-                warn!(
-                    "CORS allows all origins. This may be insecure for production."
-                );
+                warn!("CORS allows all origins. This may be insecure for production.");
             }
         }
         Ok(())

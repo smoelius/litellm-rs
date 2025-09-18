@@ -1,6 +1,9 @@
 //! Test Groq integration with Provider dispatch
 
-use litellm_rs::core::providers::{Provider, groq::{GroqProvider, GroqConfig}};
+use litellm_rs::core::providers::{
+    Provider,
+    groq::{GroqConfig, GroqProvider},
+};
 use litellm_rs::core::types::common::HealthStatus;
 
 #[tokio::main]
@@ -29,12 +32,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test health check
     let health = provider.health_check().await;
-    println!("Health status: {}", match health {
-        HealthStatus::Healthy => "Healthy",
-        HealthStatus::Unhealthy => "Unhealthy",
-        HealthStatus::Unknown => "Unknown",
-        HealthStatus::Degraded => "Degraded",
-    });
+    println!(
+        "Health status: {}",
+        match health {
+            HealthStatus::Healthy => "Healthy",
+            HealthStatus::Unhealthy => "Unhealthy",
+            HealthStatus::Unknown => "Unknown",
+            HealthStatus::Degraded => "Degraded",
+        }
+    );
 
     println!("\n✅ Groq dispatch integration verified!");
     Ok(())

@@ -5,7 +5,7 @@
 use std::time::Duration;
 
 use reqwest::{Client, ClientBuilder, Response};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::time::timeout;
 
 use crate::core::providers::unified_provider::ProviderError;
@@ -15,9 +15,11 @@ use crate::core::types::{
 };
 
 use super::config::AnthropicConfig;
-use super::error::{anthropic_api_error, anthropic_auth_error, anthropic_network_error, 
-                   anthropic_parse_error, anthropic_rate_limit_error};
-use super::models::{get_anthropic_registry, ModelFeature};
+use super::error::{
+    anthropic_api_error, anthropic_auth_error, anthropic_network_error, anthropic_parse_error,
+    anthropic_rate_limit_error,
+};
+use super::models::{ModelFeature, get_anthropic_registry};
 
 /// Anthropic API client
 #[derive(Debug, Clone)]
@@ -40,7 +42,8 @@ impl AnthropicClient {
             builder = builder.proxy(proxy);
         }
 
-        let http_client = builder.build()
+        let http_client = builder
+            .build()
             .map_err(|e| anthropic_network_error(format!("Failed to create HTTP client: {}", e)))?;
 
         Ok(Self {
@@ -53,22 +56,26 @@ impl AnthropicClient {
     pub async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
         // Request
         let anthropic_request = self.transform_chat_request(&request)?;
-        
+
         // Request
         let response = self.send_request("/v1/messages", anthropic_request).await?;
-        
+
         // Response
         self.transform_chat_response(response)
     }
 
     /// Request
-    pub async fn chat_stream(&self, request: ChatRequest) -> Result<reqwest::Response, ProviderError> {
+    pub async fn chat_stream(
+        &self,
+        request: ChatRequest,
+    ) -> Result<reqwest::Response, ProviderError> {
         // Request
         let mut anthropic_request = self.transform_chat_request(&request)?;
         anthropic_request["stream"] = json!(true);
-        
+
         // Request
-        self.send_stream_request("/v1/messages", anthropic_request).await
+        self.send_stream_request("/v1/messages", anthropic_request)
+            .await
     }
 
     /// Request
@@ -82,8 +89,9 @@ impl AnthropicClient {
                 .post(&url)
                 .json(&body)
                 .headers(headers)
-                .send()
-        ).await
+                .send(),
+        )
+        .await
         .map_err(|_| anthropic_network_error("Request timeout"))?
         .map_err(|e| anthropic_network_error(format!("Network error: {}", e)))?;
 
@@ -91,7 +99,11 @@ impl AnthropicClient {
     }
 
     /// Request
-    async fn send_stream_request(&self, endpoint: &str, body: Value) -> Result<Response, ProviderError> {
+    async fn send_stream_request(
+        &self,
+        endpoint: &str,
+        body: Value,
+    ) -> Result<Response, ProviderError> {
         let url = format!("{}{}", self.config.base_url.trim_end_matches('/'), endpoint);
         let headers = self.build_headers();
 
@@ -101,15 +113,18 @@ impl AnthropicClient {
                 .post(&url)
                 .json(&body)
                 .headers(headers)
-                .send()
-        ).await
+                .send(),
+        )
+        .await
         .map_err(|_| anthropic_network_error("Request timeout"))?
         .map_err(|e| anthropic_network_error(format!("Network error: {}", e)))?;
 
         // Check
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_text = response.text().await
+            let error_text = response
+                .text()
+                .await
                 .unwrap_or_else(|_| "Failed to read error response".to_string());
             return Err(self.map_http_error(status, &error_text));
         }
@@ -137,16 +152,13 @@ impl AnthropicClient {
         headers.insert("Content-Type", "application/json".parse().unwrap());
 
         // User agent
-        headers.insert(
-            "User-Agent", 
-            "LiteLLM-Rust/1.0".parse().unwrap()
-        );
+        headers.insert("User-Agent", "LiteLLM-Rust/1.0".parse().unwrap());
 
         // Custom headers
         for (key, value) in &self.config.custom_headers {
             if let (Ok(header_name), Ok(header_value)) = (
-                key.parse::<reqwest::header::HeaderName>(), 
-                value.parse::<reqwest::header::HeaderValue>()
+                key.parse::<reqwest::header::HeaderName>(),
+                value.parse::<reqwest::header::HeaderValue>(),
             ) {
                 headers.insert(header_name, header_value);
             }
@@ -158,7 +170,9 @@ impl AnthropicClient {
     /// Handle
     async fn handle_response(&self, response: Response) -> Result<Value, ProviderError> {
         let status = response.status().as_u16();
-        let response_text = response.text().await
+        let response_text = response
+            .text()
+            .await
             .map_err(|e| anthropic_network_error(format!("Failed to read response: {}", e)))?;
 
         if status != 200 {
@@ -191,7 +205,7 @@ impl AnthropicClient {
             if let Some(retry_after) = json.get("retry_after") {
                 return retry_after.as_u64();
             }
-            
+
             if let Some(error) = json.get("error") {
                 if let Some(retry_after) = error.get("retry_after") {
                     return retry_after.as_u64();
@@ -204,10 +218,11 @@ impl AnthropicClient {
     /// Request
     fn transform_chat_request(&self, request: &ChatRequest) -> Result<Value, ProviderError> {
         let registry = get_anthropic_registry();
-        
+
         // Check
-        let model_spec = registry.get_model_spec(&request.model)
-            .ok_or_else(|| anthropic_api_error(400, format!("Unsupported model: {}", request.model)))?;
+        let model_spec = registry.get_model_spec(&request.model).ok_or_else(|| {
+            anthropic_api_error(400, format!("Unsupported model: {}", request.model))
+        })?;
 
         // Separate system messages from user messages
         let (system_message, messages) = self.separate_system_messages(&request.messages)?;
@@ -257,7 +272,10 @@ impl AnthropicClient {
     }
 
     /// Separate system messages from user messages
-    fn separate_system_messages(&self, messages: &[ChatMessage]) -> Result<(Option<String>, Vec<ChatMessage>), ProviderError> {
+    fn separate_system_messages(
+        &self,
+        messages: &[ChatMessage],
+    ) -> Result<(Option<String>, Vec<ChatMessage>), ProviderError> {
         let mut system_parts = Vec::new();
         let mut user_messages = Vec::new();
 
@@ -295,14 +313,18 @@ impl AnthropicClient {
     }
 
     /// Transform messages to Anthropic format
-    fn transform_messages(&self, messages: Vec<ChatMessage>, model_spec: &super::models::ModelSpec) -> Result<Vec<Value>, ProviderError> {
+    fn transform_messages(
+        &self,
+        messages: Vec<ChatMessage>,
+        model_spec: &super::models::ModelSpec,
+    ) -> Result<Vec<Value>, ProviderError> {
         let mut anthropic_messages = Vec::new();
 
         for message in messages {
             let role = match message.role {
                 MessageRole::User => "user",
                 MessageRole::Assistant => "assistant",
-                MessageRole::Tool => "user", // Response
+                MessageRole::Tool => "user",     // Response
                 MessageRole::Function => "user", // Response
                 MessageRole::System => continue, // Already handled
             };
@@ -314,7 +336,7 @@ impl AnthropicClient {
                     }
                     crate::core::types::MessageContent::Parts(parts) => {
                         let mut anthropic_parts = Vec::new();
-                        
+
                         for part in parts {
                             match part {
                                 ContentPart::Text { text } => {
@@ -324,17 +346,21 @@ impl AnthropicClient {
                                     }));
                                 }
                                 ContentPart::ImageUrl { image_url } => {
-                                    if model_spec.features.contains(&ModelFeature::MultimodalSupport) {
+                                    if model_spec
+                                        .features
+                                        .contains(&ModelFeature::MultimodalSupport)
+                                    {
                                         // Handle
                                         if image_url.url.starts_with("data:") {
                                             // Base64 format image
-                                            let parts: Vec<&str> = image_url.url.split(',').collect();
+                                            let parts: Vec<&str> =
+                                                image_url.url.split(',').collect();
                                             if parts.len() == 2 {
                                                 let media_type = parts[0]
                                                     .strip_prefix("data:")
                                                     .and_then(|s| s.split(';').next())
                                                     .unwrap_or("image/jpeg");
-                                                
+
                                                 anthropic_parts.push(json!({
                                                     "type": "image",
                                                     "source": {
@@ -347,12 +373,18 @@ impl AnthropicClient {
                                         } else {
                                             // URL format image - requires download and conversion
                                             // TODO: implement URL image download and conversion
-                                            return Err(anthropic_api_error(400, "URL images not yet supported, use base64 format"));
+                                            return Err(anthropic_api_error(
+                                                400,
+                                                "URL images not yet supported, use base64 format",
+                                            ));
                                         }
                                     }
                                 }
                                 ContentPart::Document { source, .. } => {
-                                    if model_spec.features.contains(&ModelFeature::MultimodalSupport) {
+                                    if model_spec
+                                        .features
+                                        .contains(&ModelFeature::MultimodalSupport)
+                                    {
                                         anthropic_parts.push(json!({
                                             "type": "document",
                                             "source": {
@@ -368,7 +400,7 @@ impl AnthropicClient {
                                 }
                             }
                         }
-                        
+
                         json!(anthropic_parts)
                     }
                 }
@@ -403,7 +435,10 @@ impl AnthropicClient {
     }
 
     /// Transform tool definitions
-    fn transform_tools(&self, tools: &[crate::core::types::Tool]) -> Result<Vec<Value>, ProviderError> {
+    fn transform_tools(
+        &self,
+        tools: &[crate::core::types::Tool],
+    ) -> Result<Vec<Value>, ProviderError> {
         let mut anthropic_tools = Vec::new();
 
         for tool in tools {
@@ -418,16 +453,17 @@ impl AnthropicClient {
     }
 
     /// Transform tool choice
-    fn transform_tool_choice(&self, tool_choice: &crate::core::types::ToolChoice) -> Result<Value, ProviderError> {
+    fn transform_tool_choice(
+        &self,
+        tool_choice: &crate::core::types::ToolChoice,
+    ) -> Result<Value, ProviderError> {
         match tool_choice {
-            crate::core::types::ToolChoice::String(choice) => {
-                match choice.as_str() {
-                    "auto" => Ok(json!({"type": "auto"})),
-                    "none" => Ok(json!({"type": "none"})),
-                    "required" => Ok(json!({"type": "any"})),
-                    _ => Ok(json!({"type": "auto"})),
-                }
-            }
+            crate::core::types::ToolChoice::String(choice) => match choice.as_str() {
+                "auto" => Ok(json!({"type": "auto"})),
+                "none" => Ok(json!({"type": "none"})),
+                "required" => Ok(json!({"type": "any"})),
+                _ => Ok(json!({"type": "auto"})),
+            },
             crate::core::types::ToolChoice::Specific { function, .. } => {
                 if let Some(func) = function {
                     Ok(json!({
@@ -444,12 +480,14 @@ impl AnthropicClient {
     /// Response
     fn transform_chat_response(&self, response: Value) -> Result<ChatResponse, ProviderError> {
         // Extract basic information
-        let id = response.get("id")
+        let id = response
+            .get("id")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
 
-        let model = response.get("model")
+        let model = response
+            .get("model")
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
@@ -460,7 +498,8 @@ impl AnthropicClient {
             .as_secs() as i64;
 
         // Handle content
-        let content = response.get("content")
+        let content = response
+            .get("content")
             .and_then(|v| v.as_array())
             .ok_or_else(|| anthropic_parse_error("Missing or invalid content array"))?;
 
@@ -478,7 +517,7 @@ impl AnthropicClient {
                     if let (Some(id), Some(name), Some(input)) = (
                         item.get("id").and_then(|v| v.as_str()),
                         item.get("name").and_then(|v| v.as_str()),
-                        item.get("input")
+                        item.get("input"),
                     ) {
                         tool_calls.push(crate::core::types::ToolCall {
                             id: id.to_string(),
@@ -497,13 +536,17 @@ impl AnthropicClient {
         // Build message
         let message = ChatMessage {
             role: MessageRole::Assistant,
-            content: if message_content.is_empty() { 
-                None 
-            } else { 
+            content: if message_content.is_empty() {
+                None
+            } else {
                 Some(crate::core::types::MessageContent::Text(message_content))
             },
             name: None,
-            tool_calls: if tool_calls.is_empty() { None } else { Some(tool_calls) },
+            tool_calls: if tool_calls.is_empty() {
+                None
+            } else {
+                Some(tool_calls)
+            },
             tool_call_id: None,
             function_call: None,
         };
@@ -512,7 +555,8 @@ impl AnthropicClient {
         let choice = ChatChoice {
             index: 0,
             message,
-            finish_reason: response.get("stop_reason")
+            finish_reason: response
+                .get("stop_reason")
                 .and_then(|r| r.as_str())
                 .map(|reason| match reason {
                     "end_turn" => crate::core::types::FinishReason::Stop,
@@ -525,15 +569,25 @@ impl AnthropicClient {
 
         // Build usage
         let usage = response.get("usage").map(|usage_data| Usage {
-                prompt_tokens: usage_data.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                completion_tokens: usage_data.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
-                total_tokens: (
-                    usage_data.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) + 
-                    usage_data.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
-                ) as u32,
-                completion_tokens_details: None,
-                prompt_tokens_details: None,
-            });
+            prompt_tokens: usage_data
+                .get("input_tokens")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            completion_tokens: usage_data
+                .get("output_tokens")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0) as u32,
+            total_tokens: (usage_data
+                .get("input_tokens")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(0)
+                + usage_data
+                    .get("output_tokens")
+                    .and_then(|v| v.as_u64())
+                    .unwrap_or(0)) as u32,
+            completion_tokens_details: None,
+            prompt_tokens_details: None,
+        });
 
         Ok(ChatResponse {
             id,
@@ -564,7 +618,7 @@ mod tests {
         let config = AnthropicConfig::new_test("test-key");
         let client = AnthropicClient::new(config).unwrap();
         let headers = client.build_headers();
-        
+
         assert!(headers.contains_key("authorization"));
         assert!(headers.contains_key("content-type"));
         assert!(headers.contains_key("user-agent"));

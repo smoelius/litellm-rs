@@ -2,9 +2,9 @@
 //!
 //! Handles vector store integration and RAG workflows
 
+use crate::core::providers::unified_provider::ProviderError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::core::providers::unified_provider::ProviderError;
 
 /// Knowledge base retrieval request
 #[derive(Debug, Serialize, Deserialize)]
@@ -159,9 +159,14 @@ impl<'a> KnowledgeBaseClient<'a> {
         };
 
         let url = format!("knowledgebases/{}/retrieve", knowledge_base_id);
-        let response = self.client.send_request("", &url, &serde_json::to_value(request)?).await?;
+        let response = self
+            .client
+            .send_request("", &url, &serde_json::to_value(request)?)
+            .await?;
 
-        let kb_response: KnowledgeBaseRetrievalResponse = response.json().await
+        let kb_response: KnowledgeBaseRetrievalResponse = response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
         Ok(kb_response)

@@ -265,8 +265,7 @@ impl OpenAICapability {
 }
 
 /// Capability requirements structure
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct CapabilityRequirements {
     /// Minimum API version required
     pub min_api_version: Option<String>,
@@ -277,7 +276,6 @@ pub struct CapabilityRequirements {
     /// Whether this is a beta feature
     pub beta_feature: bool,
 }
-
 
 /// Capability validation result
 #[derive(Debug)]

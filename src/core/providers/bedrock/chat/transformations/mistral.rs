@@ -1,9 +1,9 @@
 //! Mistral Model Transformations
 
-use serde_json::{json, Value};
+use crate::core::providers::bedrock::model_config::ModelConfig;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
-use crate::core::providers::bedrock::model_config::ModelConfig;
+use serde_json::{Value, json};
 
 /// Transform request for Mistral models
 pub fn transform_request(
@@ -34,7 +34,7 @@ pub fn transform_request(
 
 /// Format messages for Mistral prompt format
 fn format_mistral_prompt(messages: &[crate::core::types::ChatMessage]) -> String {
-    use crate::core::types::{MessageRole, MessageContent};
+    use crate::core::types::{MessageContent, MessageRole};
 
     let mut prompt = String::new();
     let mut system_prompt = None;
@@ -42,18 +42,17 @@ fn format_mistral_prompt(messages: &[crate::core::types::ChatMessage]) -> String
     for message in messages {
         let content = match &message.content {
             Some(MessageContent::Text(text)) => text.clone(),
-            Some(MessageContent::Parts(parts)) => {
-                parts.iter()
-                    .filter_map(|part| {
-                        if let crate::core::types::requests::ContentPart::Text { text } = part {
-                            Some(text.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
+            Some(MessageContent::Parts(parts)) => parts
+                .iter()
+                .filter_map(|part| {
+                    if let crate::core::types::requests::ContentPart::Text { text } = part {
+                        Some(text.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" "),
             None => continue,
         };
 
@@ -63,7 +62,10 @@ fn format_mistral_prompt(messages: &[crate::core::types::ChatMessage]) -> String
             }
             MessageRole::User => {
                 if let Some(sys) = &system_prompt {
-                    prompt.push_str(&format!("<s>[INST] {} [/INST]", format!("{}\n\n{}", sys, content)));
+                    prompt.push_str(&format!(
+                        "<s>[INST] {} [/INST]",
+                        format!("{}\n\n{}", sys, content)
+                    ));
                     system_prompt = None; // Use system prompt only once
                 } else {
                     prompt.push_str(&format!("<s>[INST] {} [/INST]", content));

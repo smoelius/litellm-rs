@@ -11,7 +11,7 @@ use std::sync::LazyLock;
 pub const AWS_REGIONS: &[&str] = &[
     // US regions
     "us-east-1",
-    "us-east-2", 
+    "us-east-2",
     "us-west-1",
     "us-west-2",
     // EU regions
@@ -42,49 +42,51 @@ pub const AWS_REGIONS: &[&str] = &[
 ];
 
 /// Model family to available regions mapping
-static MODEL_REGION_MAPPING: LazyLock<HashMap<&'static str, &'static [&'static str]>> = LazyLock::new(|| {
+static MODEL_REGION_MAPPING: LazyLock<HashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
         let mut map = HashMap::new();
-        
+
         // Claude models - widely available
         map.insert("anthropic.claude", AWS_REGIONS);
-        
+
         // Titan models - US regions primarily
-        map.insert("amazon.titan", &[
-            "us-east-1", "us-east-2", "us-west-1", "us-west-2"
-        ]);
-        
+        map.insert(
+            "amazon.titan",
+            &["us-east-1", "us-east-2", "us-west-1", "us-west-2"],
+        );
+
         // Nova models - limited availability
-        map.insert("amazon.nova", &[
-            "us-east-1", "us-west-2"
-        ]);
-        
+        map.insert("amazon.nova", &["us-east-1", "us-west-2"]);
+
         // AI21 models
-        map.insert("ai21", &[
-            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"
-        ]);
-        
+        map.insert(
+            "ai21",
+            &["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"],
+        );
+
         // Cohere models
-        map.insert("cohere", &[
-            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"
-        ]);
-        
+        map.insert(
+            "cohere",
+            &["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"],
+        );
+
         // Mistral models
-        map.insert("mistral", &[
-            "us-east-1", "us-west-2", "eu-west-1"
-        ]);
-        
+        map.insert("mistral", &["us-east-1", "us-west-2", "eu-west-1"]);
+
         // Meta Llama models
-        map.insert("meta.llama", &[
-            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"
-        ]);
-        
+        map.insert(
+            "meta.llama",
+            &["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-2"],
+        );
+
         // Stability AI models
-        map.insert("stability", &[
-            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"
-        ]);
+        map.insert(
+            "stability",
+            &["us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"],
+        );
 
         map
-});
+    });
 
 /// Validate if a region is supported by Bedrock
 pub fn validate_region(region: &str) -> Result<(), ProviderError> {
@@ -94,9 +96,8 @@ pub fn validate_region(region: &str) -> Result<(), ProviderError> {
         Err(ProviderError::configuration(
             "bedrock",
             format!(
-                "Invalid AWS region: {}. Supported regions: {:?}", 
-                region, 
-                AWS_REGIONS
+                "Invalid AWS region: {}. Supported regions: {:?}",
+                region, AWS_REGIONS
             ),
         ))
     }
@@ -106,7 +107,7 @@ pub fn validate_region(region: &str) -> Result<(), ProviderError> {
 pub fn is_model_available_in_region(model_id: &str, region: &str) -> bool {
     // Extract model prefix (e.g., "anthropic.claude" from "anthropic.claude-3-opus")
     let model_prefix = extract_model_prefix(model_id);
-    
+
     if let Some(regions) = MODEL_REGION_MAPPING.get(model_prefix) {
         regions.contains(&region)
     } else {
@@ -153,17 +154,30 @@ pub fn get_us_regions() -> &'static [&'static str] {
 /// Get EU regions specifically
 pub fn get_eu_regions() -> &'static [&'static str] {
     &[
-        "eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1",
-        "eu-central-2", "eu-north-1", "eu-south-1", "eu-south-2"
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "eu-central-1",
+        "eu-central-2",
+        "eu-north-1",
+        "eu-south-1",
+        "eu-south-2",
     ]
 }
 
 /// Get Asia Pacific regions specifically
 pub fn get_ap_regions() -> &'static [&'static str] {
     &[
-        "ap-northeast-1", "ap-northeast-2", "ap-northeast-3",
-        "ap-south-1", "ap-south-2", "ap-southeast-1", "ap-southeast-2",
-        "ap-southeast-3", "ap-southeast-4", "ap-southeast-5"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-south-2",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ap-southeast-3",
+        "ap-southeast-4",
+        "ap-southeast-5",
     ]
 }
 
@@ -181,19 +195,37 @@ mod tests {
     #[test]
     fn test_model_availability() {
         // Claude should be available in most regions
-        assert!(is_model_available_in_region("anthropic.claude-3-opus", "us-east-1"));
-        assert!(is_model_available_in_region("anthropic.claude-3-opus", "eu-west-1"));
-        
+        assert!(is_model_available_in_region(
+            "anthropic.claude-3-opus",
+            "us-east-1"
+        ));
+        assert!(is_model_available_in_region(
+            "anthropic.claude-3-opus",
+            "eu-west-1"
+        ));
+
         // Nova has limited availability
         assert!(is_model_available_in_region("amazon.nova-pro", "us-east-1"));
-        assert!(!is_model_available_in_region("amazon.nova-pro", "ap-south-1"));
+        assert!(!is_model_available_in_region(
+            "amazon.nova-pro",
+            "ap-south-1"
+        ));
     }
 
     #[test]
     fn test_model_prefix_extraction() {
-        assert_eq!(extract_model_prefix("anthropic.claude-3-opus-20240229"), "anthropic.claude");
-        assert_eq!(extract_model_prefix("amazon.titan-text-express-v1"), "amazon.titan");
-        assert_eq!(extract_model_prefix("meta.llama3-70b-instruct-v1:0"), "meta.llama");
+        assert_eq!(
+            extract_model_prefix("anthropic.claude-3-opus-20240229"),
+            "anthropic.claude"
+        );
+        assert_eq!(
+            extract_model_prefix("amazon.titan-text-express-v1"),
+            "amazon.titan"
+        );
+        assert_eq!(
+            extract_model_prefix("meta.llama3-70b-instruct-v1:0"),
+            "meta.llama"
+        );
     }
 
     #[test]

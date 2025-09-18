@@ -4,7 +4,7 @@
 
 use reqwest::header::HeaderMap;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::config::{AzureAIConfig, AzureAIEndpointType};
 use crate::core::providers::unified_provider::ProviderError;
@@ -21,31 +21,37 @@ impl AzureAIRerankHandler {
     pub fn new(config: AzureAIConfig) -> Result<Self, ProviderError> {
         // Create headers for the client
         let mut headers = HeaderMap::new();
-        let default_headers = config.create_default_headers()
+        let default_headers = config
+            .create_default_headers()
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
-        
+
         for (key, value) in default_headers {
-            let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e)))?;
-            let header_value = reqwest::header::HeaderValue::from_str(&value)
-                .map_err(|e| ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e)))?;
+            let header_name =
+                reqwest::header::HeaderName::from_bytes(key.as_bytes()).map_err(|e| {
+                    ProviderError::configuration("azure_ai", format!("Invalid header name: {}", e))
+                })?;
+            let header_value = reqwest::header::HeaderValue::from_str(&value).map_err(|e| {
+                ProviderError::configuration("azure_ai", format!("Invalid header value: {}", e))
+            })?;
             headers.insert(header_name, header_value);
         }
-        
+
         let client = reqwest::Client::builder()
             .timeout(config.timeout())
             .default_headers(headers)
             .build()
-            .map_err(|e| ProviderError::configuration("azure_ai", format!("Failed to create HTTP client: {}", e)))?;
-        
+            .map_err(|e| {
+                ProviderError::configuration(
+                    "azure_ai",
+                    format!("Failed to create HTTP client: {}", e),
+                )
+            })?;
+
         Ok(Self { config, client })
     }
 
     /// Handle rerank request
-    pub async fn rerank(
-        &self,
-        request: RerankRequest,
-    ) -> Result<RerankResponse, ProviderError> {
+    pub async fn rerank(&self, request: RerankRequest) -> Result<RerankResponse, ProviderError> {
         // Validate request
         AzureAIRerankUtils::validate_request(&request)?;
 
@@ -53,7 +59,9 @@ impl AzureAIRerankHandler {
         let azure_request = AzureAIRerankUtils::transform_request(&request)?;
 
         // Build URL
-        let url = self.config.build_endpoint_url(AzureAIEndpointType::Rerank.as_path())
+        let url = self
+            .config
+            .build_endpoint_url(AzureAIEndpointType::Rerank.as_path())
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute request
@@ -76,16 +84,13 @@ impl AzureAIRerankHandler {
         }
 
         // Parse response
-        let response_json: Value = response
-            .json()
-            .await
-            .map_err(|e| ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e)))?;
+        let response_json: Value = response.json().await.map_err(|e| {
+            ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e))
+        })?;
 
         // Transform to standard format
         AzureAIRerankUtils::transform_response(response_json, &request.model)
     }
-
-
 }
 
 /// Rerank request structure
@@ -156,15 +161,24 @@ impl AzureAIRerankUtils {
     /// Validate rerank request
     pub fn validate_request(request: &RerankRequest) -> Result<(), ProviderError> {
         if request.query.trim().is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Query cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Query cannot be empty",
+            ));
         }
 
         if request.model.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Model cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Model cannot be empty",
+            ));
         }
 
         if request.documents.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Documents list cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Documents list cannot be empty",
+            ));
         }
 
         // Validate number of documents
@@ -227,31 +241,36 @@ impl AzureAIRerankUtils {
     }
 
     /// Transform Azure AI response to RerankResponse
-    pub fn transform_response(response: Value, _model: &str) -> Result<RerankResponse, ProviderError> {
+    pub fn transform_response(
+        response: Value,
+        _model: &str,
+    ) -> Result<RerankResponse, ProviderError> {
         let id = response["id"]
             .as_str()
             .unwrap_or(&format!("rerank-{}", chrono::Utc::now().timestamp()))
             .to_string();
 
         // Parse results array
-        let results_array = response["results"]
-            .as_array()
-            .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Missing or invalid 'results' field"))?;
+        let results_array = response["results"].as_array().ok_or_else(|| {
+            ProviderError::response_parsing("azure_ai", "Missing or invalid 'results' field")
+        })?;
 
         let mut results = Vec::new();
         for result_item in results_array.iter() {
-            let index = result_item["index"]
-                .as_u64()
-                .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Missing 'index' in result"))? as u32;
-            
-            let relevance_score = result_item["relevance_score"]
-                .as_f64()
-                .ok_or_else(|| ProviderError::response_parsing("azure_ai", "Missing 'relevance_score' in result"))?;
+            let index = result_item["index"].as_u64().ok_or_else(|| {
+                ProviderError::response_parsing("azure_ai", "Missing 'index' in result")
+            })? as u32;
+
+            let relevance_score = result_item["relevance_score"].as_f64().ok_or_else(|| {
+                ProviderError::response_parsing("azure_ai", "Missing 'relevance_score' in result")
+            })?;
 
             let document = result_item.get("document").and_then(|doc| {
-                doc.get("text").and_then(|text| text.as_str()).map(|text| RerankDocument {
-                    text: text.to_string(),
-                })
+                doc.get("text")
+                    .and_then(|text| text.as_str())
+                    .map(|text| RerankDocument {
+                        text: text.to_string(),
+                    })
             });
 
             results.push(RerankResult {
@@ -266,11 +285,7 @@ impl AzureAIRerankUtils {
             search_units: usage_data["search_units"].as_u64().unwrap_or(1) as u32,
         });
 
-        Ok(RerankResponse {
-            id,
-            results,
-            usage,
-        })
+        Ok(RerankResponse { id, results, usage })
     }
 
     /// Get maximum documents supported by model
@@ -303,23 +318,26 @@ impl AzureAIRerankUtils {
         } else {
             5
         };
-        
+
         std::cmp::min(default, num_documents as u32)
     }
 
     /// Validate query length and content
     pub fn validate_query(query: &str) -> Result<(), ProviderError> {
         if query.trim().is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Query cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Query cannot be empty",
+            ));
         }
-        
+
         if query.len() > 1000 {
             return Err(ProviderError::invalid_request(
                 "azure_ai",
                 "Query too long. Maximum length is 1000 characters",
             ));
         }
-        
+
         Ok(())
     }
 
@@ -465,7 +483,7 @@ mod tests {
             "".to_string(), // Empty document
             "Normal document".to_string(),
         ];
-        
+
         let processed = AzureAIRerankUtils::preprocess_documents(&docs);
         assert_eq!(processed.len(), 2); // Empty document should be filtered
         assert_eq!(processed[0], "Document with spaces");
@@ -492,7 +510,7 @@ mod tests {
 
         let result = AzureAIRerankUtils::transform_request(&request);
         assert!(result.is_ok());
-        
+
         let azure_request = result.unwrap();
         assert_eq!(azure_request["model"], "cohere-rerank-v3");
         assert_eq!(azure_request["query"], "machine learning");
@@ -522,7 +540,7 @@ mod tests {
         ];
 
         AzureAIRerankUtils::sort_results_by_score(&mut results);
-        
+
         // Should be sorted by descending relevance score
         assert_eq!(results[0].relevance_score, 0.9);
         assert_eq!(results[1].relevance_score, 0.5);

@@ -6,11 +6,11 @@
 // Core modules
 mod config;
 mod error;
-mod provider;
 mod model_info;
+mod provider;
 
 // Re-export main types for external use
 pub use config::CloudflareConfig;
 pub use error::{CloudflareError, CloudflareErrorMapper};
-pub use provider::CloudflareProvider;
 pub use model_info::{CloudflareModel, get_model_info};
+pub use provider::CloudflareProvider;

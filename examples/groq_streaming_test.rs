@@ -1,9 +1,9 @@
 //! Test Groq streaming functionality
 
-use litellm_rs::core::providers::groq::streaming::create_fake_stream;
-use litellm_rs::core::types::responses::{ChatResponse, ChatChoice};
-use litellm_rs::core::types::requests::{ChatMessage, MessageRole, MessageContent};
 use futures::StreamExt;
+use litellm_rs::core::providers::groq::streaming::create_fake_stream;
+use litellm_rs::core::types::requests::{ChatMessage, MessageContent, MessageRole};
+use litellm_rs::core::types::responses::{ChatChoice, ChatResponse};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,7 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             index: 0,
             message: ChatMessage {
                 role: MessageRole::Assistant,
-                content: Some(MessageContent::Text("Hello! This is a test response from Groq's ultra-fast LPU inference engine.".to_string())),
+                content: Some(MessageContent::Text(
+                    "Hello! This is a test response from Groq's ultra-fast LPU inference engine."
+                        .to_string(),
+                )),
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,

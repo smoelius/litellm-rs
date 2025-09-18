@@ -16,8 +16,7 @@ pub use utils::AzureResponseUtils;
 use serde::{Deserialize, Serialize};
 
 /// Azure-specific response metadata
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AzureResponseMetadata {
     /// Content filter results
     pub content_filter_results: Option<ContentFilterResults>,
@@ -80,8 +79,7 @@ pub struct AzureProcessedResponse<T> {
 }
 
 /// Response processing metrics
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct ResponseMetrics {
     /// Total processing time
     pub total_time_ms: u64,
@@ -238,8 +236,6 @@ pub struct ResponseStats {
     pub is_filtered: bool,
     pub estimated_tokens: u32,
 }
-
-
 
 #[cfg(test)]
 mod tests {

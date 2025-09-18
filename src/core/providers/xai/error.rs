@@ -1,9 +1,9 @@
 //! xAI-specific error types and error mapping
 
-use thiserror::Error;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::ErrorMapper;
 use crate::core::types::errors::ProviderErrorTrait;
+use thiserror::Error;
 
 /// xAI-specific error types
 #[derive(Debug, Error)]
@@ -68,7 +68,7 @@ impl ProviderErrorTrait for XAIError {
         match self {
             XAIError::RateLimitError(_) => Some(60), // Default 60 seconds for rate limit
             XAIError::ServiceUnavailableError(_) => Some(5), // 5 seconds for service unavailable
-            XAIError::NetworkError(_) => Some(2), // 2 seconds for network errors
+            XAIError::NetworkError(_) => Some(2),    // 2 seconds for network errors
             _ => None,
         }
     }
@@ -95,9 +95,10 @@ impl ProviderErrorTrait for XAIError {
 
     fn rate_limited(retry_after: Option<u64>) -> Self {
         match retry_after {
-            Some(seconds) => XAIError::RateLimitError(
-                format!("Rate limit exceeded, retry after {} seconds", seconds)
-            ),
+            Some(seconds) => XAIError::RateLimitError(format!(
+                "Rate limit exceeded, retry after {} seconds",
+                seconds
+            )),
             None => XAIError::RateLimitError("Rate limit exceeded".to_string()),
         }
     }

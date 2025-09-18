@@ -29,7 +29,9 @@ impl GeminiErrorMapper {
                 let retry_after = Self::extract_retry_after(body);
                 ProviderError::rate_limit("gemini", retry_after)
             }
-            500..=599 => ProviderError::api_error("gemini", status, format!("Server error: {}", body)),
+            500..=599 => {
+                ProviderError::api_error("gemini", status, format!("Server error: {}", body))
+            }
             _ => ProviderError::api_error("gemini", status, body),
         }
     }
@@ -39,13 +41,22 @@ impl GeminiErrorMapper {
         // Error
         if let Some(error) = response.get("error") {
             let code = error.get("code").and_then(|c| c.as_u64()).unwrap_or(500) as u16;
-            let message = error.get("message").and_then(|m| m.as_str()).unwrap_or("Unknown error");
+            let message = error
+                .get("message")
+                .and_then(|m| m.as_str())
+                .unwrap_or("Unknown error");
             let status = error.get("status").and_then(|s| s.as_str()).unwrap_or("");
-            
+
             return match (code, status) {
-                (401, _) | (_, "UNAUTHENTICATED") => ProviderError::authentication("gemini", message),
-                (403, _) | (_, "PERMISSION_DENIED") => ProviderError::authentication("gemini", message),
-                (400, _) | (_, "INVALID_ARGUMENT") => ProviderError::invalid_request("gemini", message),
+                (401, _) | (_, "UNAUTHENTICATED") => {
+                    ProviderError::authentication("gemini", message)
+                }
+                (403, _) | (_, "PERMISSION_DENIED") => {
+                    ProviderError::authentication("gemini", message)
+                }
+                (400, _) | (_, "INVALID_ARGUMENT") => {
+                    ProviderError::invalid_request("gemini", message)
+                }
                 (404, _) | (_, "NOT_FOUND") => ProviderError::model_not_found("gemini", message),
                 (429, _) | (_, "RESOURCE_EXHAUSTED") => {
                     let retry_after = Self::extract_retry_after_from_error(error);
@@ -58,7 +69,9 @@ impl GeminiErrorMapper {
                         current_usage: None,
                     }
                 }
-                (503, _) | (_, "UNAVAILABLE") => ProviderError::provider_unavailable("gemini", "Service unavailable"),
+                (503, _) | (_, "UNAVAILABLE") => {
+                    ProviderError::provider_unavailable("gemini", "Service unavailable")
+                }
                 (_, "FAILED_PRECONDITION") => ProviderError::invalid_request("gemini", message),
                 (_, "UNIMPLEMENTED") => ProviderError::NotSupported {
                     provider: "gemini",
@@ -78,18 +91,31 @@ impl GeminiErrorMapper {
         // Error
         if let Some(candidates) = response.get("candidates") {
             if let Some(candidate) = candidates.as_array().and_then(|c| c.first()) {
-                if let Some(finish_reason) = candidate.get("finishReason").and_then(|r| r.as_str()) {
+                if let Some(finish_reason) = candidate.get("finishReason").and_then(|r| r.as_str())
+                {
                     return match finish_reason {
-                        "SAFETY" => ProviderError::invalid_request("gemini", "Content blocked by safety filters"),
-                        "RECITATION" => ProviderError::invalid_request("gemini", "Content blocked due to recitation"),
-                        "MAX_TOKENS" => ProviderError::invalid_request("gemini", "Maximum token limit reached"),
+                        "SAFETY" => ProviderError::invalid_request(
+                            "gemini",
+                            "Content blocked by safety filters",
+                        ),
+                        "RECITATION" => ProviderError::invalid_request(
+                            "gemini",
+                            "Content blocked due to recitation",
+                        ),
+                        "MAX_TOKENS" => {
+                            ProviderError::invalid_request("gemini", "Maximum token limit reached")
+                        }
                         "STOP" => ProviderError::api_error("gemini", 200, "Generation completed"),
-                        _ => ProviderError::api_error("gemini", 500, format!("Unknown finish reason: {}", finish_reason)),
+                        _ => ProviderError::api_error(
+                            "gemini",
+                            500,
+                            format!("Unknown finish reason: {}", finish_reason),
+                        ),
                     };
                 }
             }
         }
-        
+
         // Default
         ProviderError::api_error("gemini", 500, "Unknown API error")
     }
@@ -100,7 +126,7 @@ impl GeminiErrorMapper {
             if let Some(error) = json.get("error") {
                 return Self::extract_retry_after_from_error(error);
             }
-            
+
             // Check
             if let Some(retry_after) = json.get("retry_after") {
                 return retry_after.as_u64();
@@ -115,7 +141,7 @@ impl GeminiErrorMapper {
         if let Some(retry_after) = error.get("retry_after") {
             return retry_after.as_u64();
         }
-        
+
         // Check
         if let Some(details) = error.get("details") {
             if let Some(details_array) = details.as_array() {
@@ -126,7 +152,7 @@ impl GeminiErrorMapper {
                 }
             }
         }
-        
+
         None
     }
 }
@@ -180,7 +206,10 @@ pub fn gemini_validation_error(msg: impl Into<String>) -> ProviderError {
 
 /// Create
 pub fn gemini_safety_error(msg: impl Into<String>) -> ProviderError {
-    ProviderError::invalid_request("gemini", format!("Content blocked by safety filters: {}", msg.into()))
+    ProviderError::invalid_request(
+        "gemini",
+        format!("Content blocked by safety filters: {}", msg.into()),
+    )
 }
 
 /// Create
@@ -216,7 +245,7 @@ mod tests {
                 "status": "UNAUTHENTICATED"
             }
         });
-        
+
         let error = GeminiErrorMapper::from_api_response(&response);
         match error {
             ProviderError::Authentication { provider, message } => {
@@ -237,10 +266,14 @@ mod tests {
                 "retry_after": 60
             }
         });
-        
+
         let error = GeminiErrorMapper::from_api_response(&response);
         match error {
-            ProviderError::RateLimit { provider, retry_after, .. } => {
+            ProviderError::RateLimit {
+                provider,
+                retry_after,
+                ..
+            } => {
                 assert_eq!(provider, "gemini");
                 assert_eq!(retry_after, Some(60));
             }
@@ -256,7 +289,7 @@ mod tests {
                 "safetyRatings": []
             }]
         });
-        
+
         let error = GeminiErrorMapper::from_api_response(&response);
         match error {
             ProviderError::InvalidRequest { provider, message } => {
@@ -283,7 +316,9 @@ mod tests {
 
         let api_err = gemini_api_error(400, "Test API error");
         match api_err {
-            ProviderError::ApiError { provider, status, .. } => {
+            ProviderError::ApiError {
+                provider, status, ..
+            } => {
                 assert_eq!(provider, "gemini");
                 assert_eq!(status, 400);
             }

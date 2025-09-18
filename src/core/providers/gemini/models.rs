@@ -44,16 +44,16 @@ pub enum GeminiModelFamily {
     /// Gemini 2.0 series
     Gemini20Flash,
     Gemini20FlashThinking,
-    
+
     /// Gemini 1.5 series
     Gemini15Pro,
     Gemini15Flash,
     Gemini15Flash8B,
-    
+
     /// Gemini 1.0 series
     Gemini10Pro,
     Gemini10ProVision,
-    
+
     /// Model
     GeminiExperimental,
 }
@@ -128,327 +128,345 @@ impl GeminiModelRegistry {
     /// Model
     fn initialize_models(&mut self) {
         // Gemini 2.0 Flash
-        self.register_model("gemini-2.0-flash-exp", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-2.0-flash-exp".to_string(),
-                name: "Gemini 2.0 Flash".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 1_000_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.00001),
-                output_cost_per_1k_tokens: Some(0.00004),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
-                    crate::core::types::common::ProviderCapability::ToolCalling,
+        self.register_model(
+            "gemini-2.0-flash-exp",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-2.0-flash-exp".to_string(),
+                    name: "Gemini 2.0 Flash".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 1_000_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.00001),
+                    output_cost_per_1k_tokens: Some(0.00004),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini20Flash,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::ContextCaching,
+                    ModelFeature::SystemInstructions,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::JsonMode,
+                    ModelFeature::CodeExecution,
+                    ModelFeature::SearchGrounding,
+                    ModelFeature::VideoUnderstanding,
+                    ModelFeature::AudioUnderstanding,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 0.01,  // $0.01 per 1M tokens
+                    output_price: 0.04, // $0.04 per 1M tokens
+                    cached_input_price: Some(0.0025),
+                    image_price: Some(0.0001),
+                    video_price_per_second: Some(0.001),
+                    audio_price_per_second: Some(0.0001),
+                },
+                limits: ModelLimits {
+                    max_context_length: 1_000_000,
+                    max_output_tokens: 8192,
+                    max_images: Some(3000),
+                    max_video_seconds: Some(3600),
+                    max_audio_seconds: Some(9600),
+                    rpm_limit: Some(2000),
+                    tpm_limit: Some(4_000_000),
+                },
             },
-            family: GeminiModelFamily::Gemini20Flash,
-            features: vec![
-                ModelFeature::MultimodalSupport,
-                ModelFeature::ToolCalling,
-                ModelFeature::FunctionCalling,
-                ModelFeature::StreamingSupport,
-                ModelFeature::ContextCaching,
-                ModelFeature::SystemInstructions,
-                ModelFeature::BatchProcessing,
-                ModelFeature::JsonMode,
-                ModelFeature::CodeExecution,
-                ModelFeature::SearchGrounding,
-                ModelFeature::VideoUnderstanding,
-                ModelFeature::AudioUnderstanding,
-            ],
-            pricing: ModelPricing {
-                input_price: 0.01,  // $0.01 per 1M tokens
-                output_price: 0.04,  // $0.04 per 1M tokens
-                cached_input_price: Some(0.0025),
-                image_price: Some(0.0001),
-                video_price_per_second: Some(0.001),
-                audio_price_per_second: Some(0.0001),
-            },
-            limits: ModelLimits {
-                max_context_length: 1_000_000,
-                max_output_tokens: 8192,
-                max_images: Some(3000),
-                max_video_seconds: Some(3600),
-                max_audio_seconds: Some(9600),
-                rpm_limit: Some(2000),
-                tpm_limit: Some(4_000_000),
-            },
-        });
+        );
 
         // Gemini 2.0 Flash Thinking (experimental)
-        self.register_model("gemini-2.0-flash-thinking-exp", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-2.0-flash-thinking-exp".to_string(),
-                name: "Gemini 2.0 Flash Thinking".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 32_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.00001),
-                output_cost_per_1k_tokens: Some(0.00004),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
+        self.register_model(
+            "gemini-2.0-flash-thinking-exp",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-2.0-flash-thinking-exp".to_string(),
+                    name: "Gemini 2.0 Flash Thinking".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 32_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.00001),
+                    output_cost_per_1k_tokens: Some(0.00004),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini20FlashThinking,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::SystemInstructions,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 0.01,
+                    output_price: 0.04,
+                    cached_input_price: None,
+                    image_price: Some(0.0001),
+                    video_price_per_second: None,
+                    audio_price_per_second: None,
+                },
+                limits: ModelLimits {
+                    max_context_length: 32_000,
+                    max_output_tokens: 8192,
+                    max_images: Some(50),
+                    max_video_seconds: None,
+                    max_audio_seconds: None,
+                    rpm_limit: Some(100),
+                    tpm_limit: Some(100_000),
+                },
             },
-            family: GeminiModelFamily::Gemini20FlashThinking,
-            features: vec![
-                ModelFeature::MultimodalSupport,
-                ModelFeature::StreamingSupport,
-                ModelFeature::SystemInstructions,
-            ],
-            pricing: ModelPricing {
-                input_price: 0.01,
-                output_price: 0.04,
-                cached_input_price: None,
-                image_price: Some(0.0001),
-                video_price_per_second: None,
-                audio_price_per_second: None,
-            },
-            limits: ModelLimits {
-                max_context_length: 32_000,
-                max_output_tokens: 8192,
-                max_images: Some(50),
-                max_video_seconds: None,
-                max_audio_seconds: None,
-                rpm_limit: Some(100),
-                tpm_limit: Some(100_000),
-            },
-        });
+        );
 
         // Gemini 1.5 Pro
-        self.register_model("gemini-1.5-pro", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-1.5-pro".to_string(),
-                name: "Gemini 1.5 Pro".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 2_000_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.00125),
-                output_cost_per_1k_tokens: Some(0.005),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
-                    crate::core::types::common::ProviderCapability::ToolCalling,
+        self.register_model(
+            "gemini-1.5-pro",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-1.5-pro".to_string(),
+                    name: "Gemini 1.5 Pro".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 2_000_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.00125),
+                    output_cost_per_1k_tokens: Some(0.005),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini15Pro,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::ContextCaching,
+                    ModelFeature::SystemInstructions,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::JsonMode,
+                    ModelFeature::CodeExecution,
+                    ModelFeature::SearchGrounding,
+                    ModelFeature::VideoUnderstanding,
+                    ModelFeature::AudioUnderstanding,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 1.25, // $1.25 per 1M tokens (<=128K)
+                    output_price: 5.0, // $5.00 per 1M tokens (<=128K)
+                    cached_input_price: Some(0.3125),
+                    image_price: Some(0.002625),
+                    video_price_per_second: Some(0.002625),
+                    audio_price_per_second: Some(0.000125),
+                },
+                limits: ModelLimits {
+                    max_context_length: 2_000_000,
+                    max_output_tokens: 8192,
+                    max_images: Some(3000),
+                    max_video_seconds: Some(3600),
+                    max_audio_seconds: Some(9600),
+                    rpm_limit: Some(360),
+                    tpm_limit: Some(4_000_000),
+                },
             },
-            family: GeminiModelFamily::Gemini15Pro,
-            features: vec![
-                ModelFeature::MultimodalSupport,
-                ModelFeature::ToolCalling,
-                ModelFeature::FunctionCalling,
-                ModelFeature::StreamingSupport,
-                ModelFeature::ContextCaching,
-                ModelFeature::SystemInstructions,
-                ModelFeature::BatchProcessing,
-                ModelFeature::JsonMode,
-                ModelFeature::CodeExecution,
-                ModelFeature::SearchGrounding,
-                ModelFeature::VideoUnderstanding,
-                ModelFeature::AudioUnderstanding,
-            ],
-            pricing: ModelPricing {
-                input_price: 1.25,  // $1.25 per 1M tokens (<=128K)
-                output_price: 5.0,   // $5.00 per 1M tokens (<=128K)
-                cached_input_price: Some(0.3125),
-                image_price: Some(0.002625),
-                video_price_per_second: Some(0.002625),
-                audio_price_per_second: Some(0.000125),
-            },
-            limits: ModelLimits {
-                max_context_length: 2_000_000,
-                max_output_tokens: 8192,
-                max_images: Some(3000),
-                max_video_seconds: Some(3600),
-                max_audio_seconds: Some(9600),
-                rpm_limit: Some(360),
-                tpm_limit: Some(4_000_000),
-            },
-        });
+        );
 
         // Gemini 1.5 Flash
-        self.register_model("gemini-1.5-flash", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-1.5-flash".to_string(),
-                name: "Gemini 1.5 Flash".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 1_000_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.000075),
-                output_cost_per_1k_tokens: Some(0.0003),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
-                    crate::core::types::common::ProviderCapability::ToolCalling,
+        self.register_model(
+            "gemini-1.5-flash",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-1.5-flash".to_string(),
+                    name: "Gemini 1.5 Flash".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 1_000_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.000075),
+                    output_cost_per_1k_tokens: Some(0.0003),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini15Flash,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::ContextCaching,
+                    ModelFeature::SystemInstructions,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::JsonMode,
+                    ModelFeature::CodeExecution,
+                    ModelFeature::SearchGrounding,
+                    ModelFeature::VideoUnderstanding,
+                    ModelFeature::AudioUnderstanding,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 0.075, // $0.075 per 1M tokens (<=128K)
+                    output_price: 0.30, // $0.30 per 1M tokens (<=128K)
+                    cached_input_price: Some(0.01875),
+                    image_price: Some(0.0002),
+                    video_price_per_second: Some(0.0002),
+                    audio_price_per_second: Some(0.0001),
+                },
+                limits: ModelLimits {
+                    max_context_length: 1_000_000,
+                    max_output_tokens: 8192,
+                    max_images: Some(3000),
+                    max_video_seconds: Some(3600),
+                    max_audio_seconds: Some(9600),
+                    rpm_limit: Some(1500),
+                    tpm_limit: Some(4_000_000),
+                },
             },
-            family: GeminiModelFamily::Gemini15Flash,
-            features: vec![
-                ModelFeature::MultimodalSupport,
-                ModelFeature::ToolCalling,
-                ModelFeature::FunctionCalling,
-                ModelFeature::StreamingSupport,
-                ModelFeature::ContextCaching,
-                ModelFeature::SystemInstructions,
-                ModelFeature::BatchProcessing,
-                ModelFeature::JsonMode,
-                ModelFeature::CodeExecution,
-                ModelFeature::SearchGrounding,
-                ModelFeature::VideoUnderstanding,
-                ModelFeature::AudioUnderstanding,
-            ],
-            pricing: ModelPricing {
-                input_price: 0.075,  // $0.075 per 1M tokens (<=128K)
-                output_price: 0.30,   // $0.30 per 1M tokens (<=128K)
-                cached_input_price: Some(0.01875),
-                image_price: Some(0.0002),
-                video_price_per_second: Some(0.0002),
-                audio_price_per_second: Some(0.0001),
-            },
-            limits: ModelLimits {
-                max_context_length: 1_000_000,
-                max_output_tokens: 8192,
-                max_images: Some(3000),
-                max_video_seconds: Some(3600),
-                max_audio_seconds: Some(9600),
-                rpm_limit: Some(1500),
-                tpm_limit: Some(4_000_000),
-            },
-        });
+        );
 
         // Gemini 1.5 Flash-8B
-        self.register_model("gemini-1.5-flash-8b", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-1.5-flash-8b".to_string(),
-                name: "Gemini 1.5 Flash 8B".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 1_000_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.0000375),
-                output_cost_per_1k_tokens: Some(0.00015),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
-                    crate::core::types::common::ProviderCapability::ToolCalling,
+        self.register_model(
+            "gemini-1.5-flash-8b",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-1.5-flash-8b".to_string(),
+                    name: "Gemini 1.5 Flash 8B".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 1_000_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.0000375),
+                    output_cost_per_1k_tokens: Some(0.00015),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini15Flash8B,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::ContextCaching,
+                    ModelFeature::SystemInstructions,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::JsonMode,
+                    ModelFeature::VideoUnderstanding,
+                    ModelFeature::AudioUnderstanding,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 0.0375, // $0.0375 per 1M tokens
+                    output_price: 0.15,  // $0.15 per 1M tokens
+                    cached_input_price: Some(0.01),
+                    image_price: Some(0.0001),
+                    video_price_per_second: Some(0.0001),
+                    audio_price_per_second: Some(0.00005),
+                },
+                limits: ModelLimits {
+                    max_context_length: 1_000_000,
+                    max_output_tokens: 8192,
+                    max_images: Some(3000),
+                    max_video_seconds: Some(3600),
+                    max_audio_seconds: Some(9600),
+                    rpm_limit: Some(4000),
+                    tpm_limit: Some(4_000_000),
+                },
             },
-            family: GeminiModelFamily::Gemini15Flash8B,
-            features: vec![
-                ModelFeature::MultimodalSupport,
-                ModelFeature::ToolCalling,
-                ModelFeature::FunctionCalling,
-                ModelFeature::StreamingSupport,
-                ModelFeature::ContextCaching,
-                ModelFeature::SystemInstructions,
-                ModelFeature::BatchProcessing,
-                ModelFeature::JsonMode,
-                ModelFeature::VideoUnderstanding,
-                ModelFeature::AudioUnderstanding,
-            ],
-            pricing: ModelPricing {
-                input_price: 0.0375,  // $0.0375 per 1M tokens
-                output_price: 0.15,    // $0.15 per 1M tokens
-                cached_input_price: Some(0.01),
-                image_price: Some(0.0001),
-                video_price_per_second: Some(0.0001),
-                audio_price_per_second: Some(0.00005),
-            },
-            limits: ModelLimits {
-                max_context_length: 1_000_000,
-                max_output_tokens: 8192,
-                max_images: Some(3000),
-                max_video_seconds: Some(3600),
-                max_audio_seconds: Some(9600),
-                rpm_limit: Some(4000),
-                tpm_limit: Some(4_000_000),
-            },
-        });
+        );
 
         // Gemini 1.0 Pro
-        self.register_model("gemini-1.0-pro", ModelSpec {
-            model_info: ModelInfo {
-                id: "gemini-1.0-pro".to_string(),
-                name: "Gemini 1.0 Pro".to_string(),
-                provider: "gemini".to_string(),
-                max_context_length: 32_000,
-                max_output_length: Some(8192),
-                supports_streaming: true,
-                supports_tools: true,
-                supports_multimodal: false,
-                input_cost_per_1k_tokens: Some(0.0005),
-                output_cost_per_1k_tokens: Some(0.0015),
-                currency: "USD".to_string(),
-                capabilities: vec![
-                    crate::core::types::common::ProviderCapability::ChatCompletion,
-                    crate::core::types::common::ProviderCapability::ChatCompletionStream,
-                    crate::core::types::common::ProviderCapability::ToolCalling,
+        self.register_model(
+            "gemini-1.0-pro",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "gemini-1.0-pro".to_string(),
+                    name: "Gemini 1.0 Pro".to_string(),
+                    provider: "gemini".to_string(),
+                    max_context_length: 32_000,
+                    max_output_length: Some(8192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: false,
+                    input_cost_per_1k_tokens: Some(0.0005),
+                    output_cost_per_1k_tokens: Some(0.0015),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: GeminiModelFamily::Gemini10Pro,
+                features: vec![
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::SystemInstructions,
+                    ModelFeature::BatchProcessing,
                 ],
-                created_at: None,
-                updated_at: None,
-                metadata: std::collections::HashMap::new(),
+                pricing: ModelPricing {
+                    input_price: 0.50,  // $0.50 per 1M tokens
+                    output_price: 1.50, // $1.50 per 1M tokens
+                    cached_input_price: None,
+                    image_price: None,
+                    video_price_per_second: None,
+                    audio_price_per_second: None,
+                },
+                limits: ModelLimits {
+                    max_context_length: 32_000,
+                    max_output_tokens: 8192,
+                    max_images: None,
+                    max_video_seconds: None,
+                    max_audio_seconds: None,
+                    rpm_limit: Some(300),
+                    tpm_limit: Some(300_000),
+                },
             },
-            family: GeminiModelFamily::Gemini10Pro,
-            features: vec![
-                ModelFeature::ToolCalling,
-                ModelFeature::FunctionCalling,
-                ModelFeature::StreamingSupport,
-                ModelFeature::SystemInstructions,
-                ModelFeature::BatchProcessing,
-            ],
-            pricing: ModelPricing {
-                input_price: 0.50,   // $0.50 per 1M tokens
-                output_price: 1.50,  // $1.50 per 1M tokens
-                cached_input_price: None,
-                image_price: None,
-                video_price_per_second: None,
-                audio_price_per_second: None,
-            },
-            limits: ModelLimits {
-                max_context_length: 32_000,
-                max_output_tokens: 8192,
-                max_images: None,
-                max_video_seconds: None,
-                max_audio_seconds: None,
-                rpm_limit: Some(300),
-                tpm_limit: Some(300_000),
-            },
-        });
+        );
     }
 
     /// Model
@@ -491,16 +509,19 @@ impl GeminiModelRegistry {
     /// Model
     pub fn from_model_name(model_name: &str) -> Option<GeminiModelFamily> {
         let model_lower = model_name.to_lowercase();
-        
+
         if model_lower.contains("gemini-2.0-flash-thinking") {
             Some(GeminiModelFamily::Gemini20FlashThinking)
-        } else if model_lower.contains("gemini-2.0-flash") || model_lower.contains("gemini-2-flash") {
+        } else if model_lower.contains("gemini-2.0-flash") || model_lower.contains("gemini-2-flash")
+        {
             Some(GeminiModelFamily::Gemini20Flash)
         } else if model_lower.contains("gemini-1.5-pro") || model_lower.contains("gemini-15-pro") {
             Some(GeminiModelFamily::Gemini15Pro)
         } else if model_lower.contains("gemini-1.5-flash-8b") {
             Some(GeminiModelFamily::Gemini15Flash8B)
-        } else if model_lower.contains("gemini-1.5-flash") || model_lower.contains("gemini-15-flash") {
+        } else if model_lower.contains("gemini-1.5-flash")
+            || model_lower.contains("gemini-15-flash")
+        {
             Some(GeminiModelFamily::Gemini15Flash)
         } else if model_lower.contains("gemini-1.0-pro-vision") {
             Some(GeminiModelFamily::Gemini10ProVision)
@@ -538,10 +559,10 @@ impl CostCalculator {
     ) -> Option<f64> {
         let registry = get_gemini_registry();
         let pricing = registry.get_model_pricing(model_id)?;
-        
+
         let input_cost = (prompt_tokens as f64 / 1_000_000.0) * pricing.input_price;
         let output_cost = (completion_tokens as f64 / 1_000_000.0) * pricing.output_price;
-        
+
         Some(input_cost + output_cost)
     }
 
@@ -557,40 +578,44 @@ impl CostCalculator {
     ) -> Option<f64> {
         let registry = get_gemini_registry();
         let pricing = registry.get_model_pricing(model_id)?;
-        
+
         let mut total_cost = 0.0;
         let mut remaining_prompt_tokens = prompt_tokens;
-        
+
         // Handle
         if let (Some(cached), Some(cached_price)) = (cached_tokens, pricing.cached_input_price) {
             let cached_cost = (cached as f64 / 1_000_000.0) * cached_price;
             total_cost += cached_cost;
             remaining_prompt_tokens = remaining_prompt_tokens.saturating_sub(cached);
         }
-        
+
         // Regular input tokens
         let input_cost = (remaining_prompt_tokens as f64 / 1_000_000.0) * pricing.input_price;
         total_cost += input_cost;
-        
+
         // Output tokens
         let output_cost = (completion_tokens as f64 / 1_000_000.0) * pricing.output_price;
         total_cost += output_cost;
-        
+
         // Image cost
         if let (Some(img_count), Some(img_price)) = (images, pricing.image_price) {
             total_cost += img_count as f64 * img_price;
         }
-        
+
         // Video cost
-        if let (Some(video_secs), Some(video_price)) = (video_seconds, pricing.video_price_per_second) {
+        if let (Some(video_secs), Some(video_price)) =
+            (video_seconds, pricing.video_price_per_second)
+        {
             total_cost += video_secs as f64 * video_price;
         }
-        
+
         // Audio cost
-        if let (Some(audio_secs), Some(audio_price)) = (audio_seconds, pricing.audio_price_per_second) {
+        if let (Some(audio_secs), Some(audio_price)) =
+            (audio_seconds, pricing.audio_price_per_second)
+        {
             total_cost += audio_secs as f64 * audio_price;
         }
-        
+
         Some(total_cost)
     }
 
@@ -608,13 +633,21 @@ mod tests {
     #[test]
     fn test_model_registry() {
         let registry = get_gemini_registry();
-        
+
         // Test Gemini 2.0 Flash
         let flash_spec = registry.get_model_spec("gemini-2.0-flash-exp").unwrap();
         assert_eq!(flash_spec.family, GeminiModelFamily::Gemini20Flash);
-        assert!(flash_spec.features.contains(&ModelFeature::MultimodalSupport));
-        assert!(flash_spec.features.contains(&ModelFeature::VideoUnderstanding));
-        
+        assert!(
+            flash_spec
+                .features
+                .contains(&ModelFeature::MultimodalSupport)
+        );
+        assert!(
+            flash_spec
+                .features
+                .contains(&ModelFeature::VideoUnderstanding)
+        );
+
         // Test pricing
         assert_eq!(flash_spec.pricing.input_price, 0.01);
         assert_eq!(flash_spec.pricing.output_price, 0.04);
@@ -626,23 +659,20 @@ mod tests {
             GeminiModelRegistry::from_model_name("gemini-2.0-flash-exp"),
             Some(GeminiModelFamily::Gemini20Flash)
         );
-        
+
         assert_eq!(
             GeminiModelRegistry::from_model_name("gemini-1.5-pro-latest"),
             Some(GeminiModelFamily::Gemini15Pro)
         );
-        
-        assert_eq!(
-            GeminiModelRegistry::from_model_name("unknown-model"),
-            None
-        );
+
+        assert_eq!(GeminiModelRegistry::from_model_name("unknown-model"), None);
     }
 
     #[test]
     fn test_cost_calculation() {
         let cost = CostCalculator::calculate_cost("gemini-1.5-flash", 1000, 500);
         assert!(cost.is_some());
-        
+
         let cost_value = cost.unwrap();
         // Expected: (1000/1M * $0.075) + (500/1M * $0.30) = $0.000075 + $0.00015 = $0.000225
         assert!((cost_value - 0.000225).abs() < 0.000001);
@@ -651,10 +681,12 @@ mod tests {
     #[test]
     fn test_feature_support() {
         let registry = get_gemini_registry();
-        
+
         // Gemini 2.0 Flash supports video understanding
-        assert!(registry.supports_feature("gemini-2.0-flash-exp", &ModelFeature::VideoUnderstanding));
-        
+        assert!(
+            registry.supports_feature("gemini-2.0-flash-exp", &ModelFeature::VideoUnderstanding)
+        );
+
         // Gemini 1.0 Pro does not support multimodal
         assert!(!registry.supports_feature("gemini-1.0-pro", &ModelFeature::VideoUnderstanding));
     }

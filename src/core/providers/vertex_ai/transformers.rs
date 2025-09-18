@@ -244,13 +244,12 @@ impl GeminiTransformer {
 
         // Parse usage
         let usage = response.get("usageMetadata").map(|usage_metadata| Usage {
-                prompt_tokens: usage_metadata["promptTokenCount"].as_u64().unwrap_or(0) as u32,
-                completion_tokens: usage_metadata["candidatesTokenCount"].as_u64().unwrap_or(0)
-                    as u32,
-                total_tokens: usage_metadata["totalTokenCount"].as_u64().unwrap_or(0) as u32,
-                prompt_tokens_details: None,
-                completion_tokens_details: None,
-            });
+            prompt_tokens: usage_metadata["promptTokenCount"].as_u64().unwrap_or(0) as u32,
+            completion_tokens: usage_metadata["candidatesTokenCount"].as_u64().unwrap_or(0) as u32,
+            total_tokens: usage_metadata["totalTokenCount"].as_u64().unwrap_or(0) as u32,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        });
 
         Ok(ChatResponse {
             id: uuid::Uuid::new_v4().to_string(),
@@ -492,16 +491,16 @@ impl PartnerModelTransformer {
         // Try to extract usage if available
         let usage = if let Some(metadata) = response.get("metadata") {
             metadata.get("tokenMetadata").map(|token_metadata| Usage {
-                    prompt_tokens: token_metadata["inputTokens"]["totalTokens"]
-                        .as_u64()
-                        .unwrap_or(0) as u32,
-                    completion_tokens: token_metadata["outputTokens"]["totalTokens"]
-                        .as_u64()
-                        .unwrap_or(0) as u32,
-                    total_tokens: 0, // Will be calculated
-                    prompt_tokens_details: None,
-                    completion_tokens_details: None,
-                })
+                prompt_tokens: token_metadata["inputTokens"]["totalTokens"]
+                    .as_u64()
+                    .unwrap_or(0) as u32,
+                completion_tokens: token_metadata["outputTokens"]["totalTokens"]
+                    .as_u64()
+                    .unwrap_or(0) as u32,
+                total_tokens: 0, // Will be calculated
+                prompt_tokens_details: None,
+                completion_tokens_details: None,
+            })
         } else {
             None
         };

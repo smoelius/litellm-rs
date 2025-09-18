@@ -542,8 +542,6 @@ impl Default for Voice {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

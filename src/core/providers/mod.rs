@@ -10,13 +10,12 @@ pub mod anthropic;
 pub mod azure;
 pub mod azure_ai;
 pub mod bedrock;
+pub mod cloudflare;
 pub mod deepinfra;
 pub mod deepseek;
 pub mod gemini;
 pub mod groq;
 pub mod meta_llama;
-pub mod xai;
-pub mod cloudflare;
 pub mod meta_llama_v2; // New consolidated version
 pub mod mistral;
 pub mod moonshot;
@@ -24,6 +23,7 @@ pub mod openai;
 pub mod openrouter;
 pub mod v0;
 pub mod vertex_ai;
+pub mod xai;
 
 // Shared utilities and architecture
 pub mod capabilities;
@@ -436,14 +436,12 @@ impl Provider {
 
         match self {
             Provider::OpenAI(p) => {
-                let stream = LLMProvider::chat_completion_stream(p, request, context)
-                    .await?;
+                let stream = LLMProvider::chat_completion_stream(p, request, context).await?;
                 let mapped = stream.map(|result| result);
                 Ok(Box::pin(mapped))
             }
             Provider::Anthropic(p) => {
-                let stream = LLMProvider::chat_completion_stream(p, request, context)
-                    .await?;
+                let stream = LLMProvider::chat_completion_stream(p, request, context).await?;
                 let mapped = stream.map(|result| result);
                 Ok(Box::pin(mapped))
             }
@@ -455,8 +453,7 @@ impl Provider {
                 Ok(Box::pin(mapped))
             }
             Provider::AzureAI(p) => {
-                let stream = LLMProvider::chat_completion_stream(p, request, context)
-                    .await?;
+                let stream = LLMProvider::chat_completion_stream(p, request, context).await?;
                 let mapped = stream.map(|result| result);
                 Ok(Box::pin(mapped))
             }
@@ -476,10 +473,8 @@ impl Provider {
         use crate::core::traits::LLMProvider;
 
         match self {
-            Provider::OpenAI(p) => LLMProvider::embeddings(p, request, context)
-                .await,
-            Provider::Azure(p) => LLMProvider::embeddings(p, request, context)
-                .await,
+            Provider::OpenAI(p) => LLMProvider::embeddings(p, request, context).await,
+            Provider::Azure(p) => LLMProvider::embeddings(p, request, context).await,
             _ => Err(UnifiedProviderError::not_implemented(
                 "unknown",
                 format!("Embeddings not supported by {}", self.name()),
@@ -496,8 +491,7 @@ impl Provider {
         use crate::core::traits::LLMProvider;
 
         match self {
-            Provider::OpenAI(p) => LLMProvider::image_generation(p, request, context)
-                .await,
+            Provider::OpenAI(p) => LLMProvider::image_generation(p, request, context).await,
             _ => Err(UnifiedProviderError::not_implemented(
                 "unknown",
                 format!("Image generation not supported by {}", self.name()),

@@ -20,7 +20,7 @@ use crate::core::types::{
 
 use super::client::AnthropicClient;
 use super::config::AnthropicConfig;
-use super::models::{get_anthropic_registry, ModelFeature};
+use super::models::{ModelFeature, get_anthropic_registry};
 use super::streaming::AnthropicStream;
 
 /// Anthropic Provider - unified implementation
@@ -43,7 +43,8 @@ impl AnthropicProvider {
 
         // Get supported models
         let registry = get_anthropic_registry();
-        let supported_models = registry.list_models()
+        let supported_models = registry
+            .list_models()
             .into_iter()
             .map(|spec| spec.model_info.clone())
             .collect();
@@ -59,19 +60,20 @@ impl AnthropicProvider {
     /// Validate request
     fn validate_request(&self, request: &ChatRequest) -> Result<(), ProviderError> {
         let registry = get_anthropic_registry();
-        
+
         // Check model support
-        let model_spec = registry.get_model_spec(&request.model)
-            .ok_or_else(|| ProviderError::invalid_request(
-                "anthropic", 
-                format!("Unsupported model: {}", request.model)
-            ))?;
+        let model_spec = registry.get_model_spec(&request.model).ok_or_else(|| {
+            ProviderError::invalid_request(
+                "anthropic",
+                format!("Unsupported model: {}", request.model),
+            )
+        })?;
 
         // Check message requirements
         if request.messages.is_empty() {
             return Err(ProviderError::invalid_request(
-                "anthropic", 
-                "Messages cannot be empty"
+                "anthropic",
+                "Messages cannot be empty",
             ));
         }
 
@@ -81,10 +83,9 @@ impl AnthropicProvider {
                 return Err(ProviderError::invalid_request(
                     "anthropic",
                     format!(
-                        "max_tokens {} exceeds model limit of {}", 
-                        max_tokens, 
-                        model_spec.limits.max_output_tokens
-                    )
+                        "max_tokens {} exceeds model limit of {}",
+                        max_tokens, model_spec.limits.max_output_tokens
+                    ),
                 ));
             }
         }
@@ -93,9 +94,9 @@ impl AnthropicProvider {
         let has_multimodal_content = request.messages.iter().any(|msg| {
             if let Some(content) = &msg.content {
                 match content {
-                    crate::core::types::MessageContent::Parts(parts) => {
-                        parts.iter().any(|part| !matches!(part, crate::core::types::ContentPart::Text { .. }))
-                    }
+                    crate::core::types::MessageContent::Parts(parts) => parts
+                        .iter()
+                        .any(|part| !matches!(part, crate::core::types::ContentPart::Text { .. })),
                     _ => false,
                 }
             } else {
@@ -103,10 +104,17 @@ impl AnthropicProvider {
             }
         });
 
-        if has_multimodal_content && !model_spec.features.contains(&ModelFeature::MultimodalSupport) {
+        if has_multimodal_content
+            && !model_spec
+                .features
+                .contains(&ModelFeature::MultimodalSupport)
+        {
             return Err(ProviderError::not_supported(
                 "anthropic",
-                format!("Model {} does not support multimodal content", request.model)
+                format!(
+                    "Model {} does not support multimodal content",
+                    request.model
+                ),
             ));
         }
 
@@ -114,7 +122,7 @@ impl AnthropicProvider {
         if request.tools.is_some() && !model_spec.features.contains(&ModelFeature::ToolCalling) {
             return Err(ProviderError::not_supported(
                 "anthropic",
-                format!("Model {} does not support tool calling", request.model)
+                format!("Model {} does not support tool calling", request.model),
             ));
         }
 
@@ -129,9 +137,15 @@ impl AnthropicProvider {
             headers.insert("Authorization".to_string(), format!("Bearer {}", api_key));
         }
 
-        headers.insert("anthropic-version".to_string(), self.config.api_version.clone());
+        headers.insert(
+            "anthropic-version".to_string(),
+            self.config.api_version.clone(),
+        );
         headers.insert("Content-Type".to_string(), "application/json".to_string());
-        headers.insert("User-Agent".to_string(), "LiteLLM-Rust/1.0 Anthropic".to_string());
+        headers.insert(
+            "User-Agent".to_string(),
+            "LiteLLM-Rust/1.0 Anthropic".to_string(),
+        );
 
         // Add custom headers
         for (key, value) in &self.config.custom_headers {
@@ -147,7 +161,7 @@ impl AnthropicProvider {
             super::models::CostCalculator::calculate_cost(
                 &request.model,
                 usage.prompt_tokens,
-                usage.completion_tokens
+                usage.completion_tokens,
             )
         } else {
             None
@@ -180,7 +194,7 @@ impl LLMProvider for AnthropicProvider {
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
         &[
             "temperature",
-            "max_tokens", 
+            "max_tokens",
             "top_p",
             "top_k",
             "tools",
@@ -199,7 +213,7 @@ impl LLMProvider for AnthropicProvider {
         if let Some(max_tokens) = params.remove("max_tokens") {
             params.insert("max_tokens".to_string(), max_tokens);
         }
-        
+
         Ok(params)
     }
 
@@ -209,7 +223,7 @@ impl LLMProvider for AnthropicProvider {
         _context: RequestContext,
     ) -> Result<Value, Self::Error> {
         self.validate_request(&request)?;
-        
+
         // Request
         let mut anthropic_request = serde_json::json!({
             "model": request.model,
@@ -223,13 +237,15 @@ impl LLMProvider for AnthropicProvider {
 
         if let Some(temperature) = request.temperature {
             anthropic_request["temperature"] = Value::Number(
-                serde_json::Number::from_f64(temperature.into()).unwrap_or_else(|| serde_json::Number::from(0))
+                serde_json::Number::from_f64(temperature.into())
+                    .unwrap_or_else(|| serde_json::Number::from(0)),
             );
         }
 
         if let Some(top_p) = request.top_p {
             anthropic_request["top_p"] = Value::Number(
-                serde_json::Number::from_f64(top_p.into()).unwrap_or_else(|| serde_json::Number::from(0))
+                serde_json::Number::from_f64(top_p.into())
+                    .unwrap_or_else(|| serde_json::Number::from(0)),
             );
         }
 
@@ -252,7 +268,7 @@ impl LLMProvider for AnthropicProvider {
     ) -> Result<ChatResponse, Self::Error> {
         let response_text = String::from_utf8_lossy(raw_response);
         let anthropic_response: Value = serde_json::from_str(&response_text)?;
-        
+
         // Response
         let response = serde_json::from_value(anthropic_response)?;
         Ok(response)
@@ -276,22 +292,26 @@ impl LLMProvider for AnthropicProvider {
         &self,
         request: ChatRequest,
         _context: RequestContext,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
         self.validate_request(&request)?;
 
         let registry = get_anthropic_registry();
         let model_spec = registry.get_model_spec(&request.model).unwrap();
-        
-        if !model_spec.features.contains(&ModelFeature::StreamingSupport) {
+
+        if !model_spec
+            .features
+            .contains(&ModelFeature::StreamingSupport)
+        {
             return Err(ProviderError::not_supported(
                 "anthropic",
-                format!("Model {} does not support streaming", request.model)
+                format!("Model {} does not support streaming", request.model),
             ));
         }
 
         let response = self.client.chat_stream(request.clone()).await?;
         let stream = AnthropicStream::from_response(response, request.model);
-        
+
         Ok(Box::pin(stream))
     }
 
@@ -343,11 +363,10 @@ impl LLMProvider for AnthropicProvider {
         input_tokens: u32,
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
-        Ok(super::models::CostCalculator::calculate_cost(
-            model,
-            input_tokens,
-            output_tokens
-        ).unwrap_or(0.0))
+        Ok(
+            super::models::CostCalculator::calculate_cost(model, input_tokens, output_tokens)
+                .unwrap_or(0.0),
+        )
     }
 }
 
@@ -404,7 +423,9 @@ impl Default for AnthropicProviderBuilder {
 }
 
 /// Create
-pub fn create_anthropic_provider(config: AnthropicConfig) -> Result<AnthropicProvider, ProviderError> {
+pub fn create_anthropic_provider(
+    config: AnthropicConfig,
+) -> Result<AnthropicProvider, ProviderError> {
     AnthropicProvider::new(config)
 }
 
@@ -430,7 +451,7 @@ mod tests {
         let config = AnthropicConfig::new_test("test-key");
         let provider = AnthropicProvider::new(config).unwrap();
         let caps = provider.capabilities();
-        
+
         assert!(caps.contains(&ProviderCapability::ChatCompletion));
         assert!(caps.contains(&ProviderCapability::ChatCompletionStream));
         assert!(caps.contains(&ProviderCapability::ToolCalling));
@@ -442,7 +463,7 @@ mod tests {
             .with_api_key("test-key")
             .with_base_url("https://api.anthropic.com")
             .build();
-        
+
         assert!(provider.is_ok());
     }
 
@@ -450,7 +471,7 @@ mod tests {
     fn test_model_support() {
         let config = AnthropicConfig::new_test("test-key");
         let provider = AnthropicProvider::new(config).unwrap();
-        
+
         assert!(provider.supports_model("claude-3-5-sonnet-20241022"));
         assert!(provider.supports_model("claude-3-haiku-20240307"));
         assert!(!provider.supports_model("gpt-4"));

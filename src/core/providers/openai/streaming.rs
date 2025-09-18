@@ -306,7 +306,7 @@ impl Default for OpenAIStreamParser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::{stream, StreamExt};
+    use futures::{StreamExt, stream};
 
     #[test]
     fn test_parser_creation() {

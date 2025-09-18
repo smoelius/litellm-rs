@@ -26,7 +26,7 @@ pub mod streaming;
 pub use client::GeminiClient;
 pub use config::GeminiConfig;
 pub use error::GeminiError;
-pub use models::{get_gemini_registry, GeminiModelFamily, ModelFeature};
+pub use models::{GeminiModelFamily, ModelFeature, get_gemini_registry};
 pub use provider::GeminiProvider;
 pub use streaming::GeminiStream;
 

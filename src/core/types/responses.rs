@@ -473,7 +473,6 @@ impl Default for ChatResponse {
     }
 }
 
-
 impl Usage {
     pub fn new(prompt_tokens: u32, completion_tokens: u32) -> Self {
         Self {

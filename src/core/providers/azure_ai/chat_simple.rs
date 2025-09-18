@@ -4,15 +4,17 @@
 //! TODO: Complete implementation later
 
 use futures::Stream;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::pin::Pin;
 
 use super::config::{AzureAIConfig, AzureAIEndpointType};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::{
     common::RequestContext,
-    requests::{ChatRequest, ChatMessage, MessageContent, MessageRole},
-    responses::{ChatResponse, ChatChoice, ChatChunk, ChatStreamChoice, ChatDelta, FinishReason, Usage},
+    requests::{ChatMessage, ChatRequest, MessageContent, MessageRole},
+    responses::{
+        ChatChoice, ChatChunk, ChatDelta, ChatResponse, ChatStreamChoice, FinishReason, Usage,
+    },
 };
 
 /// Simplified Azure AI chat handler
@@ -37,7 +39,10 @@ impl AzureAIChatHandler {
     ) -> Result<ChatResponse, ProviderError> {
         // Simple validation
         if request.messages.is_empty() {
-            return Err(ProviderError::invalid_request("azure_ai", "Messages cannot be empty"));
+            return Err(ProviderError::invalid_request(
+                "azure_ai",
+                "Messages cannot be empty",
+            ));
         }
 
         // Build basic request
@@ -59,14 +64,22 @@ impl AzureAIChatHandler {
         });
 
         // Build URL
-        let url = self.config.build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
+        let url = self
+            .config
+            .build_endpoint_url(AzureAIEndpointType::ChatCompletions.as_path())
             .map_err(|e| ProviderError::configuration("azure_ai", &e))?;
 
         // Execute request - simplified
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
-            .header("Authorization", format!("Bearer {}", 
-                self.config.base.api_key.as_deref().unwrap_or("")))
+            .header(
+                "Authorization",
+                format!(
+                    "Bearer {}",
+                    self.config.base.api_key.as_deref().unwrap_or("")
+                ),
+            )
             .header("Content-Type", "application/json")
             .json(&azure_request)
             .send()
@@ -75,13 +88,17 @@ impl AzureAIChatHandler {
 
         if !response.status().is_success() {
             let status = response.status().as_u16();
-            let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|_| "Unknown error".to_string());
             return Err(ProviderError::api_error("azure_ai", status, &error_body));
         }
 
         // Parse response - simplified
-        let response_json: Value = response.json().await
-            .map_err(|e| ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e)))?;
+        let response_json: Value = response.json().await.map_err(|e| {
+            ProviderError::response_parsing("azure_ai", format!("Failed to parse response: {}", e))
+        })?;
 
         // Create simplified response
         let content = response_json["choices"][0]["message"]["content"]
@@ -128,8 +145,10 @@ impl AzureAIChatHandler {
     ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, ProviderError>> + Send>>, ProviderError>
     {
         // For now, just convert non-stream to stream
-        let response = self.create_chat_completion(request.clone(), _context).await?;
-        
+        let response = self
+            .create_chat_completion(request.clone(), _context)
+            .await?;
+
         // Create a simple stream with one chunk
         let chunk = ChatChunk {
             id: "azure_ai_chunk".to_string(),
@@ -168,7 +187,10 @@ impl AzureAIChatUtils {
         Ok(json!({}))
     }
 
-    pub fn transform_response(_response: Value, _model: &str) -> Result<ChatResponse, ProviderError> {
+    pub fn transform_response(
+        _response: Value,
+        _model: &str,
+    ) -> Result<ChatResponse, ProviderError> {
         Ok(ChatResponse::default())
     }
 }

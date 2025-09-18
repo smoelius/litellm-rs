@@ -2,10 +2,10 @@
 //!
 //! Handles error conversion from Groq API responses to unified provider errors.
 
-use thiserror::Error;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::ErrorMapper;
 use crate::core::types::errors::ProviderErrorTrait;
+use thiserror::Error;
 
 /// Groq-specific error types
 #[derive(Debug, Error)]
@@ -70,7 +70,7 @@ impl ProviderErrorTrait for GroqError {
         match self {
             GroqError::RateLimitError(_) => Some(60), // Default 60 seconds for rate limit
             GroqError::ServiceUnavailableError(_) => Some(5), // 5 seconds for service unavailable
-            GroqError::NetworkError(_) => Some(2), // 2 seconds for network errors
+            GroqError::NetworkError(_) => Some(2),    // 2 seconds for network errors
             _ => None,
         }
     }
@@ -97,7 +97,10 @@ impl ProviderErrorTrait for GroqError {
 
     fn rate_limited(retry_after: Option<u64>) -> Self {
         match retry_after {
-            Some(seconds) => GroqError::RateLimitError(format!("Rate limit exceeded, retry after {} seconds", seconds)),
+            Some(seconds) => GroqError::RateLimitError(format!(
+                "Rate limit exceeded, retry after {} seconds",
+                seconds
+            )),
             None => GroqError::RateLimitError("Rate limit exceeded".to_string()),
         }
     }
@@ -124,7 +127,9 @@ impl From<GroqError> for ProviderError {
             GroqError::InvalidRequestError(msg) => ProviderError::invalid_request("groq", msg),
             GroqError::ModelNotFoundError(msg) => ProviderError::model_not_found("groq", msg),
             GroqError::ServiceUnavailableError(msg) => ProviderError::api_error("groq", 503, msg),
-            GroqError::StreamingError(msg) => ProviderError::api_error("groq", 500, format!("Streaming error: {}", msg)),
+            GroqError::StreamingError(msg) => {
+                ProviderError::api_error("groq", 500, format!("Streaming error: {}", msg))
+            }
             GroqError::ConfigurationError(msg) => ProviderError::configuration("groq", msg),
             GroqError::NetworkError(msg) => ProviderError::network("groq", msg),
             GroqError::UnknownError(msg) => ProviderError::api_error("groq", 500, msg),

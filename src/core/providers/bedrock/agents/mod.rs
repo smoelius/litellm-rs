@@ -2,9 +2,9 @@
 //!
 //! Handles agent invocation, session management, and tool calling
 
+use crate::core::providers::unified_provider::ProviderError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use crate::core::providers::unified_provider::ProviderError;
 
 /// Agent invocation request
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,8 +97,13 @@ impl<'a> AgentClient<'a> {
             agent_id, agent_alias_id, session_id
         );
 
-        let response = self.client.send_request("", &url, &serde_json::to_value(request)?).await?;
-        let agent_response: AgentInvocationResponse = response.json().await
+        let response = self
+            .client
+            .send_request("", &url, &serde_json::to_value(request)?)
+            .await?;
+        let agent_response: AgentInvocationResponse = response
+            .json()
+            .await
             .map_err(|e| ProviderError::response_parsing("bedrock", e.to_string()))?;
 
         Ok(agent_response)
