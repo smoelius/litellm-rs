@@ -1,0 +1,11 @@
+# Cargo audit configuration
+
+[advisories]
+# Ignore the RSA Marvin Attack vulnerability in sqlx-mysql
+# This is a false positive as we don't use MySQL features and the dependency
+# only appears in Cargo.lock but not in the actual build tree.
+# See: https://github.com/SeaQL/sea-orm/discussions/2172
+# The vulnerability cannot be fixed until sqlx updates their RSA dependency.
+ignore = [
+    "RUSTSEC-2023-0071", # RSA Marvin Attack in sqlx-mysql (not actually used)
+]

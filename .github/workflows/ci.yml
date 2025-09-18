@@ -58,6 +58,7 @@ jobs:
 
     - name: Run security audit
       run: cargo audit
+      # Note: audit.toml in .cargo/ will automatically be used to ignore false positives
 
   # Unit and integration tests
   test:
