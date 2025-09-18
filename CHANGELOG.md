@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.3] - 2025-09-18
+## [0.1.3] - 2024-12-18
 
 ### Fixed
 - **docs.rs Build**: Fixed documentation build failure on docs.rs by excluding `vector-db` feature
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration**: Updated `Cargo.toml` metadata for better docs.rs compatibility
 - **Documentation**: All code comments are now in English
 
-## [0.1.1] - 2024-07-28
+## [0.1.1] - 2024-12-16
 
 ### Fixed
 - **Security**: Excluded sensitive configuration file `config/gateway.yaml` from published package
