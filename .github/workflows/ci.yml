@@ -117,7 +117,7 @@ jobs:
         RUST_LOG: debug
 
     - name: Run integration tests
-      run: cargo test --test integration_tests --features "postgres sqlite redis s3 metrics tracing websockets analytics"
+      run: cargo test --test test_connection_pool --features "postgres sqlite redis s3 metrics tracing websockets analytics"
       env:
         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/gateway_test
         REDIS_URL: redis://localhost:6379

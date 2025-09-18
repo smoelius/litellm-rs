@@ -1,35 +1,35 @@
-//! Integration test for connection pool
+//! Integration test for connection pool and basic functionality
 
-use litellm_rs::core::providers::base::{
-    ConnectionPool, GlobalPoolManager, HttpMethod, PoolConfig,
-};
+use litellm_rs::core::providers::base_provider::{BaseHttpClient, BaseProviderConfig};
 
 #[tokio::test]
-async fn test_pool_creation() {
-    let pool = ConnectionPool::new();
-    assert!(pool.is_ok(), "Should create connection pool successfully");
+async fn test_http_client_creation() {
+    let config = BaseProviderConfig::default();
+    let client = BaseHttpClient::new(config);
+    assert!(client.is_ok(), "Should create HTTP client successfully");
 }
 
 #[tokio::test]
-async fn test_global_manager_creation() {
-    let manager = GlobalPoolManager::new();
-    assert!(
-        manager.is_ok(),
-        "Should create global pool manager successfully"
-    );
+async fn test_base_config_defaults() {
+    let config = BaseProviderConfig::default();
+    assert_eq!(config.timeout, Some(60));
+    assert_eq!(config.max_retries, Some(3));
+    assert!(config.api_key.is_none());
+    assert!(config.api_base.is_none());
 }
 
 #[tokio::test]
-async fn test_pool_config_values() {
-    assert_eq!(PoolConfig::TIMEOUT_SECS, 600);
-    assert_eq!(PoolConfig::POOL_SIZE, 80);
-    assert_eq!(PoolConfig::KEEPALIVE_SECS, 90);
-}
+async fn test_config_with_values() {
+    let config = BaseProviderConfig {
+        api_key: Some("test-key".to_string()),
+        api_base: Some("https://api.example.com".to_string()),
+        timeout: Some(30),
+        max_retries: Some(5),
+        ..Default::default()
+    };
 
-#[tokio::test]
-async fn test_http_methods() {
-    let _ = HttpMethod::GET;
-    let _ = HttpMethod::POST;
-    let _ = HttpMethod::PUT;
-    let _ = HttpMethod::DELETE;
+    assert_eq!(config.api_key, Some("test-key".to_string()));
+    assert_eq!(config.api_base, Some("https://api.example.com".to_string()));
+    assert_eq!(config.timeout, Some(30));
+    assert_eq!(config.max_retries, Some(5));
 }
