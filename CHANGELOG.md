@@ -22,14 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Configuration**: Updated `Cargo.toml` metadata for better docs.rs compatibility
 - **Documentation**: All code comments are now in English
 
-## [0.1.1] - 2025-7-16
+## [0.1.1] - 2025-7-28
 
 ### Fixed
 - **Security**: Excluded sensitive configuration file `config/gateway.yaml` from published package
 - **Package**: Only include example configuration files (`.example`, `.template`) in published crate
 - **Privacy**: Prevent accidental exposure of API keys and secrets in published package
 
-## [0.1.0] - 2025-07-15
+## [0.1.0] - 2025-07-28
 
 ### Added
 - Initial release of Rust LiteLLM Gateway
