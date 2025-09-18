@@ -59,6 +59,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./deployment/docker/Dockerfile
         platforms: linux/amd64,linux/arm64
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
@@ -133,6 +134,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
+        file: ./deployment/docker/Dockerfile
         platforms: ${{ matrix.platform }}
         labels: |
           org.opencontainers.image.title=Rust LiteLLM Gateway

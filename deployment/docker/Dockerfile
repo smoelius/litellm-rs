@@ -1,5 +1,5 @@
 # Multi-stage build for LiteLLM-RS
-FROM rust:1.75-slim as builder
+FROM rust:1.87-slim as builder
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -22,7 +22,7 @@ COPY Cargo.toml Cargo.lock ./
 RUN mkdir src && echo "fn main() {}" > src/main.rs
 
 # Build dependencies (this layer will be cached)
-RUN cargo build --release --features full
+RUN cargo build --release --features "postgres sqlite redis s3 metrics tracing websockets analytics"
 RUN rm src/main.rs
 
 # Copy source code
@@ -31,7 +31,7 @@ COPY config ./config
 COPY migrations ./migrations
 
 # Build the application
-RUN cargo build --release --features full
+RUN cargo build --release --features "postgres sqlite redis s3 metrics tracing websockets analytics"
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -41,6 +41,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     libssl3 \
     libpq5 \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app user
