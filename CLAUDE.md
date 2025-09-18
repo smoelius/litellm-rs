@@ -127,3 +127,19 @@ This Rust implementation maintains API compatibility with the original Python Li
 - Core completion API exposed via `src/core/completion.rs`
 - Helper functions: `completion()`, `user_message()`, `system_message()`, `assistant_message()`
 - Unified interface for 100+ providers with automatic routing
+
+## Known Issues & Solutions
+
+### docs.rs Build Issue
+The `vector-db` feature (which includes `qdrant-client`) fails to build on docs.rs due to its read-only filesystem. The qdrant-client build script attempts to write files during compilation.
+
+**Solution**:
+- In `Cargo.toml`, the `[package.metadata.docs.rs]` section explicitly:
+  - Sets `all-features = false` to prevent docs.rs from using `--all-features`
+  - Lists specific features excluding `vector-db`
+  - This allows documentation to build successfully on docs.rs
+
+**Testing docs.rs compatibility locally**:
+```bash
+env DOCS_RS=1 cargo doc --no-deps --features "postgres sqlite redis s3 metrics tracing websockets analytics"
+```

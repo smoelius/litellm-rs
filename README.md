@@ -40,7 +40,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-litellm-rs = "0.1.0"
+litellm-rs = "0.1.3"
 tokio = { version = "1.0", features = ["full"] }
 serde_json = "1.0"
 ```

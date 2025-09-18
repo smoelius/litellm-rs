@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-09-18
+
+### Fixed
+- **docs.rs Build**: Fixed documentation build failure on docs.rs by excluding `vector-db` feature
+  - Added `all-features = false` to `package.metadata.docs.rs` configuration
+  - Explicitly listed features that work with docs.rs read-only filesystem
+- **Internationalization**: Translated all Chinese comments and documentation to English
+  - Cleaned 40+ files with hundreds of Chinese comments
+  - Improved accessibility for international developers
+  - Maintained technical accuracy in all translations
+
+### Changed
+- **Configuration**: Updated `Cargo.toml` metadata for better docs.rs compatibility
+- **Documentation**: All code comments are now in English
+
 ## [0.1.1] - 2024-07-28
 
 ### Fixed
@@ -49,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Vector DB**: Qdrant integration for embeddings
 - **Deployment**: Docker, Kubernetes, and systemd configurations
 
-[Unreleased]: https://github.com/majiayu000/litellm-rs/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/majiayu000/litellm-rs/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/majiayu000/litellm-rs/compare/v0.1.1...v0.1.3
 [0.1.1]: https://github.com/majiayu000/litellm-rs/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/majiayu000/litellm-rs/releases/tag/v0.1.0
