@@ -1,14 +1,30 @@
 # Multi-stage build for LiteLLM-RS
 FROM rust:1.87-slim AS builder
 
-# Install system dependencies
+# Install system dependencies including cross-compilation tools
 RUN apt-get update && apt-get install -y \
     pkg-config \
     libssl-dev \
     libpq-dev \
     ca-certificates \
     git \
+    cmake \
+    build-essential \
+    clang \
+    llvm \
+    musl-tools \
+    gcc-arm-linux-gnueabihf \
+    libc6-dev-armhf-cross \
     && rm -rf /var/lib/apt/lists/*
+
+# Set environment variables for cross-compilation and AWS LC
+ENV CMAKE=cmake
+ENV CC=clang
+ENV CXX=clang++
+ENV CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
+
+# Add Rust targets for cross-compilation
+RUN rustup target add armv7-unknown-linux-gnueabihf
 
 # Create app user
 RUN useradd -m -u 1001 appuser
