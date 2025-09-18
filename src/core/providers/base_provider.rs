@@ -498,9 +498,21 @@ mod tests {
             .with_optional_query("deployment", Some("gpt-4"))
             .build();
 
+        // Parse the URL to check components since query parameter order may vary
+        let parsed_url = url::Url::parse(&url).expect("Invalid URL");
+        assert_eq!(parsed_url.scheme(), "https");
+        assert_eq!(parsed_url.host_str(), Some("api.example.com"));
+        assert_eq!(parsed_url.path(), "/v1/chat/completions");
+
+        // Check query parameters exist (order doesn't matter)
+        let query_pairs: std::collections::HashMap<_, _> = parsed_url.query_pairs().collect();
         assert_eq!(
-            url,
-            "https://api.example.com/v1/chat/completions?api-version=2024-01-01&deployment=gpt-4"
+            query_pairs.get("api-version"),
+            Some(&std::borrow::Cow::Borrowed("2024-01-01"))
+        );
+        assert_eq!(
+            query_pairs.get("deployment"),
+            Some(&std::borrow::Cow::Borrowed("gpt-4"))
         );
     }
 

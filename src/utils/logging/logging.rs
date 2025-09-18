@@ -99,7 +99,7 @@ impl AsyncLogger {
         if self.config.sample_rate < 1.0 {
             let counter = self.sample_counter.fetch_add(1, Ordering::Relaxed);
             let sample_threshold = (u64::MAX as f64 * self.config.sample_rate) as u64;
-            if counter % (u64::MAX / sample_threshold.max(1)) != 0 {
+            if !counter.is_multiple_of(u64::MAX / sample_threshold.max(1)) {
                 return;
             }
         }

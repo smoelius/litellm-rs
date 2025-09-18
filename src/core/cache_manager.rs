@@ -297,7 +297,7 @@ impl CacheManager {
         }
 
         // Cleanup expired entries periodically
-        if self.l2_cache.len() % 1000 == 0 {
+        if self.l2_cache.len().is_multiple_of(1000) {
             self.cleanup_expired().await;
         }
 

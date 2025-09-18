@@ -13,7 +13,7 @@ impl DataUtils {
             return false;
         }
 
-        if s.len() % 4 != 0 {
+        if !s.len().is_multiple_of(4) {
             return false;
         }
 
