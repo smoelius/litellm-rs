@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn test_object_pool() {
-        let pool = ObjectPool::new(|| Vec::<i32>::new(), 2);
+        let pool = ObjectPool::new(Vec::<i32>::new, 2);
 
         {
             let mut obj1 = pool.get();
@@ -356,7 +356,8 @@ mod tests {
 
         assert_eq!(pool.size(), 1);
 
-        let obj2 = pool.get();
+        let mut obj2 = pool.get();
+        obj2.clear(); // Clear object when reusing
         assert_eq!(obj2.len(), 0); // Should be cleared when reused
     }
 

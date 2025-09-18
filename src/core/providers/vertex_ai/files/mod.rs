@@ -249,28 +249,12 @@ pub struct FileTransformation;
 impl FileTransformation {
     /// Transform file for Gemini chat request
     pub fn transform_for_chat(file_ref: &FileReference) -> Value {
-        if file_ref.mime_type.starts_with("image/") {
-            serde_json::json!({
-                "fileData": {
-                    "mimeType": file_ref.mime_type,
-                    "fileUri": file_ref.uri
-                }
-            })
-        } else if file_ref.mime_type.starts_with("video/") {
-            serde_json::json!({
-                "fileData": {
-                    "mimeType": file_ref.mime_type,
-                    "fileUri": file_ref.uri
-                }
-            })
-        } else {
-            serde_json::json!({
-                "fileData": {
-                    "mimeType": file_ref.mime_type,
-                    "fileUri": file_ref.uri
-                }
-            })
-        }
+        serde_json::json!({
+            "fileData": {
+                "mimeType": file_ref.mime_type,
+                "fileUri": file_ref.uri
+            }
+        })
     }
 
     /// Extract file references from text

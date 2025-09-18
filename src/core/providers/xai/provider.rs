@@ -88,8 +88,10 @@ impl XAIProvider {
 
     /// Create provider with API key only
     pub async fn with_api_key(api_key: impl Into<String>) -> Result<Self, XAIError> {
-        let mut config = XAIConfig::default();
-        config.api_key = Some(api_key.into());
+        let config = XAIConfig {
+            api_key: Some(api_key.into()),
+            ..Default::default()
+        };
         Self::new(config).await
     }
 

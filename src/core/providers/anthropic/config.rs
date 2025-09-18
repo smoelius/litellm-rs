@@ -79,10 +79,7 @@ impl AnthropicConfig {
 
     /// Configuration
     pub fn from_env() -> Result<Self, ProviderError> {
-        let mut config = Self::default();
-
-        // Required API key
-        config.api_key = env::var("ANTHROPIC_API_KEY")
+        let api_key = env::var("ANTHROPIC_API_KEY")
             .or_else(|_| env::var("CLAUDE_API_KEY"))
             .map(Some)
             .map_err(|_| {
@@ -91,6 +88,11 @@ impl AnthropicConfig {
                     "ANTHROPIC_API_KEY or CLAUDE_API_KEY environment variable is required",
                 )
             })?;
+
+        let mut config = Self {
+            api_key,
+            ..Default::default()
+        };
 
         // Configuration
         if let Ok(base_url) = env::var("ANTHROPIC_BASE_URL") {
@@ -358,7 +360,7 @@ mod tests {
         assert!(config.validate().is_err());
 
         // Should pass with valid API key
-        config.api_key = Some("sk-ant-api03-test".to_string());
+        config.api_key = Some("sk-ant-api03-test123456".to_string());
         assert!(config.validate().is_ok());
 
         // Should fail with invalid API key format
@@ -369,7 +371,7 @@ mod tests {
     #[test]
     fn test_config_builder() {
         let config = AnthropicConfigBuilder::new()
-            .api_key("sk-ant-test")
+            .api_key("sk-ant-test1234567890123")
             .base_url("https://custom.api.com")
             .timeout(60)
             .multimodal(false)
@@ -377,7 +379,7 @@ mod tests {
 
         assert!(config.is_ok());
         let config = config.unwrap();
-        assert_eq!(config.api_key, Some("sk-ant-test".to_string()));
+        assert_eq!(config.api_key, Some("sk-ant-test1234567890123".to_string()));
         assert_eq!(config.base_url, "https://custom.api.com");
         assert_eq!(config.request_timeout, 60);
         assert!(!config.enable_multimodal);

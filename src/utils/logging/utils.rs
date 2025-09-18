@@ -267,7 +267,7 @@ impl LoggingUtils {
 
         for pattern in &sensitive_patterns {
             let re = regex::Regex::new(pattern).unwrap();
-            sanitized = re.replace_all(&sanitized, "$1***REDACTED***").to_string();
+            sanitized = re.replace_all(&sanitized, "***REDACTED***").to_string();
         }
 
         sanitized

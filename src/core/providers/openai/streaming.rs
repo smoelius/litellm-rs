@@ -11,27 +11,20 @@ use tracing::warn;
 use super::error::OpenAIError;
 use crate::core::types::responses::ChatChunk;
 
+// Type alias for complex stream type
+type ByteStream = Pin<
+    Box<dyn Stream<Item = Result<bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>> + Send>,
+>;
+
 /// OpenAI streaming response handler
 pub struct OpenAIStream {
-    inner: Pin<
-        Box<
-            dyn Stream<Item = Result<bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>>
-                + Send,
-        >,
-    >,
+    inner: ByteStream,
     parser: OpenAIStreamParser,
 }
 
 impl OpenAIStream {
     /// Create new OpenAI stream
-    pub fn new(
-        stream: Pin<
-            Box<
-                dyn Stream<Item = Result<bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>>
-                    + Send,
-            >,
-        >,
-    ) -> Self {
+    pub fn new(stream: ByteStream) -> Self {
         Self {
             inner: stream,
             parser: OpenAIStreamParser::new(),

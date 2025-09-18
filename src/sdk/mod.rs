@@ -33,6 +33,8 @@ mod tests {
 
     #[test]
     fn test_version() {
-        assert!(!VERSION.is_empty());
+        // VERSION is always non-empty as it's from env!("CARGO_PKG_VERSION")
+        assert!(VERSION.len() > 0);
+        assert!(VERSION.contains('.'));
     }
 }

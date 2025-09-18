@@ -89,9 +89,11 @@ impl CloudflareProvider {
         account_id: impl Into<String>,
         api_token: impl Into<String>,
     ) -> Result<Self, CloudflareError> {
-        let mut config = CloudflareConfig::default();
-        config.account_id = Some(account_id.into());
-        config.api_token = Some(api_token.into());
+        let config = CloudflareConfig {
+            account_id: Some(account_id.into()),
+            api_token: Some(api_token.into()),
+            ..Default::default()
+        };
         Self::new(config).await
     }
 

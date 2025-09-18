@@ -89,8 +89,10 @@ impl GroqProvider {
 
     /// Create provider with API key only
     pub async fn with_api_key(api_key: impl Into<String>) -> Result<Self, GroqError> {
-        let mut config = GroqConfig::default();
-        config.api_key = Some(api_key.into());
+        let config = GroqConfig {
+            api_key: Some(api_key.into()),
+            ..Default::default()
+        };
         Self::new(config).await
     }
 

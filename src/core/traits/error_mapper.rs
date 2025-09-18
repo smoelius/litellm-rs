@@ -41,7 +41,7 @@ where
     ///
     /// # parameter
     /// * `status_code` - HTTP status code
-    /// Response
+    ///   Response
     ///
     /// # Returns
     /// Error

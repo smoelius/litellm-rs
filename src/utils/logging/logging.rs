@@ -610,7 +610,7 @@ mod tests {
         };
 
         assert_eq!(config.buffer_size, 5000);
-        assert_eq!(config.drop_on_overflow, true);
+        assert!(config.drop_on_overflow);
         assert_eq!(config.sample_rate, 0.8);
         assert_eq!(config.max_message_length, 512);
     }

@@ -15,18 +15,18 @@
 //!   - Factory methods: not_supported(), authentication_failed() etc
 //!
 //! Implementation
-//! Error handling
+//!   - Error handling
 //!   - Authentication: Authentication failed
 //!   - RateLimit: Rate limit
 //!   - ModelNotFound: Model does not exist
 //!   - InvalidRequest: Invalid request
-//! Error handling
+//!   - Error handling
 //!   - Timeout: Timeout
-//! Error handling
+//!   - Error handling
 //!   - ServiceUnavailable: Service unavailable
 //!   - QuotaExceeded: Quota exceeded
 //!   - NotSupported: Feature not supported
-//! Error handling
+//!   - Error handling
 //!
 //! ## Usage
 //! ```rust

@@ -47,6 +47,27 @@ pub struct DeleteAssistantResponse {
     pub deleted: bool,
 }
 
+#[derive(Debug, Clone)]
+pub struct AssistantApiConfig {
+    pub api_key: Option<String>,
+    pub api_base: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
+}
+
+impl AssistantApiConfig {
+    pub fn new(
+        api_key: Option<&str>,
+        api_base: Option<&str>,
+        headers: Option<HashMap<String, String>>,
+    ) -> Self {
+        Self {
+            api_key: api_key.map(|s| s.to_string()),
+            api_base: api_base.map(|s| s.to_string()),
+            headers,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateThreadRequest {
     pub messages: Option<Vec<serde_json::Value>>,
@@ -160,9 +181,7 @@ pub trait BaseAssistantHandler {
     async fn create_assistant(
         &self,
         request: CreateAssistantRequest,
-        api_key: Option<&str>,
-        api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<CreateAssistantResponse, AssistantError>;
     async fn list_assistants(
         &self,
@@ -170,31 +189,23 @@ pub trait BaseAssistantHandler {
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
-        api_key: Option<&str>,
-        api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<ListAssistantsResponse, AssistantError>;
     async fn retrieve_assistant(
         &self,
         assistant_id: &str,
-        api_key: Option<&str>,
-        api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<RetrieveAssistantResponse, AssistantError>;
     async fn modify_assistant(
         &self,
         assistant_id: &str,
         request: ModifyAssistantRequest,
-        api_key: Option<&str>,
-        api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<RetrieveAssistantResponse, AssistantError>;
     async fn delete_assistant(
         &self,
         assistant_id: &str,
-        api_key: Option<&str>,
-        api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<DeleteAssistantResponse, AssistantError>;
 }
 use super::client::AzureClient;
@@ -245,26 +256,25 @@ impl BaseAssistantHandler for AzureAssistantHandler {
     async fn create_assistant(
         &self,
         request: CreateAssistantRequest,
-        api_key: Option<&str>,
-        _api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<CreateAssistantResponse, AssistantError> {
-        let api_key = api_key
-            .map(|s| s.to_string())
-            .or_else(|| self.client.get_config().api_key.clone())
+        let api_key = config
+            .api_key
+            .as_deref()
+            .or_else(|| self.client.get_config().api_key.as_deref())
             .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
 
         let url = self.build_assistants_url("");
 
         let mut request_headers =
-            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            AzureUtils::create_azure_headers(self.client.get_config(), api_key)
                 .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }
@@ -299,13 +309,12 @@ impl BaseAssistantHandler for AzureAssistantHandler {
         order: Option<&str>,
         after: Option<&str>,
         before: Option<&str>,
-        api_key: Option<&str>,
-        _api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<ListAssistantsResponse, AssistantError> {
-        let api_key = api_key
-            .map(|s| s.to_string())
-            .or_else(|| self.client.get_config().api_key.clone())
+        let api_key = config
+            .api_key
+            .as_deref()
+            .or_else(|| self.client.get_config().api_key.as_deref())
             .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
 
         let mut url = self.build_assistants_url("");
@@ -330,14 +339,14 @@ impl BaseAssistantHandler for AzureAssistantHandler {
         }
 
         let mut request_headers =
-            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            AzureUtils::create_azure_headers(self.client.get_config(), api_key)
                 .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }
@@ -368,26 +377,25 @@ impl BaseAssistantHandler for AzureAssistantHandler {
     async fn retrieve_assistant(
         &self,
         assistant_id: &str,
-        api_key: Option<&str>,
-        _api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<RetrieveAssistantResponse, AssistantError> {
-        let api_key = api_key
-            .map(|s| s.to_string())
-            .or_else(|| self.client.get_config().api_key.clone())
+        let api_key = config
+            .api_key
+            .as_deref()
+            .or_else(|| self.client.get_config().api_key.as_deref())
             .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
 
         let url = self.build_assistants_url(&format!("/{}", assistant_id));
 
         let mut request_headers =
-            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            AzureUtils::create_azure_headers(self.client.get_config(), api_key)
                 .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }
@@ -419,26 +427,25 @@ impl BaseAssistantHandler for AzureAssistantHandler {
         &self,
         assistant_id: &str,
         request: ModifyAssistantRequest,
-        api_key: Option<&str>,
-        _api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<RetrieveAssistantResponse, AssistantError> {
-        let api_key = api_key
-            .map(|s| s.to_string())
-            .or_else(|| self.client.get_config().api_key.clone())
+        let api_key = config
+            .api_key
+            .as_deref()
+            .or_else(|| self.client.get_config().api_key.as_deref())
             .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
 
         let url = self.build_assistants_url(&format!("/{}", assistant_id));
 
         let mut request_headers =
-            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            AzureUtils::create_azure_headers(self.client.get_config(), api_key)
                 .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }
@@ -470,26 +477,25 @@ impl BaseAssistantHandler for AzureAssistantHandler {
     async fn delete_assistant(
         &self,
         assistant_id: &str,
-        api_key: Option<&str>,
-        _api_base: Option<&str>,
-        headers: Option<HashMap<String, String>>,
+        config: &AssistantApiConfig,
     ) -> Result<DeleteAssistantResponse, AssistantError> {
-        let api_key = api_key
-            .map(|s| s.to_string())
-            .or_else(|| self.client.get_config().api_key.clone())
+        let api_key = config
+            .api_key
+            .as_deref()
+            .or_else(|| self.client.get_config().api_key.as_deref())
             .ok_or_else(|| AssistantError::Authentication("Azure API key required".to_string()))?;
 
         let url = self.build_assistants_url(&format!("/{}", assistant_id));
 
         let mut request_headers =
-            AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+            AzureUtils::create_azure_headers(self.client.get_config(), api_key)
                 .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }
@@ -534,14 +540,14 @@ impl BaseAssistantHandler for AzureAssistantHandler {
 
         let url = self.build_threads_url("");
 
-        let mut request_headers = AzureUtils::create_azure_headers(self.client.get_config(), &api_key)
+        let mut request_headers = AzureUtils::create_azure_headers(self.client.get_config(), api_key)
             .map_err(|e| AssistantError::Configuration(e.to_string()))?;
 
-        if let Some(custom_headers) = headers {
+        if let Some(custom_headers) = &config.headers {
             for (key, value) in custom_headers {
                 let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
-                let header_value = reqwest::header::HeaderValue::from_str(&value)
+                let header_value = reqwest::header::HeaderValue::from_str(value)
                     .map_err(|e| AssistantError::Network(format!("Invalid header: {}", e)))?;
                 request_headers.insert(header_name, header_value);
             }

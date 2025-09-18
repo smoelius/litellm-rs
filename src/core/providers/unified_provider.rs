@@ -708,8 +708,6 @@ impl From<reqwest::Error> for ProviderError {
 
         if err.is_timeout() {
             Self::timeout(provider, err.to_string())
-        } else if err.is_connect() || err.is_request() {
-            Self::network(provider, err.to_string())
         } else {
             Self::network(provider, err.to_string())
         }

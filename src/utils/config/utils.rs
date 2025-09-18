@@ -136,10 +136,10 @@ mod tests {
             env::set_var("BOOL_INVALID", "invalid");
         }
 
-        assert_eq!(ConfigUtils::get_bool_config("BOOL_TRUE", false), true);
-        assert_eq!(ConfigUtils::get_bool_config("BOOL_FALSE", true), false);
-        assert_eq!(ConfigUtils::get_bool_config("BOOL_INVALID", true), true);
-        assert_eq!(ConfigUtils::get_bool_config("NONEXISTENT", false), false);
+        assert!(ConfigUtils::get_bool_config("BOOL_TRUE", false));
+        assert!(!ConfigUtils::get_bool_config("BOOL_FALSE", true));
+        assert!(ConfigUtils::get_bool_config("BOOL_INVALID", true));
+        assert!(!ConfigUtils::get_bool_config("NONEXISTENT", false));
 
         unsafe {
             env::remove_var("BOOL_TRUE");

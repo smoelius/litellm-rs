@@ -417,9 +417,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_circuit_breaker_failure() {
-        let mut config = CircuitBreakerConfig::default();
-        config.failure_threshold = 2;
-        config.min_requests = 2;
+        let config = CircuitBreakerConfig {
+            failure_threshold: 2,
+            min_requests: 2,
+            ..Default::default()
+        };
 
         let breaker = CircuitBreaker::new(config);
 

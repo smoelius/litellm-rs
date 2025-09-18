@@ -36,10 +36,13 @@ pub trait MiddlewareNext<Req, Resp>: Send + Sync {
     async fn call(&self, request: Req) -> Result<Resp, Box<dyn std::error::Error + Send + Sync>>;
 }
 
+// Type alias for cleaner middleware type
+type BoxedMiddleware<Req, Resp> =
+    Box<dyn Middleware<Req, Resp, Error = Box<dyn std::error::Error + Send + Sync>>>;
+
 /// Middleware chain/stack
 pub struct MiddlewareStack<Req, Resp> {
-    middlewares:
-        Vec<Box<dyn Middleware<Req, Resp, Error = Box<dyn std::error::Error + Send + Sync>>>>,
+    middlewares: Vec<BoxedMiddleware<Req, Resp>>,
 }
 
 impl<Req, Resp> MiddlewareStack<Req, Resp>
@@ -55,7 +58,7 @@ where
     }
 
     /// Add middleware to the stack
-    pub fn add<M>(self, _middleware: M) -> Self
+    pub fn add_middleware<M>(self, _middleware: M) -> Self
     where
         M: Middleware<Req, Resp> + 'static,
     {

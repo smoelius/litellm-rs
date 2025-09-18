@@ -62,10 +62,7 @@ fn format_mistral_prompt(messages: &[crate::core::types::ChatMessage]) -> String
             }
             MessageRole::User => {
                 if let Some(sys) = &system_prompt {
-                    prompt.push_str(&format!(
-                        "<s>[INST] {} [/INST]",
-                        format!("{}\n\n{}", sys, content)
-                    ));
+                    prompt.push_str(&format!("<s>[INST] {}\n\n{} [/INST]", sys, content));
                     system_prompt = None; // Use system prompt only once
                 } else {
                     prompt.push_str(&format!("<s>[INST] {} [/INST]", content));

@@ -195,14 +195,18 @@ impl VertexAIModel {
 
     /// Check if model supports system messages
     pub fn supports_system_messages(&self) -> bool {
-        match self {
-            Self::GeminiPro | Self::GeminiFlash | Self::GeminiFlashThinking | Self::GeminiUltra => {
-                true
-            }
-            Self::Claude3Opus | Self::Claude3Sonnet | Self::Claude3Haiku => true,
-            Self::Llama3_70B | Self::Llama3_8B => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::GeminiPro
+                | Self::GeminiFlash
+                | Self::GeminiFlashThinking
+                | Self::GeminiUltra
+                | Self::Claude3Opus
+                | Self::Claude3Sonnet
+                | Self::Claude3Haiku
+                | Self::Llama3_70B
+                | Self::Llama3_8B
+        )
     }
 
     /// Check if model supports response schema/JSON mode

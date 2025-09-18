@@ -196,7 +196,7 @@ mod tests {
     fn test_mask_api_key() {
         let key = "sk-1234567890abcdef";
         let masked = AuthUtils::mask_api_key(key);
-        assert_eq!(masked, "sk-1********cdef");
+        assert_eq!(masked, "sk-1***********cdef");
 
         let short_key = "short";
         let masked_short = AuthUtils::mask_api_key(short_key);

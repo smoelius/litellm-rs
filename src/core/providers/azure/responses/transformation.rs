@@ -302,18 +302,13 @@ impl AzureResponseTransformation {
 
         // Apply custom field mappings
         for (from_field, to_field) in &self.config.field_mappings {
-            self.rename_field_recursive(response, from_field, to_field);
+            Self::rename_field_recursive(response, from_field, to_field);
         }
 
         Ok(())
     }
 
-    fn rename_field_recursive(
-        &self,
-        value: &mut serde_json::Value,
-        from_field: &str,
-        to_field: &str,
-    ) {
+    fn rename_field_recursive(value: &mut serde_json::Value, from_field: &str, to_field: &str) {
         match value {
             serde_json::Value::Object(obj) => {
                 // Check if the field exists at this level
@@ -323,13 +318,13 @@ impl AzureResponseTransformation {
 
                 // Recursively process nested objects
                 for (_, nested_value) in obj.iter_mut() {
-                    self.rename_field_recursive(nested_value, from_field, to_field);
+                    Self::rename_field_recursive(nested_value, from_field, to_field);
                 }
             }
             serde_json::Value::Array(arr) => {
                 // Process array elements
                 for item in arr.iter_mut() {
-                    self.rename_field_recursive(item, from_field, to_field);
+                    Self::rename_field_recursive(item, from_field, to_field);
                 }
             }
             _ => {}
@@ -337,21 +332,21 @@ impl AzureResponseTransformation {
     }
 
     fn remove_content_filters(&self, response: &mut serde_json::Value) {
-        self.remove_field_recursive(response, "content_filter_results");
-        self.remove_field_recursive(response, "prompt_filter_results");
+        Self::remove_field_recursive(response, "content_filter_results");
+        Self::remove_field_recursive(response, "prompt_filter_results");
     }
 
-    fn remove_field_recursive(&self, value: &mut serde_json::Value, field_name: &str) {
+    fn remove_field_recursive(value: &mut serde_json::Value, field_name: &str) {
         match value {
             serde_json::Value::Object(obj) => {
                 obj.remove(field_name);
                 for (_, nested_value) in obj.iter_mut() {
-                    self.remove_field_recursive(nested_value, field_name);
+                    Self::remove_field_recursive(nested_value, field_name);
                 }
             }
             serde_json::Value::Array(arr) => {
                 for item in arr.iter_mut() {
-                    self.remove_field_recursive(item, field_name);
+                    Self::remove_field_recursive(item, field_name);
                 }
             }
             _ => {}
@@ -368,7 +363,7 @@ impl AzureResponseTransformation {
         ];
 
         for field in &azure_specific_fields {
-            self.remove_field_recursive(response, field);
+            Self::remove_field_recursive(response, field);
         }
     }
 
@@ -380,7 +375,7 @@ impl AzureResponseTransformation {
         ];
 
         for (from, to) in &field_mappings {
-            self.rename_field_recursive(response, from, to);
+            Self::rename_field_recursive(response, from, to);
         }
 
         Ok(())
