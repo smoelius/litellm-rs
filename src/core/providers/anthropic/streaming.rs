@@ -1,6 +1,6 @@
 //! Anthropic Streaming Module
 //!
-//! 独立的流式响应process，支持SSEparse和实时数据转换
+//! Independent streaming response processing with SSE parsing and real-time data conversion
 
 use std::pin::Pin;
 
@@ -17,41 +17,41 @@ use crate::core::types::{
 
 use super::error::anthropic_stream_error;
 
-/// SSE事件类型
+/// SSE event types
 #[derive(Debug, Clone)]
 pub enum SSEEvent {
-    /// message开始
+    /// Message start
     MessageStart(Value),
-    /// content块开始
+    /// Content block start
     ContentBlockStart(Value),
-    /// content块增量
+    /// Content block delta
     ContentBlockDelta(Value),
-    /// content块结束
+    /// Content block stop
     ContentBlockStop(Value),
-    /// message增量
+    /// Message delta
     MessageDelta(Value),
-    /// message停止
+    /// Message stop
     MessageStop(Value),
-    /// Error
+    /// Error event
     Error(Value),
-    /// Ping事件（心跳）
+    /// Ping event (heartbeat)
     Ping,
-    /// 未知事件
+    /// Unknown event
     Unknown(String),
 }
 
-/// SSEparse器
+/// SSE parser
 pub struct SSEParser;
 
 impl SSEParser {
-    /// parseSSE行为事件
+    /// Parse SSE line to event
     pub fn parse_event(line: &str) -> Option<SSEEvent> {
         if line.is_empty() || line.starts_with(':') {
             return None;
         }
 
         if line.starts_with("event:") {
-            return None; // Handle
+            return None; // Already handled by event type
         }
 
         if line.starts_with("data:") {
@@ -65,7 +65,7 @@ impl SSEParser {
                 return Some(SSEEvent::Ping);
             }
 
-            // 尝试parseJSON
+            // Try to parse JSON
             if let Ok(json) = serde_json::from_str::<Value>(data) {
                 let event_type = json.get("type").and_then(|t| t.as_str()).unwrap_or("");
                 
@@ -89,7 +89,7 @@ impl SSEParser {
 }
 
 pin_project! {
-    /// Handle
+    /// Anthropic streaming processor
     pub struct AnthropicStream {
         #[pin]
         inner: Pin<Box<dyn Stream<Item = Result<ChatChunk, ProviderError>> + Send>>,
@@ -97,7 +97,7 @@ pin_project! {
 }
 
 impl AnthropicStream {
-    /// Create
+    /// Create stream from response
     pub fn from_response(response: Response, model: String) -> Self {
         let stream = async_stream::stream! {
             let mut response_stream = response.bytes_stream();
@@ -114,7 +114,7 @@ impl AnthropicStream {
                         let chunk_str = String::from_utf8_lossy(&chunk);
                         buffer.push_str(&chunk_str);
 
-                        // Handle
+                        // Handle lines
                         while let Some(newline_pos) = buffer.find('\n') {
                             let line = buffer[..newline_pos].trim().to_string();
                             buffer = buffer[newline_pos + 1..].to_string();
@@ -141,7 +141,7 @@ impl AnthropicStream {
         }
     }
 
-    /// Handle
+    /// Process SSE event
     fn process_event(
         event: SSEEvent, 
         model: &str, 
@@ -150,7 +150,7 @@ impl AnthropicStream {
     ) -> Result<Option<ChatChunk>, ProviderError> {
         match event {
             SSEEvent::MessageStart(data) => {
-                // 提取messageID
+                // Extract message ID
                 if let Some(message) = data.get("message") {
                     if let Some(id) = message.get("id").and_then(|v| v.as_str()) {
                         *message_id = id.to_string();
@@ -206,7 +206,7 @@ impl AnthropicStream {
             }
 
             SSEEvent::MessageDelta(data) => {
-                // 提取usage信息和stop_reason
+                // Extract usage information and stop_reason
                 let usage = data.get("usage").map(|u| Usage {
                     prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
                     completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
@@ -250,7 +250,7 @@ impl AnthropicStream {
             }
 
             SSEEvent::MessageStop(_) => {
-                // 最终的结束chunk
+                // Final end chunk
                 Ok(Some(ChatChunk {
                     id: message_id.clone(),
                     object: "chat.completion.chunk".to_string(),
@@ -264,7 +264,7 @@ impl AnthropicStream {
 
             SSEEvent::ContentBlockStart(_) |
             SSEEvent::ContentBlockStop(_) => {
-                // 这些事件不需要生成chunk
+                // These events don't need to generate chunks
                 Ok(None)
             }
 
@@ -296,11 +296,11 @@ impl Stream for AnthropicStream {
     }
 }
 
-/// 流式工具
+/// Streaming utilities
 pub struct StreamUtils;
 
 impl StreamUtils {
-    /// Response
+    /// Collect stream to response
     pub async fn collect_stream_to_response(
         mut stream: AnthropicStream
     ) -> Result<crate::core::types::ChatResponse, ProviderError> {
@@ -365,7 +365,7 @@ impl StreamUtils {
         })
     }
 
-    /// Response
+    /// Validate stream chunk
     pub fn validate_stream_chunk(chunk: &ChatChunk) -> Result<(), ProviderError> {
         if chunk.id.is_empty() {
             return Err(anthropic_stream_error("Missing chunk ID"));
@@ -385,19 +385,19 @@ mod tests {
 
     #[test]
     fn test_sse_parser() {
-        // 测试文本数据parse
+        // Test text data parsing
         let result = SSEParser::parse_event("data: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_123\"}}");
         assert!(matches!(result, Some(SSEEvent::MessageStart(_))));
 
-        // 测试content增量
+        // Test content delta
         let result = SSEParser::parse_event("data: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"Hello\"}}");
         assert!(matches!(result, Some(SSEEvent::ContentBlockDelta(_))));
 
-        // 测试完成标记
+        // Test completion marker
         let result = SSEParser::parse_event("data: [DONE]");
         assert!(result.is_none());
 
-        // 测试ping
+        // Test ping
         let result = SSEParser::parse_event("data: ");
         assert!(matches!(result, Some(SSEEvent::Ping)));
     }

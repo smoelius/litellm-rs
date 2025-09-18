@@ -6,26 +6,26 @@
 //!
 //! Error handling
 //!
-//! ## 核心组件
+//! ## Core Components
 //!
-//! ### `ProviderError` 枚举
+//! ### `ProviderError` Enum
 //! Error handling
 //!
-//! | 变体 | purpose | HTTP 状态码 | 可重试 |
+//! | Variant | Purpose | HTTP Status | Retryable |
 //! |------|------|------------|--------|
-//! | Authentication | 认证失败 | 401 | 否 |
-//! | RateLimit | 速率限制 | 429 | 是(延迟后) |
-//! | ModelNotFound | 模型不存在 | 404 | 否 |
-//! | InvalidRequest | 无效请求 | 400 | 否 |
-//! Error handling
-//! | Timeout | 超时 | 408 | 是 |
-//! Error handling
-//! | ServiceUnavailable | 服务不可用 | 503 | 是 |
-//! | QuotaExceeded | 配额超限 | 402 | 否 |
-//! | NotSupported | Feature not supported | 501 | 否 |
-//! Error handling
+//! | Authentication | Authentication failed | 401 | No |
+//! | RateLimit | Rate limit exceeded | 429 | Yes (after delay) |
+//! | ModelNotFound | Model not found | 404 | No |
+//! | InvalidRequest | Invalid request | 400 | No |
+//! | Network | Network error | 500 | Yes |
+//! | Timeout | Timeout | 408 | Yes |
+//! | Internal | Internal error | 500 | Yes |
+//! | ServiceUnavailable | Service unavailable | 503 | Yes |
+//! | QuotaExceeded | Quota exceeded | 402 | No |
+//! | NotSupported | Feature not supported | 501 | No |
+//! | Other | Other error | 500 | No |
 //!
-//! ## usage方式
+//! ## Usage
 //!
 //! ```rust
 //! Error handling
@@ -34,30 +34,30 @@
 //!     message: "Invalid API key".to_string()
 //! };
 //!
-//! // 2. usage工厂方法
+//! // 2. Use factory methods
 //! let err = ProviderError::authentication("openai", "Invalid API key");
 //! let err = ProviderError::rate_limit("anthropic", Some(60));
 //!
-//! // 3. 在 provider 中usage
+//! // 3. Use in provider
 //! impl LLMProvider for MyProvider {
 //! Error handling
 //!     // ...
 //! }
 //! ```
 //!
-//! ## 迁移指南
+//! ## Migration Guide
 //!
 //! Error handling
 //!
 //! ```rust
-//! // 旧代码
+//! // Old code
 //! pub enum MyProviderError { ... }
 //!
 //! Types
 //! pub type MyProviderError = ProviderError;
 //! ```
 //!
-//! ## 设计优势
+//! ## Design Advantages
 //!
 //! Error handling
 //! Error handling

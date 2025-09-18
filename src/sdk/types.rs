@@ -50,21 +50,21 @@ pub enum ContentPart {
     },
 }
 
-/// imageURL
+/// Image URL
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageUrl {
-    /// imageURL或base64数据
+    /// Image URL or base64 data
     pub url: String,
-    /// image详细度
+    /// Image detail level
     pub detail: Option<String>,
 }
 
 /// Audio data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioData {
-    /// Audio data或URL
+    /// Audio data or URL
     pub data: String,
-    /// 音频format
+    /// Audio format
     pub format: Option<String>,
 }
 
@@ -75,187 +75,187 @@ pub struct Message {
     pub role: Role,
     /// Message content
     pub content: Option<Content>,
-    /// message名称
+    /// Message name
     pub name: Option<String>,
-    /// tool_call
+    /// Tool calls
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
-/// tool_call
+/// Tool call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
-    /// callID
+    /// Call ID
     pub id: String,
-    /// tool_type
+    /// Tool type
     #[serde(rename = "type")]
     pub tool_type: String,
-    /// 函数call
+    /// Function call
     pub function: Function,
 }
 
-/// 函数定义
+/// Function definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Function {
-    /// function_name
+    /// Function name
     pub name: String,
-    /// 函数描述
+    /// Function description
     pub description: Option<String>,
-    /// 函数parameterSchema
+    /// Function parameter schema
     pub parameters: serde_json::Value,
-    /// 函数parameter（用于call）
+    /// Function parameters (used for calls)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<String>,
 }
 
-/// 工具定义
+/// Tool definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tool {
-    /// tool_type
+    /// Tool type
     #[serde(rename = "type")]
     pub tool_type: String,
-    /// 函数定义
+    /// Function definition
     pub function: Function,
 }
 
-/// 工具选择
+/// Tool choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ToolChoice {
-    /// 不usage工具
+    /// Don't use tools
     None,
-    /// 自动选择
+    /// Auto selection
     Auto,
-    /// 必须usage工具
+    /// Must use tools
     Required,
-    /// 指定函数
+    /// Specific function
     Function {
-        /// function_name
+        /// Function name
         name: String,
     },
 }
 
-/// Request
+/// Chat request
 #[derive(Debug, Clone)]
 pub struct ChatRequest {
-    /// Model
+    /// Model name
     pub model: String,
-    /// message列表
+    /// Message list
     pub messages: Vec<Message>,
-    /// Request
+    /// Request options
     pub options: ChatOptions,
 }
 
-/// 聊天选项
+/// Chat options
 #[derive(Debug, Clone, Default)]
 pub struct ChatOptions {
-    /// 温度parameter
+    /// Temperature parameter
     pub temperature: Option<f32>,
-    /// maximumtoken数
+    /// Maximum token count
     pub max_tokens: Option<u32>,
-    /// Top-pparameter
+    /// Top-p parameter
     pub top_p: Option<f32>,
-    /// 频率惩罚
+    /// Frequency penalty
     pub frequency_penalty: Option<f32>,
-    /// 存在惩罚
+    /// Presence penalty
     pub presence_penalty: Option<f32>,
-    /// 停止序列
+    /// Stop sequences
     pub stop: Option<Vec<String>>,
-    /// Response
+    /// Stream response
     pub stream: bool,
-    /// 工具列表
+    /// Tool list
     pub tools: Option<Vec<Tool>>,
-    /// 工具选择
+    /// Tool choice
     pub tool_choice: Option<ToolChoice>,
 }
 
-/// Response
+/// Chat response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
-    /// Response
+    /// Response ID
     pub id: String,
-    /// Model
+    /// Model name
     pub model: String,
-    /// 选择列表
+    /// Choice list
     pub choices: Vec<ChatChoice>,
-    /// usage_stats
+    /// Usage statistics
     pub usage: Usage,
-    /// Create
+    /// Creation timestamp
     pub created: u64,
 }
 
-/// 聊天选择
+/// Chat choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatChoice {
-    /// 选择索引
+    /// Choice index
     pub index: u32,
-    /// message
+    /// Message content
     pub message: Message,
-    /// 结束原因
+    /// Finish reason
     pub finish_reason: Option<String>,
 }
 
-/// Response
+/// Chat chunk (streaming)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatChunk {
-    /// Response
+    /// Response ID
     pub id: String,
-    /// Model
+    /// Model name
     pub model: String,
-    /// 选择列表
+    /// Choice list
     pub choices: Vec<ChunkChoice>,
 }
 
-/// 流式选择
+/// Streaming choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkChoice {
-    /// 选择索引
+    /// Choice index
     pub index: u32,
-    /// 增量message
+    /// Delta message
     pub delta: MessageDelta,
-    /// 结束原因
+    /// Finish reason
     pub finish_reason: Option<String>,
 }
 
-/// 增量message
+/// Delta message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageDelta {
     /// Message role
     pub role: Option<Role>,
     /// Message content
     pub content: Option<String>,
-    /// tool_call
+    /// Tool calls
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
-/// usage_stats
+/// Usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
-    /// 提示token数
+    /// Prompt token count
     pub prompt_tokens: u32,
-    /// 完成token数
+    /// Completion token count
     pub completion_tokens: u32,
-    /// 总token数
+    /// Total token count
     pub total_tokens: u32,
 }
 
-/// 成本信息
+/// Cost information
 #[derive(Debug, Clone)]
 pub struct Cost {
-    /// 成本金额
+    /// Cost amount
     pub amount: f64,
-    /// 货币类型
+    /// Currency type
     pub currency: String,
-    /// 成本分解
+    /// Cost breakdown
     pub breakdown: CostBreakdown,
 }
 
-/// 成本分解
+/// Cost breakdown
 #[derive(Debug, Clone)]
 pub struct CostBreakdown {
-    /// input成本
+    /// Input cost
     pub input_cost: f64,
-    /// output成本
+    /// Output cost
     pub output_cost: f64,
-    /// 总成本
+    /// Total cost
     pub total_cost: f64,
 }

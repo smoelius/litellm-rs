@@ -13,7 +13,7 @@ use crate::core::providers::unified_provider::ProviderError;
 pub struct AnthropicConfig {
     /// API key
     pub api_key: Option<String>,
-    /// 基础URL
+    /// Base URL
     pub base_url: String,
     /// APIversion
     pub api_version: String,
@@ -23,19 +23,19 @@ pub struct AnthropicConfig {
     pub connect_timeout: u64,
     /// maximumNumber of retries
     pub max_retries: u32,
-    /// 重试延迟基数（milliseconds）
+    /// Retry delay base (milliseconds)
     pub retry_delay_base: u64,
-    /// 代理URL（optional）
+    /// Proxy URL (optional)
     pub proxy_url: Option<String>,
     /// Request
     pub custom_headers: HashMap<String, String>,
-    /// enabled多模态支持
+    /// Enable multimodal support
     pub enable_multimodal: bool,
-    /// enabledcache控制
+    /// Enable cache control
     pub enable_cache_control: bool,
-    /// enabled计算机工具
+    /// Enable computer tools
     pub enable_computer_use: bool,
-    /// enabled实验性功能
+    /// Enable experimental features
     pub enable_experimental: bool,
 }
 
@@ -53,7 +53,7 @@ impl Default for AnthropicConfig {
             custom_headers: HashMap::new(),
             enable_multimodal: true,
             enable_cache_control: true,
-            enable_computer_use: false, // Default
+            enable_computer_use: false, // Default disabled
             enable_experimental: false,
         }
     }
@@ -81,7 +81,7 @@ impl AnthropicConfig {
     pub fn from_env() -> Result<Self, ProviderError> {
         let mut config = Self::default();
 
-        // 必须的API key
+        // Required API key
         config.api_key = env::var("ANTHROPIC_API_KEY")
             .or_else(|_| env::var("CLAUDE_API_KEY"))
             .map(Some)
@@ -107,7 +107,7 @@ impl AnthropicConfig {
             config.proxy_url = Some(proxy);
         }
 
-        // 功能开关
+        // Feature switches
         if let Ok(multimodal) = env::var("ANTHROPIC_ENABLE_MULTIMODAL") {
             config.enable_multimodal = multimodal.parse().unwrap_or(true);
         }
@@ -163,25 +163,25 @@ impl AnthropicConfig {
         self
     }
 
-    /// 启用多模态支持
+    /// Enable multimodal support
     pub fn with_multimodal(mut self, enabled: bool) -> Self {
         self.enable_multimodal = enabled;
         self
     }
 
-    /// 启用cache控制
+    /// Enable cache control
     pub fn with_cache_control(mut self, enabled: bool) -> Self {
         self.enable_cache_control = enabled;
         self
     }
 
-    /// 启用计算机工具
+    /// Enable computer tools
     pub fn with_computer_use(mut self, enabled: bool) -> Self {
         self.enable_computer_use = enabled;
         self
     }
 
-    /// 启用实验性功能
+    /// Enable experimental features
     pub fn with_experimental(mut self, enabled: bool) -> Self {
         self.enable_experimental = enabled;
         self
@@ -304,16 +304,16 @@ impl AnthropicConfigBuilder {
         self
     }
 
-    /// 启用多模态
+    /// Enable multimodal
     pub fn multimodal(mut self, enabled: bool) -> Self {
         self.config.enable_multimodal = enabled;
         self
     }
 
-    /// 启用实验性功能
+    /// Enable experimental features
     pub fn experimental(mut self, enabled: bool) -> Self {
         self.config.enable_experimental = enabled;
-        self.config.enable_computer_use = enabled; // 计算机工具是实验性功能的一部分
+        self.config.enable_computer_use = enabled; // Computer tools are part of experimental features
         self
     }
 
@@ -350,14 +350,14 @@ mod tests {
     fn test_config_validation() {
         let mut config = AnthropicConfig::default();
         
-        // 没有API key应该失败
+        // Should fail without API key
         assert!(config.validate().is_err());
         
-        // 有效的API key应该通过
+        // Should pass with valid API key
         config.api_key = Some("sk-ant-api03-test".to_string());
         assert!(config.validate().is_ok());
         
-        // 无效format的API key应该失败
+        // Should fail with invalid API key format
         config.api_key = Some("invalid-key".to_string());
         assert!(config.validate().is_err());
     }
@@ -393,7 +393,7 @@ mod tests {
         let config = AnthropicConfig::default();
         assert_eq!(config.get_api_url("/v1/messages"), "https://api.anthropic.com/v1/messages");
         
-        // 测试去除末尾斜杠
+        // Test trailing slash removal
         let config = config.with_base_url("https://api.anthropic.com/");
         assert_eq!(config.get_api_url("/v1/messages"), "https://api.anthropic.com/v1/messages");
     }

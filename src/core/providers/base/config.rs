@@ -13,7 +13,7 @@ pub struct BaseConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_key: Option<String>,
 
-    /// API基础URL
+    /// API base URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_base: Option<String>,
 
@@ -25,15 +25,15 @@ pub struct BaseConfig {
     #[serde(default = "default_max_retries")]
     pub max_retries: u32,
 
-    /// 自定义HTTP头
+    /// Custom HTTP headers
     #[serde(default)]
     pub headers: HashMap<String, String>,
 
-    /// 组织ID（optional）
+    /// Organization ID (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization: Option<String>,
 
-    /// APIversion（optional）
+    /// API version (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_version: Option<String>,
 }
@@ -110,7 +110,7 @@ impl BaseConfig {
             config.api_version = Some("2023-06-01".to_string());
         }
 
-        // Azure需要APIversion
+        // Azure requires API version
         if provider == "azure" && config.api_version.is_none() {
             config.api_version = Some("2024-02-01".to_string());
         }
@@ -182,7 +182,7 @@ impl BaseConfig {
         )
     }
 
-    /// 转换为Duration
+    /// Convert to Duration
     pub fn timeout_duration(&self) -> Duration {
         Duration::from_secs(self.timeout)
     }
@@ -243,7 +243,7 @@ macro_rules! define_provider_config {
         }
     };
 
-    // 没有额外字段的version
+    // Version without additional fields
     ($name:ident) => {
         define_provider_config!($name {});
     };
@@ -277,14 +277,14 @@ mod tests {
     fn test_validation() {
         let mut config = BaseConfig::for_provider("openai");
 
-        // 缺少API key
+        // Missing API key
         assert!(config.validate("openai").is_err());
 
-        // 添加有效的API key
+        // Add valid API key
         config.api_key = Some("sk-test123".to_string());
         assert!(config.validate("openai").is_ok());
 
-        // 无效的API keyformat
+        // Invalid API key format
         config.api_key = Some("invalid-key".to_string());
         assert!(config.validate("openai").is_err());
     }

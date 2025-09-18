@@ -28,7 +28,7 @@ impl ErrorMapper<ProviderError> for DeepSeekErrorMapper {
 
 /// Response
 fn parse_retry_after(response_body: &str) -> Option<u64> {
-    // 简单的重试时间parse，可以根据DeepSeek的APIformat改进
+    // Simple retry time parsing, can be improved based on DeepSeek's API format
     if response_body.contains("rate limit") {
         Some(60) // Default
     } else {

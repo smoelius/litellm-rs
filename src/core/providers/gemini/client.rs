@@ -1,7 +1,7 @@
 //! Gemini Client
 //!
 //! Error handling
-//! 支持Google AI Studio和Vertex AI两种端点
+//! Supports both Google AI Studio and Vertex AI endpoints
 
 use std::time::Duration;
 
@@ -22,7 +22,7 @@ use super::error::{
     GeminiErrorMapper
 };
 
-/// Gemini API客户端
+/// Gemini API client
 #[derive(Debug, Clone)]
 pub struct GeminiClient {
     config: GeminiConfig,
@@ -137,9 +137,9 @@ impl GeminiClient {
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        // Vertex AIusageBearer token，Google AI StudiousageAPI key作为查询parameter
+        // Vertex AI uses Bearer token, Google AI Studio uses API key as query parameter
         if self.config.use_vertex_ai {
-            // 对于Vertex AI，我们需要OAuth2 token
+            // For Vertex AI, we need OAuth2 token
             // Handle
             if let Some(api_key) = &self.config.api_key {
                 headers.insert(
@@ -150,7 +150,7 @@ impl GeminiClient {
             }
         }
 
-        // 添加自定义头
+        // Add custom headers
         for (key, value) in &self.config.custom_headers {
             let header_name = reqwest::header::HeaderName::from_bytes(key.as_bytes())
                 .map_err(|e| gemini_network_error(format!("Invalid header name: {}", e)))?;
@@ -197,13 +197,13 @@ impl GeminiClient {
             let content = self.transform_message_content(message)?;
             let role = match message.role {
                 MessageRole::System => {
-                    // Gemini不直接支持system角色，需要转换为usermessage前缀
+                    // Gemini doesn't directly support system role, need to convert to user message prefix
                     continue;
                 }
                 MessageRole::User => "user",
                 MessageRole::Assistant => "model",
-                MessageRole::Tool => "function", // 函数call结果
-                MessageRole::Function => "function", // 函数call结果
+                MessageRole::Tool => "function", // Function call result
+                MessageRole::Function => "function", // Function call result
             };
 
             contents.push(json!({
@@ -268,7 +268,7 @@ impl GeminiClient {
         Ok(gemini_request)
     }
 
-    /// 转换Message content
+    /// Transform message content
     fn transform_message_content(&self, message: &ChatMessage) -> Result<Vec<Value>, ProviderError> {
         let mut parts = Vec::new();
 
@@ -288,7 +288,7 @@ impl GeminiClient {
                             }));
                         }
                         ContentPart::ImageUrl { image_url } => {
-                            // Gemini支持内联image数据
+                            // Gemini supports inline image data
                             if image_url.url.starts_with("data:") {
                                 // parsedata URL
                                 if let Some((mime_type, data)) = self.parse_data_url(&image_url.url)? {
@@ -300,7 +300,7 @@ impl GeminiClient {
                                     }));
                                 }
                             } else {
-                                // 外部imageURL - Gemini不直接支持，需要先下载
+                                // External image URL - Gemini doesn't support directly, need to download first
                                 return Err(gemini_multimodal_error("External image URLs not supported directly. Please convert to base64 data URL"));
                             }
                         }
@@ -329,7 +329,7 @@ impl GeminiClient {
                 }
             }
             None => {
-                // 纯文本message
+                // Plain text message
                 if let Some(content) = &message.content {
                     parts.push(json!({
                         "text": content
@@ -361,7 +361,7 @@ impl GeminiClient {
         let header = parts[0];
         let data = parts[1];
 
-        // parseMIME类型
+        // Parse MIME type
         let mime_parts: Vec<&str> = header.split(';').collect();
         let mime_type = mime_parts[0].strip_prefix("data:").unwrap_or("application/octet-stream");
 
@@ -383,7 +383,7 @@ impl GeminiClient {
                 .and_then(|p| p.as_array())
                 .ok_or_else(|| gemini_parse_error("Invalid candidate content structure"))?;
 
-            // 提取Text content
+            // Extract text content
             let mut text_parts = Vec::new();
             for part in content {
                 if let Some(text) = part.get("text").and_then(|t| t.as_str()) {
@@ -425,7 +425,7 @@ impl GeminiClient {
             });
         }
 
-        // 提取usage_stats
+        // Extract usage_stats
         let usage = response.get("usageMetadata").map(|usage_metadata| Usage {
                 prompt_tokens: usage_metadata.get("promptTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
                 completion_tokens: usage_metadata.get("candidatesTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,

@@ -93,11 +93,11 @@ use super::transformer::{
 /// OpenRouter Provider implementation
 #[derive(Debug, Clone)]
 pub struct OpenRouterProvider {
-    /// HTTP客户端
+    /// HTTP client
     client: Client,
     /// Configuration
     config: OpenRouterConfig,
-    /// API基础URL
+    /// API base URL
     base_url: String,
     /// Model
     models: Vec<ModelInfo>,
@@ -136,7 +136,7 @@ impl OpenRouterProvider {
                     OpenRouterError::Configuration(format!("Invalid header key '{}': {}", key, e))
                 })?;
 
-            // 确保 header value 没有非法字符
+            // Ensure header value has no illegal characters
             let clean_value = value.trim();
             let header_value =
                 reqwest::header::HeaderValue::from_str(clean_value).map_err(|e| {
@@ -155,7 +155,7 @@ impl OpenRouterProvider {
             header_map.insert(header_name, header_value);
         }
 
-        // 添加自定义头 - OpenRouterConfig doesn't have headers field, so skip this
+        // Add custom headers - OpenRouterConfig doesn't have headers field, so skip this
         // TODO: Add support for custom headers if needed
         /*
         for (key, value) in &config.headers {
@@ -341,7 +341,7 @@ impl LLMProvider for OpenRouterProvider {
         _request: EmbeddingRequest,
         _context: RequestContext,
     ) -> Result<EmbeddingResponse, Self::Error> {
-        // OpenRouter可能不支持所有模型的embeddings
+        // OpenRouter may not support embeddings for all models
         Err(OpenRouterError::UnsupportedFeature(
             "Embeddings not supported via OpenRouter".to_string(),
         ))
@@ -352,7 +352,7 @@ impl LLMProvider for OpenRouterProvider {
         _request: ImageGenerationRequest,
         _context: RequestContext,
     ) -> Result<ImageGenerationResponse, Self::Error> {
-        // OpenRouter可能支持某些图像生成模型
+        // OpenRouter may support some image generation models
         Err(OpenRouterError::UnsupportedFeature(
             "Image generation not yet implemented".to_string(),
         ))
@@ -372,7 +372,7 @@ impl LLMProvider for OpenRouterProvider {
     }
 
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
-        // OpenRouter支持标准的OpenAIparameter，加上自己的扩展
+        // OpenRouter supports standard OpenAI parameters, plus its own extensions
         static SUPPORTED_PARAMS: &[&str] = &[
             "messages",
             "model",
@@ -409,7 +409,7 @@ impl LLMProvider for OpenRouterProvider {
 
         for (key, value) in params {
             match key.as_str() {
-                // 标准OpenAIparameter直接映射
+                // Standard OpenAI parameters map directly
                 "messages" | "model" | "max_tokens" | "temperature" | "top_p" | "n" | "stream"
                 | "stop" | "presence_penalty" | "frequency_penalty" | "logit_bias" | "user"
                 | "functions" | "function_call" | "tools" | "tool_choice" | "response_format" => {
@@ -421,7 +421,7 @@ impl LLMProvider for OpenRouterProvider {
                     mapped_params.insert(key, value);
                 }
 
-                // 忽略不支持的parameter
+                // Ignore unsupported parameters
                 _ => {
                     warn!(
                         provider = "openrouter",
@@ -446,7 +446,7 @@ impl LLMProvider for OpenRouterProvider {
             request, None, // Using None for now - will implement proper conversion later
         )?;
 
-        // 序列化为JSON值
+        // Serialize to JSON value
         serde_json::to_value(openai_request)
             .map_err(|e| OpenRouterError::Parsing(format!("Failed to serialize request: {}", e)))
     }

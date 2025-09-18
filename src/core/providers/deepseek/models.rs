@@ -1,6 +1,6 @@
 //! DeepSeek Model Registry
 //!
-//! 模型注册表系统，支持动态加载和特性检测
+//! Model registry system with support for dynamic loading and feature detection
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -13,15 +13,15 @@ use crate::core::types::common::ModelInfo;
 pub enum ModelFeature {
     /// Model
     ReasoningMode,
-    /// 函数call支持
+    /// Function calling support
     FunctionCalling,
-    /// 视觉支持
+    /// Vision support
     VisionSupport,
     /// Response
     StreamingSupport,
-    /// System message支持
+    /// System message support
     SystemMessages,
-    /// tool_call支持
+    /// Tool calling support
     ToolCalling,
 }
 
@@ -30,7 +30,7 @@ pub enum ModelFeature {
 pub struct ModelSpec {
     /// Model
     pub model_info: ModelInfo,
-    /// 支持的特性
+    /// Supported features
     pub features: Vec<ModelFeature>,
     /// Configuration
     pub config: ModelConfig,
@@ -44,7 +44,7 @@ pub struct ModelConfig {
     pub requires_special_formatting: bool,
     /// Request
     pub max_concurrent_requests: Option<u32>,
-    /// 自定义parameter映射
+    /// Custom parameter mapping
     pub custom_params: HashMap<String, String>,
 }
 
@@ -110,7 +110,7 @@ impl DeepSeekModelRegistry {
             features.push(ModelFeature::VisionSupport);
         }
 
-        // DeepSeek特有的推理模式检测
+        // DeepSeek-specific reasoning mode detection
         if model_info.id.contains("reasoning") || model_info.id.contains("r1") {
             features.push(ModelFeature::ReasoningMode);
         }
@@ -122,7 +122,7 @@ impl DeepSeekModelRegistry {
     fn create_config(&self, model_info: &ModelInfo) -> ModelConfig {
         let mut config = ModelConfig::default();
 
-        // DeepSeek的一些模型可能需要特殊format
+        // Some DeepSeek models may require special formatting
         if model_info.id.contains("reasoning") {
             config.requires_special_formatting = true;
             config
@@ -132,8 +132,8 @@ impl DeepSeekModelRegistry {
 
         // Settings
         config.max_concurrent_requests = Some(match model_info.id.as_str() {
-            "deepseek-chat" => 10,    // 非思考模式可以更高并发
-            "deepseek-reasoner" => 3, // 思考模式需要更多资源，限制并发
+            "deepseek-chat" => 10,    // Non-thinking mode can handle higher concurrency
+            "deepseek-reasoner" => 3, // Thinking mode requires more resources, limit concurrency
             _ => 5,
         });
 
@@ -256,7 +256,7 @@ mod tests {
         let registry = get_deepseek_registry();
         let models = registry.get_all_models();
 
-        // 至少应该有一个模型
+        // Should have at least one model
         assert!(!models.is_empty());
 
         // Check

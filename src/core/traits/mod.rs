@@ -1,6 +1,6 @@
-//! Module
+//! Core traits module
 //!
-//! 包含所有核心抽象接口定义
+//! Contains all core abstract interface definitions
 
 pub mod cache;
 pub mod error_mapper;

@@ -1,6 +1,6 @@
-//! Types
+//! Response types
 //!
-//! 定义所有 API 响应的统一数据结构
+//! Defines unified data structures for all API responses
 
 use serde::{Deserialize, Serialize};
 
@@ -21,28 +21,28 @@ pub struct ChatResponse {
     /// Model
     pub model: String,
 
-    /// 选择列表
+    /// Choice list
     pub choices: Vec<ChatChoice>,
 
-    /// usage情况统计
+    /// Usage statistics
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
 
-    /// 系统指纹
+    /// System fingerprint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
 }
 
-/// 聊天选择
+/// Chat choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatChoice {
-    /// 选择索引
+    /// Choice index
     pub index: u32,
 
-    /// Response
+    /// Response message
     pub message: ChatMessage,
 
-    /// 完成原因
+    /// Completion reason
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
 
@@ -66,28 +66,28 @@ pub struct ChatChunk {
     /// Model
     pub model: String,
 
-    /// 选择列表
+    /// Choice list
     pub choices: Vec<ChatStreamChoice>,
 
-    /// usage情况（通常在最后一个块中）
+    /// Usage (usually in last chunk)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
 
-    /// 系统指纹
+    /// System fingerprint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
 }
 
-/// 流式选择
+/// Streaming choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatStreamChoice {
-    /// 选择索引
+    /// Choice index
     pub index: u32,
 
-    /// 增量content
+    /// Delta content
     pub delta: ChatDelta,
 
-    /// 完成原因
+    /// Finish reason
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
 
@@ -96,30 +96,30 @@ pub struct ChatStreamChoice {
     pub logprobs: Option<LogProbs>,
 }
 
-/// 流式增量content
+/// Streaming delta content
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatDelta {
-    /// 角色（通常只在第一个块中出现）
+    /// Role (usually only appears in first chunk)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub role: Option<MessageRole>,
 
-    /// content增量
+    /// Content delta
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
 
-    /// tool_call增量
+    /// Tool call delta
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCallDelta>>,
 
-    /// 函数call增量（向后兼容）
+    /// Function call delta (backward compatibility)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_call: Option<FunctionCallDelta>,
 }
 
-/// tool_call增量
+/// Tool call delta
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCallDelta {
-    /// 索引
+    /// Index
     pub index: u32,
 
     /// callID
@@ -130,80 +130,80 @@ pub struct ToolCallDelta {
     #[serde(skip_serializing_if = "Option::is_none", rename = "type")]
     pub tool_type: Option<String>,
 
-    /// 函数call增量
+    /// Function call delta
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function: Option<FunctionCallDelta>,
 }
 
-/// 函数call增量
+/// Function call delta
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCallDelta {
     /// function_name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
-    /// parameter增量
+    /// Parameter delta
     #[serde(skip_serializing_if = "Option::is_none")]
     pub arguments: Option<String>,
 }
 
-/// 完成原因
+/// Finish reason
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FinishReason {
-    /// 自然停止
+    /// Natural stop
     Stop,
-    /// 达到长度限制
+    /// Length limit reached
     Length,
     /// tool_call
     ToolCalls,
-    /// content过滤
+    /// Content filter
     ContentFilter,
-    /// 函数call（向后兼容）
+    /// Function call (backward compatibility)
     FunctionCall,
 }
 
 /// usage_stats
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
-    /// 提示 token 数
+    /// Prompt token count
     pub prompt_tokens: u32,
 
-    /// 完成 token 数
+    /// Completion token count
     pub completion_tokens: u32,
 
-    /// 总 token 数
+    /// Total token count
     pub total_tokens: u32,
 
-    /// 提示 token 详细信息
+    /// Prompt token details
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt_tokens_details: Option<PromptTokensDetails>,
 
-    /// 完成 token 详细信息
+    /// Completion token details
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_tokens_details: Option<CompletionTokensDetails>,
 }
 
-/// 提示 token 详细信息
+/// Prompt token details
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PromptTokensDetails {
-    /// cache的 token 数
+    /// Cached token count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cached_tokens: Option<u32>,
 
-    /// 音频 token 数
+    /// Audio token count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_tokens: Option<u32>,
 }
 
-/// 完成 token 详细信息
+/// Completion token details
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionTokensDetails {
-    /// 推理 token 数
+    /// Reasoning token count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_tokens: Option<u32>,
 
-    /// 音频 token 数
+    /// Audio token count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio_tokens: Option<u32>,
 }
@@ -211,24 +211,24 @@ pub struct CompletionTokensDetails {
 /// Log probabilities
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogProbs {
-    /// Token 的 log probabilities
+    /// Token log probabilities
     pub content: Vec<TokenLogProb>,
 
-    /// 拒绝采样信息
+    /// Refusal sampling information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refusal: Option<String>,
 }
 
-/// 单个 token 的 log probability
+/// Single token log probability
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenLogProb {
-    /// Token 文本
+    /// Token text
     pub token: String,
 
     /// Log probability
     pub logprob: f64,
 
-    /// Token 的字节表示
+    /// Token byte representation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
 
@@ -240,13 +240,13 @@ pub struct TokenLogProb {
 /// Top log probability
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TopLogProb {
-    /// Token 文本
+    /// Token text
     pub token: String,
 
     /// Log probability
     pub logprob: f64,
 
-    /// Token 的字节表示
+    /// Token byte representation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
 }
@@ -257,7 +257,7 @@ pub struct EmbedResponse {
     /// object_type
     pub object: String,
 
-    /// 嵌入数据列表
+    /// Embedding data list
     pub data: Vec<EmbeddingData>,
 
     /// Model
@@ -268,26 +268,26 @@ pub struct EmbedResponse {
     pub usage: Option<EmbeddingUsage>,
 }
 
-/// 嵌入数据
+/// Embedding data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingData {
     /// object_type
     pub object: String,
 
-    /// 索引
+    /// Index
     pub index: u32,
 
-    /// 嵌入向量
+    /// Embedding vector
     pub embedding: Vec<f32>,
 }
 
-/// 嵌入usage_stats
+/// Embedding usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingUsage {
-    /// 提示 token 数
+    /// Prompt token count
     pub prompt_tokens: u32,
 
-    /// 总 token 数
+    /// Total token count
     pub total_tokens: u32,
 }
 
@@ -297,22 +297,22 @@ pub struct ImageResponse {
     /// Create
     pub created: i64,
 
-    /// 图像数据列表
+    /// Image data list
     pub data: Vec<ImageData>,
 }
 
-/// 图像数据
+/// Image data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageData {
-    /// 图像URL
+    /// Image URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 
-    /// Base64 编码的图像
+    /// Base64 encoded image
     #[serde(skip_serializing_if = "Option::is_none")]
     pub b64_json: Option<String>,
 
-    /// 修订提示（如果有）
+    /// Revised prompt (if any)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub revised_prompt: Option<String>,
 }
@@ -320,67 +320,67 @@ pub struct ImageData {
 /// Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioTranscriptionResponse {
-    /// 转录文本
+    /// Transcription text
     pub text: String,
 
-    /// 语言
+    /// Language
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 
-    /// 持续时间
+    /// Duration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration: Option<f64>,
 
-    /// 详细信息（当启用时）
+    /// Details (when enabled)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub words: Option<Vec<WordInfo>>,
 
-    /// 段落信息
+    /// Segment information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub segments: Option<Vec<SegmentInfo>>,
 }
 
-/// 单词信息
+/// Word information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WordInfo {
-    /// 单词文本
+    /// Word text
     pub word: String,
 
-    /// 开始时间
+    /// Start time
     pub start: f64,
 
-    /// 结束时间
+    /// End time
     pub end: f64,
 }
 
-/// 段落信息
+/// Segment information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SegmentInfo {
-    /// 段落 ID
+    /// Segment ID
     pub id: u32,
 
-    /// 开始时间
+    /// Start time
     pub start: f64,
 
-    /// 结束时间
+    /// End time
     pub end: f64,
 
     /// Text content
     pub text: String,
 
-    /// 温度
+    /// Temperature
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
 
-    /// 平均 log probability
+    /// Average log probability
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avg_logprob: Option<f64>,
 
-    /// 压缩比
+    /// Compression ratio
     #[serde(skip_serializing_if = "Option::is_none")]
     pub compression_ratio: Option<f64>,
 
-    /// 无语音概率
+    /// No speech probability
     #[serde(skip_serializing_if = "Option::is_none")]
     pub no_speech_prob: Option<f64>,
 }
@@ -447,7 +447,7 @@ impl ChatResponse {
             .map(|calls| calls.as_slice())
     }
 
-    /// 计算总成本（需要价格信息）
+    /// Calculate total cost (requires pricing information)
     pub fn calculate_cost(&self, input_cost_per_1k: f64, output_cost_per_1k: f64) -> f64 {
         if let Some(usage) = &self.usage {
             let input_cost = (usage.prompt_tokens as f64 / 1000.0) * input_cost_per_1k;
@@ -497,27 +497,27 @@ pub struct CompletionResponse {
     pub created: i64,
     /// Model
     pub model: String,
-    /// 选择列表
+    /// Choice list
     pub choices: Vec<CompletionChoice>,
     /// usage_stats
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
-    /// 系统指纹
+    /// System fingerprint
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_fingerprint: Option<String>,
 }
 
-/// 补全选择
+/// Completion choice
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompletionChoice {
-    /// 选择索引
+    /// Choice index
     pub index: u32,
-    /// 生成的文本
+    /// Generated text
     pub text: String,
-    /// 完成原因
+    /// Finish reason
     #[serde(skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
-    /// Log概率信息
+    /// Log probability information
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<LogProbs>,
 }
@@ -527,14 +527,14 @@ pub struct CompletionChoice {
 pub struct EmbeddingResponse {
     /// object_type
     pub object: String,
-    /// 嵌入数据列表
+    /// Embedding data list
     pub data: Vec<EmbeddingData>,
     /// Model
     pub model: String,
     /// usage_stats
     #[serde(skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
-    /// 嵌入数据列表 (向后兼容字段)
+    /// Embedding data list (backward compatibility field)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embeddings: Option<Vec<EmbeddingData>>,
 }
@@ -546,7 +546,7 @@ pub struct EmbeddingResponse {
 pub struct ImageGenerationResponse {
     /// Create
     pub created: u64,
-    /// 生成的图像列表
+    /// Generated image list
     pub data: Vec<ImageData>,
 }
 

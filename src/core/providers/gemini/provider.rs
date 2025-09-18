@@ -24,7 +24,7 @@ use super::error::{GeminiError, GeminiErrorMapper, gemini_validation_error, gemi
 use super::models::{get_gemini_registry, ModelFeature};
 use super::streaming::GeminiStream;
 
-/// Gemini Provider - 统一implementation
+/// Gemini Provider - Unified implementation
 #[derive(Debug)]
 pub struct GeminiProvider {
     config: GeminiConfig,
@@ -135,7 +135,7 @@ impl LLMProvider for GeminiProvider {
             ProviderCapability::ChatCompletion,
             ProviderCapability::ChatCompletionStream,
             ProviderCapability::ToolCalling,
-            // ProviderCapability::Vision, // TODO: 添加到枚举中
+            // ProviderCapability::Vision, // TODO: Add to enum
         ]
     }
 
@@ -148,23 +148,23 @@ impl LLMProvider for GeminiProvider {
     }
 
     fn supports_tools(&self) -> bool {
-        true // Gemini支持tool_call
+        true // Gemini supports tool calling
     }
 
     fn supports_streaming(&self) -> bool {
-        true // Response
+        true // Streaming support
     }
 
     fn supports_image_generation(&self) -> bool {
-        false // Gemini目前不支持图像生成
+        false // Gemini currently does not support image generation
     }
 
     fn supports_embeddings(&self) -> bool {
-        false // TODO: 可以通过单独的嵌入模型支持
+        false // TODO: Can be supported through dedicated embedding models
     }
 
     fn supports_vision(&self) -> bool {
-        true // Gemini支持视觉理解
+        true // Gemini supports vision understanding
     }
 
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
@@ -188,22 +188,22 @@ impl LLMProvider for GeminiProvider {
 
         for (key, value) in params {
             match key.as_str() {
-                // 直接映射的parameter
+                // Directly mapped parameters
                 "temperature" | "top_p" | "stop" | "stream" => {
                     mapped.insert(key, value);
                 }
                 "max_tokens" => {
                     mapped.insert("max_output_tokens".to_string(), value);
                 }
-                // Handle
+                // Handle tools
                 "tools" | "tool_choice" => {
                     mapped.insert(key, value);
                 }
-                // 忽略不支持的parameter
+                // Ignore unsupported parameters
                 "frequency_penalty" | "presence_penalty" | "logit_bias" => {
-                    // Gemini不支持这些parameter，跳过
+                    // Gemini doesn't support these parameters, skip
                 }
-                // 其他parameter保持原样
+                // Keep other parameters as-is
                 _ => {
                     mapped.insert(key, value);
                 }
@@ -221,7 +221,7 @@ impl LLMProvider for GeminiProvider {
         // Request
         self.validate_request(&request)?;
 
-        // usage客户端的转换方法
+        // Use client's transformation method
         let transformed = self.client.transform_chat_request(&request)?;
         Ok(transformed)
     }
@@ -298,7 +298,7 @@ impl LLMProvider for GeminiProvider {
         // Request
         let response = self.client.chat_stream(request.clone()).await?;
         
-        // Create
+        // Create stream
         let stream = GeminiStream::from_response(response, request.model);
         
         Ok(Box::pin(stream))
@@ -327,7 +327,7 @@ impl LLMProvider for GeminiProvider {
     }
 
     async fn health_check(&self) -> HealthStatus {
-        // Request
+        // Health check request
         let test_request = ChatRequest {
             model: "gemini-1.0-pro".to_string(),
             messages: vec![crate::core::types::ChatMessage {
@@ -428,7 +428,7 @@ mod tests {
         let config = GeminiConfig::new_google_ai("test-api-key-12345678901234567890");
         let provider = GeminiProvider::new(config).unwrap();
 
-        // 空message应该失败
+        // Empty messages should fail
         let empty_request = ChatRequest {
             model: "gemini-pro".to_string(),
             messages: vec![],
@@ -457,7 +457,7 @@ mod tests {
 
         assert!(provider.validate_request(&empty_request).is_err());
 
-        // 无效温度应该失败
+        // Invalid temperature should fail
         let invalid_temp_request = ChatRequest {
             model: "gemini-pro".to_string(),
             messages: vec![crate::core::types::requests::ChatMessage {
@@ -468,7 +468,7 @@ mod tests {
                 tool_call_id: None,
                 function_call: None,
             }],
-            temperature: Some(3.0), // 超出范围
+            temperature: Some(3.0), // Out of range
             max_tokens: None,
             max_completion_tokens: None,
             top_p: None,

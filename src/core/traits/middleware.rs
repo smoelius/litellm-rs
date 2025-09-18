@@ -1,27 +1,27 @@
-//! 中间件系统 trait 定义
+//! Middleware system trait definitions
 //!
-//! 提供可组合的中间件架构，支持认证、cache、重试etc横切关注点
+//! Provides composable middleware architecture supporting authentication, cache, retry, and other cross-cutting concerns
 
 use async_trait::async_trait;
 use std::future::Future;
 use std::pin::Pin;
 
-/// 中间件核心 trait
+/// Core middleware trait
 ///
-/// 所有中间件都必须implementation此 trait
+/// All middleware must implement this trait
 #[async_trait]
 pub trait Middleware<Req, Resp>: Send + Sync {
     /// Error
     type Error: std::error::Error + Send + Sync + 'static;
 
-    /// Handle
+    /// Process request through middleware
     ///
-    /// # parameter
-    /// Request
-    /// Handle
+    /// # Parameters
+    /// * `request` - Incoming request
+    /// * `next` - Next handler in the chain
     ///
     /// # Returns
-    /// Handle
+    /// Processed response
     async fn process(
         &self,
         request: Req,
@@ -29,14 +29,14 @@ pub trait Middleware<Req, Resp>: Send + Sync {
     ) -> Result<Resp, Self::Error>;
 }
 
-/// Handle
+/// Next middleware handler in the chain
 #[async_trait]
 pub trait MiddlewareNext<Req, Resp>: Send + Sync {
-    /// Handle
+    /// Call the next handler in the chain
     async fn call(&self, request: Req) -> Result<Resp, Box<dyn std::error::Error + Send + Sync>>;
 }
 
-/// 中间件链/栈
+/// Middleware chain/stack
 pub struct MiddlewareStack<Req, Resp> {
     middlewares:
         Vec<Box<dyn Middleware<Req, Resp, Error = Box<dyn std::error::Error + Send + Sync>>>>,
@@ -47,14 +47,14 @@ where
     Req: Clone + Send + Sync + 'static,
     Resp: Send + Sync + 'static,
 {
-    /// Create
+    /// Create new middleware stack
     pub fn new() -> Self {
         Self {
             middlewares: Vec::new(),
         }
     }
 
-    /// 添加中间件
+    /// Add middleware to the stack
     pub fn add<M>(self, _middleware: M) -> Self
     where
         M: Middleware<Req, Resp> + 'static,
@@ -65,7 +65,7 @@ where
         self
     }
 
-    /// 执行中间件链
+    /// Execute middleware chain
     pub async fn execute<F, Fut>(
         &self,
         request: Req,
@@ -82,7 +82,7 @@ where
         self.execute_chain(request, 0, handler).await
     }
 
-    /// 递归执行中间件链
+    /// Recursively execute middleware chain
     fn execute_chain(
         &self,
         request: Req,
@@ -95,10 +95,10 @@ where
     > {
         Box::pin(async move {
             if index >= self.middlewares.len() {
-                // Handle
+                // Execute final handler
                 final_handler.call(request).await
             } else {
-                // Create
+                // Create next handler
                 let _next = Box::new(NextHandler {
                     stack: self,
                     index: index + 1,
@@ -127,7 +127,7 @@ where
     }
 }
 
-/// 中间件包装器，用于类型擦除
+/// Middleware wrapper for type erasure
 struct MiddlewareWrapper<M>(M);
 
 #[async_trait]
@@ -149,7 +149,7 @@ where
     }
 }
 
-/// Handle
+/// Final handler wrapper
 struct FinalHandler<F, Fut, Req, Resp> {
     handler: Option<F>,
     _phantom: std::marker::PhantomData<(Fut, Req, Resp)>,
@@ -173,13 +173,13 @@ where
     Resp: Send + Sync,
 {
     async fn call(&self, _request: Req) -> Result<Resp, Box<dyn std::error::Error + Send + Sync>> {
-        // 这里有个问题，FnOnce 只能call一次，但 trait 方法可能被多次call
-        // 实际implementation中需要更复杂的设计
+        // There's an issue here - FnOnce can only be called once, but trait methods may be called multiple times
+        // Actual implementation needs more complex design
         todo!("Implement proper FnOnce handling")
     }
 }
 
-/// Handle
+/// Next handler wrapper
 struct NextHandler<'a, Req, Resp> {
     stack: &'a MiddlewareStack<Req, Resp>,
     index: usize,
@@ -194,7 +194,7 @@ where
     Resp: Send + Sync + 'static,
 {
     async fn call(&self, _request: Req) -> Result<Resp, Box<dyn std::error::Error + Send + Sync>> {
-        // 这里也需要重新设计，因为生命周期的问题
+        // This also needs redesign due to lifetime issues
         todo!("Implement proper next handler")
     }
 }

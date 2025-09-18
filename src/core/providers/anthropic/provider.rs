@@ -23,7 +23,7 @@ use super::config::AnthropicConfig;
 use super::models::{get_anthropic_registry, ModelFeature};
 use super::streaming::AnthropicStream;
 
-/// Anthropic Provider - 统一implementation
+/// Anthropic Provider - unified implementation
 #[derive(Debug)]
 pub struct AnthropicProvider {
     config: AnthropicConfig,
@@ -35,13 +35,13 @@ pub struct AnthropicProvider {
 impl AnthropicProvider {
     /// Create
     pub fn new(config: AnthropicConfig) -> Result<Self, ProviderError> {
-        // Create
+        // Create client
         let client = AnthropicClient::new(config.clone())?;
 
-        // Get
+        // Get pool manager
         let pool_manager = Arc::new(GlobalPoolManager::new()?);
 
-        // Get
+        // Get supported models
         let registry = get_anthropic_registry();
         let supported_models = registry.list_models()
             .into_iter()
@@ -56,18 +56,18 @@ impl AnthropicProvider {
         })
     }
 
-    /// Request
+    /// Validate request
     fn validate_request(&self, request: &ChatRequest) -> Result<(), ProviderError> {
         let registry = get_anthropic_registry();
         
-        // Check
+        // Check model support
         let model_spec = registry.get_model_spec(&request.model)
             .ok_or_else(|| ProviderError::invalid_request(
                 "anthropic", 
                 format!("Unsupported model: {}", request.model)
             ))?;
 
-        // Check
+        // Check message requirements
         if request.messages.is_empty() {
             return Err(ProviderError::invalid_request(
                 "anthropic", 
@@ -75,7 +75,7 @@ impl AnthropicProvider {
             ));
         }
 
-        // Check
+        // Check token limits
         if let Some(max_tokens) = request.max_tokens {
             if max_tokens > model_spec.limits.max_output_tokens {
                 return Err(ProviderError::invalid_request(
@@ -89,7 +89,7 @@ impl AnthropicProvider {
             }
         }
 
-        // Check
+        // Check multimodal content
         let has_multimodal_content = request.messages.iter().any(|msg| {
             if let Some(content) = &msg.content {
                 match content {
@@ -110,7 +110,7 @@ impl AnthropicProvider {
             ));
         }
 
-        // Check
+        // Check tool calling support
         if request.tools.is_some() && !model_spec.features.contains(&ModelFeature::ToolCalling) {
             return Err(ProviderError::not_supported(
                 "anthropic",
@@ -121,7 +121,7 @@ impl AnthropicProvider {
         Ok(())
     }
 
-    /// Request
+    /// Generate request headers
     fn generate_headers(&self) -> HashMap<String, String> {
         let mut headers = HashMap::new();
 
@@ -133,7 +133,7 @@ impl AnthropicProvider {
         headers.insert("Content-Type".to_string(), "application/json".to_string());
         headers.insert("User-Agent".to_string(), "LiteLLM-Rust/1.0 Anthropic".to_string());
 
-        // 添加自定义头
+        // Add custom headers
         for (key, value) in &self.config.custom_headers {
             headers.insert(key.clone(), value.clone());
         }
@@ -141,7 +141,7 @@ impl AnthropicProvider {
         headers
     }
 
-    /// Request
+    /// Calculate cost
     fn calculate_cost(&self, request: &ChatRequest, response: &ChatResponse) -> Option<f64> {
         if let Some(usage) = &response.usage {
             super::models::CostCalculator::calculate_cost(
@@ -216,7 +216,7 @@ impl LLMProvider for AnthropicProvider {
             "messages": request.messages,
         });
 
-        // 添加optionalparameter
+        // Add optional parameters
         if let Some(max_tokens) = request.max_tokens {
             anthropic_request["max_tokens"] = Value::Number(max_tokens.into());
         }
@@ -351,7 +351,7 @@ impl LLMProvider for AnthropicProvider {
     }
 }
 
-/// Build
+/// Provider builder
 pub struct AnthropicProviderBuilder {
     config: Option<AnthropicConfig>,
 }
@@ -362,13 +362,13 @@ impl AnthropicProviderBuilder {
         Self { config: None }
     }
 
-    /// Configuration
+    /// Set configuration
     pub fn with_config(mut self, config: AnthropicConfig) -> Self {
         self.config = Some(config);
         self
     }
 
-    /// Settings
+    /// Set API key
     pub fn with_api_key(mut self, api_key: impl Into<String>) -> Self {
         let api_key = api_key.into();
         if let Some(ref mut config) = self.config {
@@ -379,7 +379,7 @@ impl AnthropicProviderBuilder {
         self
     }
 
-    /// Settings
+    /// Set base URL
     pub fn with_base_url(mut self, base_url: impl Into<String>) -> Self {
         if let Some(ref mut config) = self.config {
             config.base_url = base_url.into();
@@ -387,7 +387,7 @@ impl AnthropicProviderBuilder {
         self
     }
 
-    /// Build
+    /// Build provider
     pub fn build(self) -> Result<AnthropicProvider, ProviderError> {
         let config = self.config.ok_or_else(|| {
             ProviderError::configuration("anthropic", "Configuration is required")

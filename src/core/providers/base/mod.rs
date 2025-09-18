@@ -1,6 +1,6 @@
 //! Module
 //!
-//! 包含所有provider共享的基础组件
+//! Contains base components shared by all providers
 
 pub mod config;
 pub mod connection_pool;

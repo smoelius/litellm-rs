@@ -12,58 +12,58 @@ use crate::core::traits::ProviderConfig;
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeminiConfig {
-    /// API key（Google AI Studio）
+    /// API key (Google AI Studio)
     pub api_key: Option<String>,
-    
-    /// 项目ID（Vertex AI）
+
+    /// Project ID (Vertex AI)
     pub project_id: Option<String>,
-    
-    /// 区域（Vertex AI）
+
+    /// Region (Vertex AI)
     pub location: Option<String>,
-    
-    /// 服务账号JSON（Vertex AI）
+
+    /// Service account JSON (Vertex AI)
     pub service_account_json: Option<String>,
-    
-    /// usageVertex AI还是Google AI Studio
+
+    /// Use Vertex AI or Google AI Studio
     pub use_vertex_ai: bool,
-    
-    /// 基础URL
+
+    /// Base URL
     pub base_url: String,
-    
-    /// APIversion
+
+    /// API version
     pub api_version: String,
-    
-    /// Request
+
+    /// Request timeout
     pub request_timeout: u64,
-    
-    /// Connection
+
+    /// Connection timeout
     pub connect_timeout: u64,
-    
-    /// maximumNumber of retries
+
+    /// Maximum number of retries
     pub max_retries: u32,
-    
-    /// 重试延迟（milliseconds）
+
+    /// Retry delay (milliseconds)
     pub retry_delay_ms: u64,
-    
-    /// 启用cache
+
+    /// Enable caching
     pub enable_caching: bool,
-    
-    /// cacheTTL（seconds）
+
+    /// Cache TTL (seconds)
     pub cache_ttl_seconds: u64,
-    
-    /// 启用搜索增强
+
+    /// Enable search grounding
     pub enable_search_grounding: bool,
-    
-    /// Settings
+
+    /// Safety settings
     pub safety_settings: Option<Vec<SafetySetting>>,
-    
-    /// 自定义头
+
+    /// Custom headers
     pub custom_headers: HashMap<String, String>,
-    
-    /// 代理URL
+
+    /// Proxy URL
     pub proxy_url: Option<String>,
-    
-    /// 启用调试日志
+
+    /// Enable debug logging
     pub debug: bool,
 }
 
@@ -129,7 +129,7 @@ impl GeminiConfig {
 
     /// Create
     pub fn from_env() -> Result<Self, ProviderError> {
-        // 优先尝试Google AI Studio
+        // Try Google AI Studio first
         if let Ok(api_key) = std::env::var("GOOGLE_API_KEY") {
             return Ok(Self::new_google_ai(api_key));
         }
@@ -138,14 +138,14 @@ impl GeminiConfig {
             return Ok(Self::new_google_ai(api_key));
         }
         
-        // 尝试Vertex AI
+        // Try Vertex AI
         if let (Ok(project_id), Ok(location)) = (
             std::env::var("GOOGLE_CLOUD_PROJECT"),
             std::env::var("GOOGLE_CLOUD_LOCATION"),
         ) {
             let mut config = Self::new_vertex_ai(project_id, location);
             
-            // optional的服务账号
+            // Optional service account
             if let Ok(sa_json) = std::env::var("GOOGLE_APPLICATION_CREDENTIALS") {
                 config.service_account_json = Some(sa_json);
             }
@@ -202,7 +202,7 @@ impl GeminiConfig {
     /// Get
     pub fn get_endpoint(&self, model: &str, operation: &str) -> String {
         if self.use_vertex_ai {
-            // Vertex AI端点format
+            // Vertex AI endpoint format
             format!(
                 "{}/v1/projects/{}/locations/{}/publishers/google/models/{}:{}",
                 self.base_url,
@@ -212,7 +212,7 @@ impl GeminiConfig {
                 operation
             )
         } else {
-            // Google AI Studio端点format
+            // Google AI Studio endpoint format
             match operation {
                 "streamGenerateContent" => format!(
                     "{}/{}/models/{}:streamGenerateContent?key={}",
@@ -253,7 +253,7 @@ impl Default for GeminiConfig {
 impl ProviderConfig for GeminiConfig {
     fn validate(&self) -> Result<(), String> {
         if self.use_vertex_ai {
-            // Validation
+            // Vertex AI validation
             if self.project_id.is_none() || self.project_id.as_ref().unwrap().is_empty() {
                 return Err("Project ID is required for Vertex AI".to_string());
             }
@@ -262,7 +262,7 @@ impl ProviderConfig for GeminiConfig {
                 return Err("Location is required for Vertex AI".to_string());
             }
         } else {
-            // Validation
+            // Google AI Studio validation
             if self.api_key.is_none() || self.api_key.as_ref().unwrap().is_empty() {
                 return Err("API key is required for Google AI Studio".to_string());
             }
@@ -272,8 +272,8 @@ impl ProviderConfig for GeminiConfig {
                 return Err("API key appears to be too short".to_string());
             }
         }
-        
-        // Validation
+
+        // General validation
         if self.request_timeout == 0 {
             return Err("Request timeout must be greater than 0".to_string());
         }
@@ -310,7 +310,7 @@ impl ProviderConfig for GeminiConfig {
     }
 }
 
-/// Configuration
+/// Configuration builder
 pub struct GeminiConfigBuilder {
     config: GeminiConfig,
 }

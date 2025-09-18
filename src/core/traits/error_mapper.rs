@@ -9,14 +9,14 @@ use serde_json::Value;
 ///
 /// Error
 ///
-/// # 设计目标
+/// # Design Goals
 ///
 /// Handle
 /// Error
 /// Error
 /// Error
 ///
-/// # implementation指南
+/// # Implementation Guide
 ///
 /// Handle
 ///
@@ -40,13 +40,13 @@ where
     /// Response
     ///
     /// # parameter
-    /// * `status_code` - HTTP 状态码
+    /// * `status_code` - HTTP status code
     /// Response
     ///
     /// # Returns
     /// Error
     ///
-    /// # 常见映射
+    /// # Common Mappings
     /// Error
     /// Error
     /// Error
@@ -111,7 +111,7 @@ where
     /// Error
     ///
     /// Default
-    /// 映射为 ParsingError
+    /// Maps to parsing error
     fn map_parsing_error(&self, error: &dyn std::error::Error) -> E {
         E::parsing_error(&error.to_string())
     }
@@ -119,7 +119,7 @@ where
     /// Error
     ///
     /// # parameter
-    /// * `timeout_duration` - 超时时长
+    /// * `timeout_duration` - Timeout duration
     ///
     /// # Returns
     /// Error
@@ -166,9 +166,9 @@ where
     }
 }
 
-/// Error
+/// OpenAI error mapper
 ///
-/// Handle
+/// Handles OpenAI-specific error response format
 pub struct OpenAIErrorMapper;
 
 impl<E> ErrorMapper<E> for OpenAIErrorMapper
@@ -176,12 +176,12 @@ where
     E: ProviderErrorTrait,
 {
     fn map_http_error(&self, status_code: u16, response_body: &str) -> E {
-        // Response
+        // Try to parse JSON response first
         if let Ok(error_json) = serde_json::from_str::<Value>(response_body) {
             return self.map_json_error(&error_json);
         }
 
-        // 如果parse失败，usage通用映射
+        // If parsing fails, use generic mapping
         GenericErrorMapper.map_http_error(status_code, response_body)
     }
 
@@ -206,7 +206,7 @@ where
                 "authentication_error" => E::authentication_failed(message),
                 "permission_error" => E::authentication_failed(message),
                 "rate_limit_error" => {
-                    // 提取重试时间
+                    // Extract retry time
                     let retry_after = error.get("retry_after").and_then(|r| r.as_u64());
                     E::rate_limited(retry_after)
                 }
@@ -220,9 +220,9 @@ where
     }
 }
 
-/// Error
+/// Anthropic error mapper
 ///
-/// Handle
+/// Handles Anthropic-specific error response format
 pub struct AnthropicErrorMapper;
 
 impl<E> ErrorMapper<E> for AnthropicErrorMapper
@@ -230,12 +230,12 @@ where
     E: ProviderErrorTrait,
 {
     fn map_http_error(&self, status_code: u16, response_body: &str) -> E {
-        // Response
+        // Try to parse JSON response first
         if let Ok(error_json) = serde_json::from_str::<Value>(response_body) {
             return self.map_json_error(&error_json);
         }
 
-        // 如果parse失败，usage通用映射
+        // If parsing fails, use generic mapping
         GenericErrorMapper.map_http_error(status_code, response_body)
     }
 
@@ -267,7 +267,7 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    // Create
+    // Create a test error type for testing
     #[derive(Debug, PartialEq)]
     enum TestError {
         Authentication(String),

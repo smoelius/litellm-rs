@@ -19,7 +19,7 @@ use super::error::{anthropic_api_error, anthropic_auth_error, anthropic_network_
                    anthropic_parse_error, anthropic_rate_limit_error};
 use super::models::{get_anthropic_registry, ModelFeature};
 
-/// Anthropic API客户端
+/// Anthropic API client
 #[derive(Debug, Clone)]
 pub struct AnthropicClient {
     config: AnthropicConfig,
@@ -121,28 +121,28 @@ impl AnthropicClient {
     fn build_headers(&self) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
 
-        // 认证头
+        // Authentication header
         if let Some(ref api_key) = self.config.api_key {
             if let Ok(auth_header) = format!("Bearer {}", api_key).parse() {
                 headers.insert("Authorization", auth_header);
             }
         }
 
-        // version头
+        // Version header
         if let Ok(version_header) = self.config.api_version.parse() {
             headers.insert("anthropic-version", version_header);
         }
 
-        // content类型
+        // Content type
         headers.insert("Content-Type", "application/json".parse().unwrap());
 
-        // 用户代理
+        // User agent
         headers.insert(
             "User-Agent", 
             "LiteLLM-Rust/1.0".parse().unwrap()
         );
 
-        // 自定义头
+        // Custom headers
         for (key, value) in &self.config.custom_headers {
             if let (Ok(header_name), Ok(header_value)) = (
                 key.parse::<reqwest::header::HeaderName>(), 
@@ -185,7 +185,7 @@ impl AnthropicClient {
         }
     }
 
-    /// 提取retry-after值
+    /// Extract retry-after value
     fn extract_retry_after(&self, body: &str) -> Option<u64> {
         if let Ok(json) = serde_json::from_str::<Value>(body) {
             if let Some(retry_after) = json.get("retry_after") {
@@ -209,10 +209,10 @@ impl AnthropicClient {
         let model_spec = registry.get_model_spec(&request.model)
             .ok_or_else(|| anthropic_api_error(400, format!("Unsupported model: {}", request.model)))?;
 
-        // 分离System message和User message
+        // Separate system messages from user messages
         let (system_message, messages) = self.separate_system_messages(&request.messages)?;
 
-        // 转换messageformat
+        // Transform message format
         let anthropic_messages = self.transform_messages(messages, model_spec)?;
 
         // Request
@@ -222,12 +222,12 @@ impl AnthropicClient {
             "messages": anthropic_messages,
         });
 
-        // 添加System message
+        // Add system message
         if let Some(system) = system_message {
             anthropic_request["system"] = json!(system);
         }
 
-        // 添加optionalparameter
+        // Add optional parameters
         if let Some(temperature) = request.temperature {
             anthropic_request["temperature"] = json!(temperature);
         }
@@ -240,13 +240,13 @@ impl AnthropicClient {
             anthropic_request["stop_sequences"] = json!(stop);
         }
 
-        // 添加工具支持
+        // Add tool support
         if let Some(tools) = &request.tools {
             if model_spec.features.contains(&ModelFeature::ToolCalling) {
                 let anthropic_tools = self.transform_tools(tools)?;
                 anthropic_request["tools"] = json!(anthropic_tools);
 
-                // 添加tool_choice
+                // Add tool_choice
                 if let Some(tool_choice) = &request.tool_choice {
                     anthropic_request["tool_choice"] = self.transform_tool_choice(tool_choice)?;
                 }
@@ -256,7 +256,7 @@ impl AnthropicClient {
         Ok(anthropic_request)
     }
 
-    /// 分离System message和User message
+    /// Separate system messages from user messages
     fn separate_system_messages(&self, messages: &[ChatMessage]) -> Result<(Option<String>, Vec<ChatMessage>), ProviderError> {
         let mut system_parts = Vec::new();
         let mut user_messages = Vec::new();
@@ -294,7 +294,7 @@ impl AnthropicClient {
         Ok((system_message, user_messages))
     }
 
-    /// 转换message为Anthropicformat
+    /// Transform messages to Anthropic format
     fn transform_messages(&self, messages: Vec<ChatMessage>, model_spec: &super::models::ModelSpec) -> Result<Vec<Value>, ProviderError> {
         let mut anthropic_messages = Vec::new();
 
@@ -304,7 +304,7 @@ impl AnthropicClient {
                 MessageRole::Assistant => "assistant",
                 MessageRole::Tool => "user", // Response
                 MessageRole::Function => "user", // Response
-                MessageRole::System => continue, // Handle
+                MessageRole::System => continue, // Already handled
             };
 
             let content = if let Some(content) = message.content {
@@ -327,7 +327,7 @@ impl AnthropicClient {
                                     if model_spec.features.contains(&ModelFeature::MultimodalSupport) {
                                         // Handle
                                         if image_url.url.starts_with("data:") {
-                                            // Base64formatimage
+                                            // Base64 format image
                                             let parts: Vec<&str> = image_url.url.split(',').collect();
                                             if parts.len() == 2 {
                                                 let media_type = parts[0]
@@ -345,8 +345,8 @@ impl AnthropicClient {
                                                 }));
                                             }
                                         } else {
-                                            // URLformatimage - 需要下载转换
-                                            // TODO: implementationURLimage下载和转换
+                                            // URL format image - requires download and conversion
+                                            // TODO: implement URL image download and conversion
                                             return Err(anthropic_api_error(400, "URL images not yet supported, use base64 format"));
                                         }
                                     }
@@ -364,7 +364,7 @@ impl AnthropicClient {
                                     }
                                 }
                                 _ => {
-                                    // 其他content类型暂不支持
+                                    // Other content types not yet supported
                                 }
                             }
                         }
@@ -381,7 +381,7 @@ impl AnthropicClient {
                 "content": content
             });
 
-            // 添加tool_call
+            // Add tool_call
             if let Some(tool_calls) = &message.tool_calls {
                 let mut anthropic_tool_calls = Vec::new();
                 for tool_call in tool_calls {
@@ -402,7 +402,7 @@ impl AnthropicClient {
         Ok(anthropic_messages)
     }
 
-    /// 转换工具定义
+    /// Transform tool definitions
     fn transform_tools(&self, tools: &[crate::core::types::Tool]) -> Result<Vec<Value>, ProviderError> {
         let mut anthropic_tools = Vec::new();
 
@@ -417,7 +417,7 @@ impl AnthropicClient {
         Ok(anthropic_tools)
     }
 
-    /// 转换工具选择
+    /// Transform tool choice
     fn transform_tool_choice(&self, tool_choice: &crate::core::types::ToolChoice) -> Result<Value, ProviderError> {
         match tool_choice {
             crate::core::types::ToolChoice::String(choice) => {
@@ -443,7 +443,7 @@ impl AnthropicClient {
 
     /// Response
     fn transform_chat_response(&self, response: Value) -> Result<ChatResponse, ProviderError> {
-        // 提取基础信息
+        // Extract basic information
         let id = response.get("id")
             .and_then(|v| v.as_str())
             .unwrap_or("")
@@ -459,7 +459,7 @@ impl AnthropicClient {
             .unwrap_or_default()
             .as_secs() as i64;
 
-        // Handle
+        // Handle content
         let content = response.get("content")
             .and_then(|v| v.as_array())
             .ok_or_else(|| anthropic_parse_error("Missing or invalid content array"))?;
@@ -494,7 +494,7 @@ impl AnthropicClient {
             }
         }
 
-        // Build
+        // Build message
         let message = ChatMessage {
             role: MessageRole::Assistant,
             content: if message_content.is_empty() { 
@@ -508,7 +508,7 @@ impl AnthropicClient {
             function_call: None,
         };
 
-        // Build
+        // Build choice
         let choice = ChatChoice {
             index: 0,
             message,
@@ -523,7 +523,7 @@ impl AnthropicClient {
             logprobs: None,
         };
 
-        // Build
+        // Build usage
         let usage = response.get("usage").map(|usage_data| Usage {
                 prompt_tokens: usage_data.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
                 completion_tokens: usage_data.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,

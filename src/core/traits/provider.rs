@@ -1,6 +1,6 @@
-//! LLM Provider 核心 trait 定义
+//! Core LLM Provider trait definitions
 //!
-//! Implementation
+//! Defines unified interface for all AI providers
 
 use async_trait::async_trait;
 use futures::Stream;
@@ -18,20 +18,20 @@ use crate::core::types::errors::ProviderErrorTrait;
 use serde_json::Value;
 use std::collections::HashMap;
 
-/// LLM Provider 统一接口
+/// Unified LLM Provider interface
 ///
-/// 这是 LiteLLM 的核心抽象，所有 AI 提供商都必须implementation此 trait
+/// This is the core abstraction of LiteLLM, all AI providers must implement this trait
 ///
-/// # 设计原则
+/// # Design Principles
 ///
-/// Request
-/// 2. **能力驱动**: 通过 capabilities() 声明支持的功能
-/// Default
-/// 4. **类型安全**: usage关联类型确保编译时类型安全
-/// 5. **异步优先**: 所有 I/O 操作都是异步的
-/// 6. **可观测性**: 内置成本计算、延迟统计etc监控功能
+/// 1. **Request uniformity**: All providers use the same request/response format
+/// 2. **Capability driven**: Declare supported features through capabilities()
+/// 3. **Provider agnostic**: Users don't need to know provider-specific details
+/// 4. **Type safety**: Use associated types to ensure compile-time type safety
+/// 5. **Async first**: All I/O operations are asynchronous
+/// 6. **Observability**: Built-in cost calculation, latency statistics, and monitoring
 ///
-/// # 示例
+/// # Example
 ///
 /// ```rust
 /// use async_trait::async_trait;
@@ -49,166 +49,166 @@ use std::collections::HashMap;
 ///         &[ProviderCapability::ChatCompletion]
 ///     }
 ///     
-///     // implementation其他必需方法...
+///     // implement other required methods...
 /// }
 /// ```
 #[async_trait]
 pub trait LLMProvider: Send + Sync + Debug + 'static {
-    /// Configuration
+    /// Provider configuration type
     ///
-    /// Configuration
+    /// Must implement ProviderConfig for validation and common settings
     type Config: ProviderConfig + Clone + Send + Sync;
 
-    /// Error
+    /// Provider-specific error type
     ///
-    /// Error
+    /// Must implement ProviderErrorTrait for unified error handling
     type Error: ProviderErrorTrait;
 
-    /// Error
+    /// Error mapper for converting various error types
     ///
-    /// Error
+    /// Handles HTTP, JSON, network, and other error conversions
     type ErrorMapper: ErrorMapper<Self::Error>;
 
-    // ==================== 基础元数据 ====================
+    // ==================== Basic Metadata ====================
 
-    /// Get
+    /// Get provider name
     ///
     /// # Returns
-    /// Provider 的静态字符串标识符，如 "openai", "anthropic", "v0" etc
+    /// Static string identifier for the provider, such as "openai", "anthropic", "v0", etc.
     ///
-    /// # 注意
-    /// 此名称用于路由和日志记录，必须在整个系统中唯一
+    /// # Note
+    /// This name is used for routing and logging, must be unique across the entire system
     fn name(&self) -> &'static str;
 
-    /// Get
+    /// Get provider capabilities
     ///
     /// # Returns
-    /// 静态能力列表，用于快速查询该 provider 支持哪些功能
+    /// Static capability list for quickly querying which features this provider supports
     ///
-    /// # purpose
-    /// Request
-    /// Check
-    /// - UI 显示：展示 provider 的功能特性
+    /// # Use Cases
+    /// - Request routing: Route requests only to compatible providers
+    /// - Feature detection: Check if specific functionality is available
+    /// - UI display: Show provider feature characteristics
     fn capabilities(&self) -> &'static [ProviderCapability];
 
-    /// Model
+    /// Get supported model list
     ///
     /// # Returns
-    /// Model
+    /// List of models supported by this provider
     ///
-    /// # implementation建议
-    /// Configuration
-    /// Get
-    /// - 建议cache以提高性能
+    /// # Implementation Suggestions
+    /// - Load from configuration file or remote API
+    /// - Include model metadata like context length, cost, etc.
+    /// - Recommend caching for performance
     fn models(&self) -> &[ModelInfo];
 
-    // ==================== 能力查询方法 ====================
+    // ==================== Capability Query Methods ====================
 
-    /// Check
+    /// Check if model is supported
     ///
-    /// # parameter
-    /// Model
+    /// # Parameters
+    /// * `model` - Model name to check
     ///
     /// # Returns
-    /// Model
+    /// True if the model is supported by this provider
     ///
-    /// Default
-    /// 在 models() Returns的列表中查找
+    /// # Default Implementation
+    /// Searches in the list returned by models()
     fn supports_model(&self, model: &str) -> bool {
         self.models().iter().any(|m| m.id == model)
     }
 
-    /// Check
+    /// Check if tools are supported
     ///
     /// # Returns
-    /// 如果支持tool_callReturns true
+    /// True if tool calling is supported
     ///
-    /// Default
-    /// Check
+    /// # Default Implementation
+    /// Checks if capabilities contain ToolCalling
     fn supports_tools(&self) -> bool {
         self.capabilities()
             .contains(&ProviderCapability::ToolCalling)
     }
 
-    /// Response
+    /// Check if streaming is supported
     ///
     /// # Returns
-    /// 如果支持 Server-Sent Events 流式outputReturns true
+    /// True if Server-Sent Events streaming output is supported
     ///
-    /// Default
-    /// Check
+    /// # Default Implementation
+    /// Checks if capabilities contain ChatCompletionStream
     fn supports_streaming(&self) -> bool {
         self.capabilities()
             .contains(&ProviderCapability::ChatCompletionStream)
     }
 
-    /// Check
+    /// Check if image generation is supported
     ///
     /// # Returns
-    /// 如果支持图像生成（如 DALL-E）Returns true
+    /// True if image generation (like DALL-E) is supported
     fn supports_image_generation(&self) -> bool {
         self.capabilities()
             .contains(&ProviderCapability::ImageGeneration)
     }
 
-    /// Check
+    /// Check if embeddings are supported
     ///
     /// # Returns
-    /// 如果支持生成文本嵌入向量Returns true
+    /// True if text embedding generation is supported
     fn supports_embeddings(&self) -> bool {
         self.capabilities()
             .contains(&ProviderCapability::Embeddings)
     }
 
-    /// Check
+    /// Check if vision capabilities are supported
     ///
     /// # Returns
-    /// Handle
+    /// True if image analysis/vision is supported
     fn supports_vision(&self) -> bool {
-        // 暂时Returns false，因为 ProviderCapability 中没有 Vision 变体
+        // Currently returns false, as ProviderCapability doesn't have Vision variant
         false
     }
 
-    // ==================== Python LiteLLM 兼容接口 ====================
+    // ==================== Python LiteLLM Compatible Interface ====================
 
-    /// Get
+    /// Get supported OpenAI parameters
     ///
-    /// Returns该 provider 支持的所有 OpenAI 标准parameter名称
+    /// Returns all OpenAI standard parameter names supported by this provider
     ///
-    /// # parameter
-    /// Model
+    /// # Parameters
+    /// * `model` - Model name to check parameters for
     ///
     /// # Returns
-    /// 支持的parameter名称列表
+    /// List of supported parameter names
     ///
-    /// # 示例
+    /// # Example
     /// ```
-    /// // OpenAI provider 可能Returns：
+    /// // OpenAI provider might return:
     /// // ["temperature", "max_tokens", "top_p", "frequency_penalty", "presence_penalty", "tools"]
     /// //
-    /// // Anthropic provider 可能Returns：
+    /// // Anthropic provider might return:
     /// // ["temperature", "max_tokens", "top_p", "top_k", "tools"]
     /// ```
     fn get_supported_openai_params(&self, model: &str) -> &'static [&'static str];
 
-    /// 映射 OpenAI parameter到 provider specific_params
+    /// Map OpenAI parameters to provider-specific parameters
     ///
-    /// 将标准的 OpenAI parameter转换为该 provider 能理解的format
+    /// Convert standard OpenAI parameters to format understood by this provider
     ///
-    /// # parameter
-    /// * `params` - input的parameter映射（OpenAI format）
-    /// Model
+    /// # Parameters
+    /// * `params` - Input parameter mapping (OpenAI format)
+    /// * `model` - Target model name
     ///
     /// # Returns
-    /// 转换后的parameter映射（provider 特定format）
+    /// Converted parameter mapping (provider-specific format)
     ///
-    /// # 示例
+    /// # Example
     /// ```
-    /// // 对于 Anthropic provider：
+    /// // For Anthropic provider:
     /// // input: {"max_tokens": 100, "temperature": 0.7}
     /// // output: {"max_tokens_to_sample": 100, "temperature": 0.7}
     /// //
-    /// // 对于 Azure provider：
+    /// // For Azure provider:
     /// // input: {"user": "alice", "stream": true}
     /// // output: {"end_user_id": "alice", "stream": true}
     /// ```
@@ -218,49 +218,49 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         model: &str,
     ) -> Result<HashMap<String, Value>, Self::Error>;
 
-    /// Request
+    /// Transform request format
     ///
-    /// Request
+    /// Convert standard ChatRequest to provider-specific request format
     ///
-    /// # parameter
-    /// Request
-    /// Request
+    /// # Parameters
+    /// * `request` - Standard chat request
+    /// * `context` - Request context with metadata
     ///
     /// # Returns
-    /// Request
+    /// Provider-specific request as JSON Value
     ///
-    /// # implementation说明
-    /// 此方法应该：
-    /// Request
-    /// 2. 转换messageformat
-    /// Model
-    /// Handle
-    /// Settings
+    /// # Implementation Notes
+    /// This method should:
+    /// 1. Validate request parameters
+    /// 2. Convert message format
+    /// 3. Map model names if needed
+    /// 4. Handle provider-specific options
+    /// 5. Set authentication headers
     async fn transform_request(
         &self,
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<Value, Self::Error>;
 
-    /// Response
+    /// Transform response format
     ///
-    /// Response
+    /// Convert provider-specific response to standard ChatResponse format
     ///
-    /// # parameter
-    /// Response
-    /// Model
-    /// Request
+    /// # Parameters
+    /// * `raw_response` - Raw response bytes from provider
+    /// * `model` - Model name used for the request
+    /// * `request_id` - Unique request identifier
     ///
     /// # Returns
-    /// Response
+    /// Standardized chat response
     ///
-    /// # implementation说明
-    /// 此方法应该：
-    /// Response
-    /// 2. 提取选择项和message
-    /// 3. 转换tool_callformat
-    /// 4. 统计 token usage量
-    /// Response
+    /// # Implementation Notes
+    /// This method should:
+    /// 1. Parse provider response format
+    /// 2. Extract choices and messages
+    /// 3. Convert tool call format
+    /// 4. Calculate token usage
+    /// 5. Handle error cases gracefully
     async fn transform_response(
         &self,
         raw_response: &[u8],
@@ -268,55 +268,55 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         request_id: &str,
     ) -> Result<ChatResponse, Self::Error>;
 
-    /// Error
+    /// Get error mapper instance
     ///
-    /// Error
+    /// Returns the error mapper for this provider
     ///
     /// # Returns
-    /// Handle
+    /// Error mapper that handles provider-specific error formats
     fn get_error_mapper(&self) -> Self::ErrorMapper;
 
-    // ==================== 核心功能：聊天完成 ====================
+    // ==================== Core Functionality: Chat Completion ====================
 
-    /// Request
+    /// Execute chat completion request
     ///
-    /// 这是所有 LLM provider 必须implementation的核心方法
+    /// This is the core method that all LLM providers must implement
     ///
-    /// # parameter
-    /// Request
-    /// Request
+    /// # Parameters
+    /// * `request` - Chat completion request
+    /// * `context` - Request context with metadata
     ///
     /// # Returns
-    /// Response
+    /// Chat completion response
     ///
-    /// Error
-    /// * `Self::Error::authentication()` - 认证失败
-    /// Model
-    /// Request
-    /// * `Self::Error::rate_limit()` - 达到速率限制
-    /// Error
+    /// # Errors
+    /// * `Self::Error::authentication()` - Authentication failed
+    /// * `Self::Error::not_supported()` - Model or feature not supported
+    /// * `Self::Error::network_error()` - Network or API error
+    /// * `Self::Error::rate_limit()` - Rate limit exceeded
+    /// * `Self::Error::parsing_error()` - Response parsing failed
     async fn chat_completion(
         &self,
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse, Self::Error>;
 
-    /// Request
+    /// Execute streaming chat completion request
     ///
-    /// Response
+    /// Returns response chunks as a stream for real-time processing
     ///
-    /// # parameter
-    /// Request
-    /// Request
+    /// # Parameters
+    /// * `request` - Chat completion request
+    /// * `context` - Request context with metadata
     ///
     /// # Returns
-    /// Returns一个 Stream，每个 item 是 ChatChunk
+    /// Stream where each item is a ChatChunk
     ///
-    /// Default
-    /// Error
+    /// # Default Implementation
+    /// Returns not supported error
     ///
-    /// # 注意
-    /// 只有在 supports_streaming() Returns true 时才应该call此方法
+    /// # Note
+    /// Should only be called when supports_streaming() returns true
     async fn chat_completion_stream(
         &self,
         _request: ChatRequest,
@@ -326,27 +326,27 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         Err(Self::Error::not_supported("streaming"))
     }
 
-    // ==================== optional功能 ====================
+    // ==================== Optional Features ====================
 
-    /// 生成文本嵌入向量
+    /// Generate text embeddings
     ///
-    /// 将文本转换为高维向量，用于语义搜索、聚类etc应用
+    /// Convert text to high-dimensional vectors for semantic search, clustering, and other applications
     ///
-    /// # parameter
-    /// Handle
-    /// Request
+    /// # Parameters
+    /// * `request` - Embedding request with input text
+    /// * `context` - Request context with metadata
     ///
     /// # Returns
-    /// Response
+    /// Embedding response with vectors
     ///
-    /// Default
-    /// Error
+    /// # Default Implementation
+    /// Returns not supported error
     ///
-    /// # usage场景
-    /// - 语义搜索
-    /// - 文档相似度计算
-    /// - 推荐系统
-    /// - RAG（检索增强生成）系统
+    /// # Use Cases
+    /// - Semantic search
+    /// - Document similarity calculation
+    /// - Recommendation systems
+    /// - RAG (Retrieval Augmented Generation) systems
     async fn embeddings(
         &self,
         _request: EmbeddingRequest,
@@ -355,23 +355,23 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         Err(Self::Error::not_supported("embeddings"))
     }
 
-    /// 生成图像
+    /// Generate images
     ///
-    /// 根据文本描述生成图像
+    /// Generate images based on text descriptions
     ///
-    /// # parameter
-    /// Request
-    /// Request
+    /// # Parameters
+    /// * `request` - Image generation request
+    /// * `context` - Request context with metadata
     ///
     /// # Returns
-    /// Response
+    /// Image generation response with URLs or data
     ///
-    /// Default
-    /// Error
+    /// # Default Implementation
+    /// Returns not supported error
     ///
-    /// Model
-    /// - OpenAI DALL-E 系列
-    /// - Midjourney（通过代理）
+    /// # Supported Models
+    /// - OpenAI DALL-E series
+    /// - Midjourney (via proxy)
     /// - Stable Diffusion
     async fn image_generation(
         &self,
@@ -381,45 +381,45 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         Err(Self::Error::not_supported("image_generation"))
     }
 
-    // ==================== 健康监控 ====================
+    // ==================== Health Monitoring ====================
 
-    /// Check
+    /// Check provider health status
     ///
-    /// Validation
+    /// Validate that the provider is operational and responding correctly
     ///
     /// # Returns
-    /// HealthStatus 枚举，包含 Healthy, Degraded, Unhealthy etc状态
+    /// HealthStatus enum containing Healthy, Degraded, Unhealthy, etc. states
     ///
-    /// # implementation建议
-    /// Check
-    /// Validation
-    /// Request
-    /// Check
+    /// # Implementation Suggestions
+    /// - Test API connectivity
+    /// - Validate authentication
+    /// - Send lightweight test request
+    /// - Check rate limit status
     ///
-    /// # purpose
-    /// Configuration
-    /// Check
-    /// - 故障转移决策
-    /// - 监控告警
+    /// # Use Cases
+    /// - Load balancer health checks
+    /// - Service discovery updates
+    /// - Failover decision making
+    /// - Monitoring and alerting
     async fn health_check(&self) -> HealthStatus;
 
-    // ==================== 成本管理 ====================
+    // ==================== Cost Management ====================
 
-    /// Request
+    /// Calculate request cost
     ///
-    /// # parameter
-    /// Model
-    /// * `input_tokens` - input token count
-    /// * `output_tokens` - output token count
+    /// # Parameters
+    /// * `model` - Model name used
+    /// * `input_tokens` - Number of input tokens
+    /// * `output_tokens` - Number of output tokens
     ///
     /// # Returns
-    /// 预估成本（美元）
+    /// Estimated cost in USD
     ///
-    /// # purpose
-    /// - 成本控制和预算管理
-    /// - 用户配额管理
-    /// - 成本优化决策
-    /// - 计费和统计
+    /// # Use Cases
+    /// - Cost control and budget management
+    /// - User quota management
+    /// - Cost optimization decisions
+    /// - Billing and statistics
     async fn calculate_cost(
         &self,
         model: &str,
@@ -427,89 +427,89 @@ pub trait LLMProvider: Send + Sync + Debug + 'static {
         output_tokens: u32,
     ) -> Result<f64, Self::Error>;
 
-    // ==================== 性能指标 ====================
+    // ==================== Performance Metrics ====================
 
-    /// Response
+    /// Get average response latency
     ///
     /// # Returns
-    /// Response
+    /// Average latency for this provider
     ///
-    /// Default
-    /// Returns 100ms，子类应该基于实际统计数据覆盖此方法
+    /// # Default Implementation
+    /// Returns 100ms, subclasses should override with actual statistics
     ///
-    /// # purpose
-    /// - 路由选择：优先选择延迟较低的 provider
-    /// Settings
-    /// - 性能监控和优化
+    /// # Use Cases
+    /// - Route selection: Prefer providers with lower latency
+    /// - Performance benchmarking
+    /// - Performance monitoring and optimization
     async fn get_average_latency(&self) -> Result<std::time::Duration, Self::Error> {
         Ok(std::time::Duration::from_millis(100))
     }
 
-    /// Get
+    /// Get success rate
     ///
     /// # Returns
-    /// 0.0 到 1.0 之间的成功率
+    /// Success rate between 0.0 and 1.0
     ///
-    /// Default
-    /// Returns 0.99（99% 成功率）
+    /// # Default Implementation
+    /// Returns 0.99 (99% success rate)
     ///
-    /// # purpose
-    /// - 服务质量评估
-    /// - 自动故障转移
-    /// - SLA 监控
+    /// # Use Cases
+    /// - Service quality assessment
+    /// - Automatic failover
+    /// - SLA monitoring
     async fn get_success_rate(&self) -> Result<f32, Self::Error> {
         Ok(0.99)
     }
 
-    // ==================== 工具方法 ====================
+    // ==================== Utility Methods ====================
 
-    /// 预估文本的 token count
+    /// Estimate token count for text
     ///
-    /// # parameter
-    /// * `text` - 待分析的文本
+    /// # Parameters
+    /// * `text` - Text to analyze
     ///
     /// # Returns
-    /// 预估的 token count
+    /// Estimated token count
     ///
-    /// Default
-    /// usage简单的启发式算法：平均 4 个字符约etc于 1 个 token
+    /// # Default Implementation
+    /// Uses simple heuristic: approximately 4 characters equals 1 token
     ///
-    /// # implementation建议
-    /// Model
-    /// - OpenAI：usage tiktoken 库
-    /// - Anthropic：usage Claude tokenizer
-    /// - 其他：可以usage在线 API 或者简单估算
+    /// # Implementation Suggestions
+    /// Use model-specific tokenizers when possible:
+    /// - OpenAI: Use tiktoken library
+    /// - Anthropic: Use Claude tokenizer
+    /// - Others: Can use online API or simple estimation
     ///
-    /// # purpose
-    /// Request
-    /// - 成本预估
-    /// Handle
+    /// # Use Cases
+    /// - Pre-request validation
+    /// - Cost estimation
+    /// - Context length management
     async fn estimate_tokens(&self, text: &str) -> Result<u32, Self::Error> {
-        // 简单估算：4 个字符约etc于 1 个 token
-        // 子类应该implementation更精确的 tokenization
+        // Simple estimation: 4 characters approximately equals 1 token
+        // Subclasses should implement more accurate tokenization
         Ok((text.len() as f64 / 4.0).ceil() as u32)
     }
 }
 
-/// Configuration
+/// Provider configuration trait
 pub trait ProviderConfig: Send + Sync + Clone + Debug + 'static {
-    /// Configuration
+    /// Validate configuration
     fn validate(&self) -> Result<(), String>;
 
-    /// Get
+    /// Get API key
     fn api_key(&self) -> Option<&str>;
 
-    /// Get
+    /// Get API base URL
     fn api_base(&self) -> Option<&str>;
 
-    /// Get
+    /// Get request timeout
     fn timeout(&self) -> std::time::Duration;
 
-    /// Get
+    /// Get maximum retry attempts
     fn max_retries(&self) -> u32;
 }
 
-/// Provider 句柄，用于路由系统
+/// Provider handle for routing system
 pub struct ProviderHandle {
     name: String,
     provider: std::sync::Arc<dyn std::any::Any + Send + Sync>,

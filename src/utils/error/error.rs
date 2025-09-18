@@ -516,7 +516,7 @@ impl GatewayError {
     }
 }
 
-// 添加从 core::providers::unified_provider::ProviderError 的转换
+// Add conversion from core::providers::unified_provider::ProviderError
 impl From<crate::core::providers::unified_provider::ProviderError> for GatewayError {
     fn from(err: crate::core::providers::unified_provider::ProviderError) -> Self {
         match err {

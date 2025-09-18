@@ -1,6 +1,6 @@
-//! Provider迁移模板
-//! 
-//! 复制此文件并替换PROVIDER_NAME为实际的provider名称
+//! Provider Migration Template
+//!
+//! Copy this file and replace PROVIDER_NAME with the actual provider name
 
 use async_trait::async_trait;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ use crate::define_provider_config;
 
 // Configuration
 // Configuration
-// 例如：model_preference: String = "default".to_string()
+// Example: model_preference: String = "default".to_string()
 define_provider_config!(PROVIDER_NAMEConfig {});
 
 // ========== Providerimplementation ==========
@@ -44,7 +44,7 @@ impl PROVIDER_NAMEProvider {
         // Settings
         client.set_rate_limit("PROVIDER_NAME_LOWER", 100.0);
         
-        // 定义支持的模型
+        // Define supported models
         let supported_models = vec![
             ModelInfo {
                 id: "MODEL_ID".to_string(),
@@ -78,13 +78,13 @@ impl PROVIDER_NAMEProvider {
     }
     
     fn transform_chat_request(&self, request: ChatRequest) -> Value {
-        // 根据provider的APIformat调整
+        // Adjust according to provider's API format
         json!({
             "model": request.model,
             "messages": request.messages,
             "temperature": request.temperature,
             "max_tokens": request.max_tokens,
-            // Add provider特定的字段
+            // Add provider-specific fields
         })
     }
     
@@ -126,7 +126,7 @@ impl LLMProvider for PROVIDER_NAMEProvider {
     fn capabilities(&self) -> &'static [ProviderCapability] {
         &[
             ProviderCapability::ChatCompletion,
-            // 根据provider能力添加：
+            // Add according to provider capabilities:
             // ProviderCapability::ChatCompletionStream,
             // ProviderCapability::ToolCalling,
             // ProviderCapability::VisionModel,
@@ -142,7 +142,7 @@ impl LLMProvider for PROVIDER_NAMEProvider {
             "temperature",
             "max_tokens",
             "top_p",
-            // Add provider支持的parameter
+            // Add provider-supported parameters
         ]
     }
     
@@ -151,10 +151,10 @@ impl LLMProvider for PROVIDER_NAMEProvider {
         params: HashMap<String, Value>,
         _model: &str,
     ) -> Result<HashMap<String, Value>, Self::Error> {
-        // 如果API兼容OpenAI，直接Returns
+        // If API is OpenAI compatible, return directly
         Ok(params)
         
-        // 否则进行parameter映射
+        // Otherwise perform parameter mapping
         // let mut mapped = HashMap::new();
         // if let Some(temp) = params.get("temperature") {
         //     mapped.insert("PROVIDER_TEMP_PARAM".to_string(), temp.clone());
@@ -226,7 +226,7 @@ impl LLMProvider for PROVIDER_NAMEProvider {
         input_tokens: u32,
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
-        // usage全局价格数据库
+        // Use global pricing database
         let usage = crate::core::providers::base::pricing::Usage {
             prompt_tokens: input_tokens,
             completion_tokens: output_tokens,
@@ -261,7 +261,7 @@ impl ProviderConfig for PROVIDER_NAMEConfig {
     }
 }
 
-// ========== 测试 ==========
+// ========== Tests ==========
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -273,16 +273,16 @@ mod tests {
     }
 }
 
-// ========== 迁移步骤 ==========
-// 1. 复制此文件到 src/core/providers/PROVIDER_NAME/mod.rs
-// 2. 全局替换 PROVIDER_NAME 为实际provider名称（驼峰式，如 OpenAI）
-// 3. 全局替换 PROVIDER_NAME_LOWER 为小写名称（如 openai）
-// 4. 替换 MODEL_ID, MODEL_NAME, ENDPOINT etc占位符
-// 5. 根据provider API调整：
-// Request
-// Response
-//    - 支持的parameter列表
-// Error
-// 6. 在 src/core/providers/mod.rs 中添加模块导入
-// 7. 在 Provider enum 中添加新的variant
-// Update
+// ========== Migration Steps ==========
+// 1. Copy this file to src/core/providers/PROVIDER_NAME/mod.rs
+// 2. Globally replace PROVIDER_NAME with actual provider name (PascalCase, e.g. OpenAI)
+// 3. Globally replace PROVIDER_NAME_LOWER with lowercase name (e.g. openai)
+// 4. Replace MODEL_ID, MODEL_NAME, ENDPOINT etc placeholders
+// 5. Adjust according to provider API:
+//    - Request transformation
+//    - Response transformation
+//    - Supported parameter list
+//    - Error handling
+// 6. Add module import in src/core/providers/mod.rs
+// 7. Add new variant in Provider enum
+// 8. Update registry

@@ -145,7 +145,7 @@ tempfile = "3.20.0"
 name = "litellm_rs"
 path = "src/lib.rs"
 
-# 编译优化
+# Build optimizations
 [profile.release]
 lto = true
 codegen-units = 1
@@ -156,32 +156,33 @@ strip = true
 debug = true
 opt-level = 0
 
-# 功能特性
+# Feature flags
 [features]
 default = ["sqlite", "redis", "metrics", "tracing"]
 
-# 存储后端
+# Storage backends
 postgres = ["sea-orm/sqlx-postgres"]
 sqlite = ["sea-orm/sqlx-sqlite"]
 redis = ["dep:redis"]
 s3 = ["dep:object_store", "dep:aws-sdk-s3", "dep:aws-config"]
 
-# 监控和可观测性
+# Monitoring and observability
 metrics = ["dep:prometheus"]
 tracing = ["dep:opentelemetry", "dep:opentelemetry-jaeger"]
 
-# 高级功能
+# Advanced features
 vector-db = ["dep:qdrant-client"]
 websockets = ["dep:tungstenite"]
 analytics = ["metrics"]
 enterprise = ["analytics", "vector-db"]
 
-# 完整功能集
+# Full feature set
 full = ["postgres", "redis", "s3", "metrics", "tracing", "vector-db", "websockets", "analytics"]
 
-# 元数据
+# Metadata
 [package.metadata.docs.rs]
-all-features = true
+# Exclude vector-db feature because qdrant-client fails on docs.rs read-only filesystem
+features = ["postgres", "sqlite", "redis", "s3", "metrics", "tracing", "websockets", "analytics"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.playground]

@@ -1,6 +1,6 @@
 //! Anthropic Model Registry
 //!
-//! 统一的模型注册表系统，集成定价和能力信息
+//! Unified model registry system with integrated pricing and capability information
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -10,104 +10,104 @@ use crate::core::types::common::ModelInfo;
 /// Model
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ModelFeature {
-    /// 多模态支持（image、文档）
+    /// Multimodal support (images, documents)
     MultimodalSupport,
-    /// tool_call支持
+    /// Tool calling support
     ToolCalling,
-    /// 函数call支持
+    /// Function calling support
     FunctionCalling,
-    /// Response
+    /// Streaming response support
     StreamingSupport,
-    /// cache控制支持
+    /// Cache control support
     CacheControl,
-    /// System message支持
+    /// System message support
     SystemMessages,
-    /// Handle
+    /// Batch processing support
     BatchProcessing,
-    /// 思维模式支持
+    /// Thinking mode support
     ThinkingMode,
-    /// 计算机工具支持
+    /// Computer tool support
     ComputerUse,
 }
 
 /// Model
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnthropicModelFamily {
-    /// Model
+    /// Claude 3.5 Sonnet models
     Claude35Sonnet,
-    /// Model
+    /// Claude 3 Opus models
     Claude3Opus,
-    /// Model
+    /// Claude 3 Sonnet models
     Claude3Sonnet,
-    /// Model
+    /// Claude 3 Haiku models
     Claude3Haiku,
-    /// Model
+    /// Claude 2.1 models
     Claude21,
-    /// Model
+    /// Claude 2 models
     Claude2,
-    /// Model
+    /// Claude Instant models
     ClaudeInstant,
 }
 
-/// Model
+/// Model pricing information
 #[derive(Debug, Clone)]
 pub struct ModelPricing {
-    /// inputtoken价格（每百万token美元）
+    /// Input token price (USD per million tokens)
     pub input_price: f64,
-    /// outputtoken价格（每百万token美元）
+    /// Output token price (USD per million tokens)
     pub output_price: f64,
-    /// cache写入价格（optional）
+    /// Cache write price (optional)
     pub cache_write_price: Option<f64>,
-    /// cache读取价格（optional）
+    /// Cache read price (optional)
     pub cache_read_price: Option<f64>,
-    /// Handle
+    /// Batch processing discount
     pub batch_discount: Option<f64>,
 }
 
-/// Model
+/// Model limits and constraints
 #[derive(Debug, Clone)]
 pub struct ModelLimits {
-    /// maximum上下文长度
+    /// Maximum context length
     pub max_context_length: u32,
-    /// maximumoutputtoken数
+    /// Maximum output tokens
     pub max_output_tokens: u32,
-    /// maximumimagecount
+    /// Maximum number of images
     pub max_images: Option<u32>,
-    /// maximum文档大小（MB）
+    /// Maximum document size (MB)
     pub max_document_size_mb: Option<u32>,
 }
 
-/// Model
+/// Model specification
 #[derive(Debug, Clone)]
 pub struct ModelSpec {
-    /// Model
+    /// Model information
     pub model_info: ModelInfo,
-    /// Model
+    /// Model family
     pub family: AnthropicModelFamily,
-    /// 支持的特性
+    /// Supported features
     pub features: Vec<ModelFeature>,
-    /// 定价信息
+    /// Pricing information
     pub pricing: ModelPricing,
-    /// 限制信息
+    /// Limits information
     pub limits: ModelLimits,
-    /// Configuration
+    /// Model configuration
     pub config: ModelConfig,
 }
 
-/// Configuration
+/// Model configuration settings
 #[derive(Debug, Clone)]
 #[derive(Default)]
 pub struct ModelConfig {
-    /// Request
+    /// Requires special formatting
     pub requires_special_formatting: bool,
-    /// Request
+    /// Maximum concurrent requests
     pub max_concurrent_requests: Option<u32>,
-    /// 自定义parameter映射
+    /// Custom parameter mapping
     pub custom_params: HashMap<String, String>,
 }
 
 
-/// Model
+/// Model registry
 #[derive(Debug, Clone)]
 pub struct AnthropicModelRegistry {
     models: HashMap<String, ModelSpec>,
@@ -123,7 +123,7 @@ impl AnthropicModelRegistry {
         registry
     }
 
-    /// Model
+    /// Initialize model registry
     fn initialize_models(&mut self) {
         // Claude 3.5 Sonnet
         self.register_model("claude-3-5-sonnet-20241022", ModelSpec {
@@ -410,44 +410,44 @@ impl AnthropicModelRegistry {
         });
     }
 
-    /// Model
+    /// Register a model
     fn register_model(&mut self, id: &str, spec: ModelSpec) {
         self.models.insert(id.to_string(), spec);
     }
 
-    /// Model
+    /// Get model specification
     pub fn get_model_spec(&self, model_id: &str) -> Option<&ModelSpec> {
         self.models.get(model_id)
     }
 
-    /// Model
+    /// List all models
     pub fn list_models(&self) -> Vec<&ModelSpec> {
         self.models.values().collect()
     }
 
-    /// Check
+    /// Check if model supports feature
     pub fn supports_feature(&self, model_id: &str, feature: &ModelFeature) -> bool {
         self.get_model_spec(model_id)
             .map(|spec| spec.features.contains(feature))
             .unwrap_or(false)
     }
 
-    /// Model
+    /// Get model family
     pub fn get_model_family(&self, model_id: &str) -> Option<&AnthropicModelFamily> {
         self.get_model_spec(model_id).map(|spec| &spec.family)
     }
 
-    /// Model
+    /// Get model pricing
     pub fn get_model_pricing(&self, model_id: &str) -> Option<&ModelPricing> {
         self.get_model_spec(model_id).map(|spec| &spec.pricing)
     }
 
-    /// Model
+    /// Get model limits
     pub fn get_model_limits(&self, model_id: &str) -> Option<&ModelLimits> {
         self.get_model_spec(model_id).map(|spec| &spec.limits)
     }
 
-    /// Model
+    /// Get model family from name
     pub fn from_model_name(model_name: &str) -> Option<AnthropicModelFamily> {
         let model_lower = model_name.to_lowercase();
         
@@ -477,17 +477,17 @@ impl Default for AnthropicModelRegistry {
     }
 }
 
-/// Model
+/// Get global model registry
 pub fn get_anthropic_registry() -> &'static AnthropicModelRegistry {
     static REGISTRY: OnceLock<AnthropicModelRegistry> = OnceLock::new();
     REGISTRY.get_or_init(AnthropicModelRegistry::new)
 }
 
-/// 成本计算工具
+/// Cost calculation utility
 pub struct CostCalculator;
 
 impl CostCalculator {
-    /// 计算基础成本
+    /// Calculate basic cost
     pub fn calculate_cost(
         model_id: &str,
         prompt_tokens: u32,
@@ -502,7 +502,7 @@ impl CostCalculator {
         Some(input_cost + output_cost)
     }
 
-    /// 计算扩展成本（包含cache）
+    /// Calculate extended cost (including cache)
     pub fn calculate_extended_cost(
         model_id: &str,
         prompt_tokens: u32,
@@ -523,34 +523,34 @@ impl CostCalculator {
         let mut total_cost = 0.0;
         let mut remaining_prompt_tokens = prompt_tokens;
         
-        // Handle
+        // Handle cache read tokens
         if let (Some(cache_read), Some(cache_read_price)) = (cache_read_tokens, pricing.cache_read_price) {
             let cache_cost = (cache_read as f64 / 1_000_000.0) * cache_read_price;
             total_cost += cache_cost;
             remaining_prompt_tokens = remaining_prompt_tokens.saturating_sub(cache_read);
         }
         
-        // Handle
+        // Handle cache write tokens
         if let (Some(cache_write), Some(cache_write_price)) = (cache_write_tokens, pricing.cache_write_price) {
             let cache_write_cost = (cache_write as f64 / 1_000_000.0) * cache_write_price * batch_multiplier;
             total_cost += cache_write_cost;
             remaining_prompt_tokens = remaining_prompt_tokens.saturating_sub(cache_write);
         }
         
-        // 普通inputtoken
+        // Regular input tokens
         let input_cost = (remaining_prompt_tokens as f64 / 1_000_000.0) * pricing.input_price * batch_multiplier;
         total_cost += input_cost;
         
-        // outputtoken
+        // Output tokens
         let output_cost = (completion_tokens as f64 / 1_000_000.0) * pricing.output_price * batch_multiplier;
         total_cost += output_cost;
         
         Some(total_cost)
     }
 
-    /// 估算token成本
+    /// Estimate token count
     pub fn estimate_tokens(text: &str) -> u32 {
-        // Anthropicusage约4个字符=1个token的比例（英文）
+        // Anthropic uses approximately 4 characters = 1 token ratio (English)
         (text.len() as f32 / 4.0).ceil() as u32
     }
 }
@@ -563,13 +563,13 @@ mod tests {
     fn test_model_registry() {
         let registry = get_anthropic_registry();
         
-        // 测试Claude 3.5 Sonnet
+        // Test Claude 3.5 Sonnet
         let sonnet_spec = registry.get_model_spec("claude-3-5-sonnet-20241022").unwrap();
         assert_eq!(sonnet_spec.family, AnthropicModelFamily::Claude35Sonnet);
         assert!(sonnet_spec.features.contains(&ModelFeature::MultimodalSupport));
         assert!(sonnet_spec.features.contains(&ModelFeature::ComputerUse));
         
-        // 测试定价
+        // Test pricing
         assert_eq!(sonnet_spec.pricing.input_price, 3.0);
         assert_eq!(sonnet_spec.pricing.output_price, 15.0);
     }
@@ -598,7 +598,7 @@ mod tests {
         assert!(cost.is_some());
         
         let cost_value = cost.unwrap();
-        // 预期: (1000/1M * $3) + (500/1M * $15) = $0.003 + $0.0075 = $0.0105
+        // Expected: (1000/1M * $3) + (500/1M * $15) = $0.003 + $0.0075 = $0.0105
         assert!((cost_value - 0.0105).abs() < 0.0001);
     }
 
@@ -606,10 +606,10 @@ mod tests {
     fn test_feature_support() {
         let registry = get_anthropic_registry();
         
-        // Claude 3.5 Sonnet支持计算机工具
+        // Claude 3.5 Sonnet supports computer tools
         assert!(registry.supports_feature("claude-3-5-sonnet-20241022", &ModelFeature::ComputerUse));
         
-        // Claude 2.1不支持计算机工具
+        // Claude 2.1 does not support computer tools
         assert!(!registry.supports_feature("claude-2.1", &ModelFeature::ComputerUse));
     }
 }

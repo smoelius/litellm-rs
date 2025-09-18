@@ -75,7 +75,7 @@ impl ErrorMapper<ProviderError> for AzureAIErrorMapper {
 fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
     // Response
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(response_body) {
-        // Azure AI可能在error对象中提供retry_after
+        // Azure AI may provide retry_after in the error object
         if let Some(error) = json.get("error") {
             if let Some(retry_after) = error.get("retry_after") {
                 if let Some(seconds) = retry_after.as_u64() {
@@ -84,7 +84,7 @@ fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
             }
         }
         
-        // 或者直接在顶级对象中
+        // Or directly in the top-level object
         if let Some(retry_after) = json.get("retry_after") {
             if let Some(seconds) = retry_after.as_u64() {
                 return Some(seconds);
@@ -92,13 +92,13 @@ fn parse_retry_after_from_body(response_body: &str) -> Option<u64> {
         }
     }
     
-    // 从文本中parse常见的rate limitmessage
+    // Parse common rate limit messages from text
     if response_body.contains("rate limit") || response_body.contains("quota") {
-        // Azure AI通常建议60seconds重试间隔
+        // Azure AI typically recommends 60 seconds retry interval
         return Some(60);
     }
     
-    // 如果是token限制，可能需要更长时间
+    // If it's a token limit, may need longer time
     if response_body.contains("tokens per minute") || response_body.contains("TPM") {
         return Some(60);
     }
@@ -164,7 +164,7 @@ pub fn extract_error_message(response_body: &str) -> String {
             }
         }
         
-        // 如果没有找到标准message，Returns整个JSON作为字符串
+        // If no standard message found, return the entire JSON as string
         return json.to_string();
     }
     

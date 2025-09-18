@@ -56,18 +56,18 @@ impl AnthropicErrorMapper {
             };
         }
         
-        // 尝试顶层message
+        // Try top-level message
         if let Some(message) = response.get("message") {
             if let Some(msg_str) = message.as_str() {
                 return ProviderError::api_error("anthropic", 500, msg_str);
             }
         }
         
-        // Default
+        // Default error
         ProviderError::api_error("anthropic", 500, "Unknown API error")
     }
 
-    /// 提取重试延迟
+    /// Extract retry delay
     fn extract_retry_after(body: &str) -> Option<u64> {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(body) {
             if let Some(retry_after) = json.get("retry_after") {

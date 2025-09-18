@@ -241,9 +241,9 @@ impl ErrorMapper<V0Error> for V0ErrorMapper {
     }
 }
 
-/// implementation统一的 LLMProvider trait
+/// Implementation of unified LLMProvider trait
 ///
-/// V0是一个OpenAI兼容的AI平台
+/// V0 is an OpenAI-compatible AI platform
 #[async_trait]
 impl LLMProvider for V0Provider {
     type Config = V0Config;
@@ -267,7 +267,7 @@ impl LLMProvider for V0Provider {
 
     /// Model
     fn models(&self) -> &[ModelInfo] {
-        // usage LazyLock 来延迟初化静态数据
+        // Use LazyLock for lazy initialization of static data
         static MODELS: LazyLock<Vec<ModelInfo>> = LazyLock::new(|| {
             vec![ModelInfo {
                 id: "v0-default".to_string(),
@@ -294,7 +294,7 @@ impl LLMProvider for V0Provider {
         &MODELS
     }
 
-    // ==================== Python LiteLLM 兼容接口 ====================
+    // ==================== Python LiteLLM compatible interface ====================
 
     /// Get
     fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
@@ -312,18 +312,18 @@ impl LLMProvider for V0Provider {
         ]
     }
 
-    /// 映射 OpenAI parameter到 V0 parameter
+    /// Map OpenAI parameters to V0 parameters
     async fn map_openai_params(
         &self,
         mut params: HashMap<String, Value>,
         _model: &str,
     ) -> Result<HashMap<String, Value>, Self::Error> {
-        // V0 usage OpenAI 兼容的parameter，所以大部分parameter直接透传
+        // V0 uses OpenAI-compatible parameters, so most parameters are passed through directly
 
-        // 可以在这里添加特定的parameter映射逻辑
-        // 例如：将某些parameter重命名或转换format
+        // Can add specific parameter mapping logic here
+        // For example: rename certain parameters or convert formats
 
-        // 确保 stream parameter是布尔值而不是 Option<bool>
+        // Ensure stream parameter is boolean value, not Option<bool>
         if let Some(stream_val) = params.get("stream") {
             if let Some(stream_bool) = stream_val.as_bool() {
                 params.insert("stream".to_string(), Value::Bool(stream_bool));
@@ -350,7 +350,7 @@ impl LLMProvider for V0Provider {
             return Err(V0Error::InvalidRequest("Model cannot be empty".to_string()));
         }
 
-        // 转换为 V0 API format（OpenAI 兼容）
+        // Convert to V0 API format (OpenAI compatible)
         let v0_request = serde_json::json!({
             "model": request.model,
             "messages": request.messages,
@@ -376,7 +376,7 @@ impl LLMProvider for V0Provider {
         let response_json: Value =
             serde_json::from_slice(raw_response).map_err(V0Error::JsonError)?;
 
-        // 转换为标准的 ChatResponse format
+        // Convert to standard ChatResponse format
         // Response
         // Create
 
@@ -413,7 +413,7 @@ impl LLMProvider for V0Provider {
         V0ErrorMapper
     }
 
-    // ==================== 核心功能：聊天完成 ====================
+    // ==================== Core functionality: chat completion ====================
 
     /// Request
     async fn chat_completion(
@@ -421,12 +421,12 @@ impl LLMProvider for V0Provider {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse, Self::Error> {
-        // usage新的转换流程
+        // Use new transformation flow
         let _transformed_request = self
             .transform_request(request.clone(), context.clone())
             .await?;
 
-        // 这里应该call实际的 API，为了演示我们usage原来的 handler
+        // Should call actual API here, using original handler for demonstration
         chat::V0ChatHandler::handle_chat_completion(self, request).await
     }
 
@@ -445,7 +445,7 @@ impl LLMProvider for V0Provider {
         input_tokens: u32,
         output_tokens: u32,
     ) -> Result<f64, Self::Error> {
-        // V0 定价：input $0.1/1K tokens, output $0.2/1K tokens
+        // V0 pricing: input $0.1/1K tokens, output $0.2/1K tokens
         let input_cost = (input_tokens as f64 / 1000.0) * 0.1;
         let output_cost = (output_tokens as f64 / 1000.0) * 0.2;
         Ok(input_cost + output_cost)

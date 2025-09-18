@@ -1,6 +1,6 @@
 //! Types
 //!
-//! 定义所有 API 请求的统一数据结构
+//! Defines unified data structures for all API requests
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -11,34 +11,34 @@ pub struct ChatRequest {
     /// Model
     pub model: String,
 
-    /// Chat message列表
+    /// List of chat messages
     pub messages: Vec<ChatMessage>,
 
-    /// 采样温度 (0.0 - 2.0)
+    /// Sampling temperature (0.0 - 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
 
-    /// 生成的maximum token 数
+    /// Maximum number of tokens to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
 
-    /// maximum完成 token 数（OpenAI 新parameter）
+    /// Maximum completion tokens (new OpenAI parameter)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_completion_tokens: Option<u32>,
 
-    /// 核采样parameter (0.0 - 1.0)
+    /// Nucleus sampling parameter (0.0 - 1.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
 
-    /// 频率惩罚 (-2.0 - 2.0)
+    /// Frequency penalty (-2.0 - 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
 
-    /// 存在惩罚 (-2.0 - 2.0)
+    /// Presence penalty (-2.0 - 2.0)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presence_penalty: Option<f32>,
 
-    /// 停止序列
+    /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
 
@@ -46,15 +46,15 @@ pub struct ChatRequest {
     #[serde(default)]
     pub stream: bool,
 
-    /// 工具列表
+    /// Tool list
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<Tool>>,
 
-    /// 工具选择策略
+    /// Tool selection strategy
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<ToolChoice>,
 
-    /// 并行tool_call
+    /// Parallel tool calls
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parallel_tool_calls: Option<bool>,
 
@@ -66,35 +66,35 @@ pub struct ChatRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
 
-    /// 种子值（用于可重复生成）
+    /// Seed value (for reproducible generation)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seed: Option<i32>,
 
-    /// Returns选择count
+    /// Number of choices to return
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
 
-    /// logit 偏置
+    /// Logit bias
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logit_bias: Option<HashMap<String, f32>>,
 
-    /// 遗留函数定义 (OpenAI Functions)
+    /// Legacy function definitions (OpenAI Functions)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub functions: Option<Vec<serde_json::Value>>,
 
-    /// 遗留函数call (OpenAI Function Call)
+    /// Legacy function call (OpenAI Function Call)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_call: Option<serde_json::Value>,
 
-    /// 是否Returns logprobs
+    /// Whether to return logprobs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub logprobs: Option<bool>,
 
-    /// Returns的 top logprobs count
+    /// Number of top logprobs to return
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u32>,
 
-    /// 额外的 provider specific_params
+    /// Additional provider-specific parameters
     #[serde(flatten)]
     pub extra_params: HashMap<String, serde_json::Value>,
 }
@@ -110,11 +110,11 @@ pub struct ChatMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<MessageContent>,
 
-    /// message发送者名称
+    /// Name of message sender
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 
-    /// tool_call列表
+    /// Tool call list
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCall>>,
 
@@ -122,7 +122,7 @@ pub struct ChatMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
 
-    /// 函数call（向后兼容）
+    /// Function call (backward compatibility)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_call: Option<FunctionCall>,
 }
@@ -140,7 +140,7 @@ impl Default for ChatMessage {
     }
 }
 
-/// Message role枚举
+/// Message role enum
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MessageRole {
@@ -152,7 +152,7 @@ pub enum MessageRole {
     Assistant,
     /// Tool message
     Tool,
-    /// 函数message（向后兼容）
+    /// Function message (backward compatibility)
     Function,
 }
 
@@ -176,13 +176,13 @@ impl std::fmt::Display for MessageRole {
     }
 }
 
-/// Message content（支持多模态）
+/// Message content (supports multimodal)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageContent {
     /// Plain text content
     Text(String),
-    /// 多部分content（支持文本、image、音频etc）
+    /// Multi-part content (supports text, images, audio, etc.)
     Parts(Vec<ContentPart>),
 }
 
@@ -209,7 +209,7 @@ impl std::fmt::Display for MessageContent {
     }
 }
 
-/// Content part（多模态支持）
+/// Content part (multimodal support)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ContentPart {
@@ -217,7 +217,7 @@ pub enum ContentPart {
     #[serde(rename = "text")]
     Text { text: String },
 
-    /// imageURL
+    /// Image URL
     #[serde(rename = "image_url")]
     ImageUrl { image_url: ImageUrl },
 
@@ -225,120 +225,120 @@ pub enum ContentPart {
     #[serde(rename = "audio")]
     Audio { audio: AudioData },
 
-    /// Base64 编码的image
+    /// Base64 encoded image
     #[serde(rename = "image")]
     Image {
-        /// Base64 编码的image数据
+        /// Base64 encoded image data
         source: ImageSource,
-        /// image详细程度
+        /// Image detail level
         #[serde(skip_serializing_if = "Option::is_none")]
         detail: Option<String>,
-        /// imageURL (兼容性字段)
+        /// Image URL (compatibility field)
         #[serde(skip_serializing_if = "Option::is_none")]
         image_url: Option<ImageUrl>,
     },
     
-    /// 文档content (PDFetc)
+    /// Document content (PDF etc)
     #[serde(rename = "document")]
     Document {
-        /// 文档源数据
+        /// Document source data
         source: DocumentSource,
-        /// cache控制 (Anthropic specific)
+        /// Cache control (Anthropic specific)
         #[serde(skip_serializing_if = "Option::is_none")]
         cache_control: Option<CacheControl>,
     },
     
-    /// 工具结果
+    /// Tool result
     #[serde(rename = "tool_result")]
     ToolResult {
-        /// 工具usageID
+        /// Tool usageID
         tool_use_id: String,
-        /// 结果content
+        /// Result content
         content: serde_json::Value,
         /// Error
         #[serde(skip_serializing_if = "Option::is_none")]
         is_error: Option<bool>,
     },
     
-    /// 工具usage
+    /// Tool usage
     #[serde(rename = "tool_use")]
     ToolUse {
-        /// 工具usageID
+        /// Tool usageID
         id: String,
-        /// 工具名称
+        /// Tool name
         name: String,
-        /// 工具input
+        /// Tool input
         input: serde_json::Value,
     },
 }
 
-/// imageURL结构
+/// Image URL structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageUrl {
-    /// imageURL
+    /// Image URL
     pub url: String,
-    /// 详细程度 ("auto", "low", "high")
+    /// Detail level ("auto", "low", "high")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
 }
 
-/// image源数据
+/// Image source data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageSource {
-    /// 媒体类型
+    /// Media type
     pub media_type: String,
-    /// Base64 编码的数据
+    /// Base64 encoded data
     pub data: String,
 }
 
 /// Audio data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioData {
-    /// Base64 编码的Audio data
+    /// Base64 encoded audio data
     pub data: String,
-    /// 音频format
+    /// Audio format
     #[serde(skip_serializing_if = "Option::is_none")]
     pub format: Option<String>,
 }
 
-/// tool_type
+/// Tool type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ToolType {
     Function,
 }
 
-/// 工具定义
+/// Tool definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tool {
-    /// tool_type
+    /// Tool type
     #[serde(rename = "type")]
     pub tool_type: ToolType,
 
-    /// 函数定义
+    /// Function definition
     pub function: FunctionDefinition,
 }
 
-/// 函数定义
+/// Function definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionDefinition {
-    /// function_name
+    /// Function name
     pub name: String,
-    /// 函数描述
+    /// Function description
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    /// parameter JSON Schema
+    /// Parameter JSON Schema
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameters: Option<serde_json::Value>,
 }
 
-/// 工具选择策略
+/// Tool selection strategy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ToolChoice {
-    /// 字符串选择 ("auto", "none")
+    /// String selection ("auto", "none")
     String(String),
-    /// 具体工具选择
+    /// Specific tool selection
     Specific {
         #[serde(rename = "type")]
         choice_type: String,
@@ -346,7 +346,7 @@ pub enum ToolChoice {
     },
 }
 
-/// 具体函数选择
+/// Specific function selection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionChoice {
     pub name: String,
@@ -355,32 +355,32 @@ pub struct FunctionChoice {
 /// tool_call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCall {
-    /// callID
+    /// Call ID
     pub id: String,
-    /// tool_type
+    /// Tool type
     #[serde(rename = "type")]
     pub tool_type: String,
-    /// 函数call详情
+    /// Function call details
     pub function: FunctionCall,
 }
 
-/// 函数call
+/// Function call
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FunctionCall {
-    /// function_name
+    /// Function name
     pub name: String,
-    /// 函数parameter（JSON 字符串）
+    /// Function parameters (JSON string)
     pub arguments: String,
 }
 
 /// Response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseFormat {
-    /// format类型 ("text", "json_object", "json_schema")
+    /// Format type ("text", "json_object", "json_schema")
     #[serde(rename = "type")]
     pub format_type: String,
 
-    /// JSON Schema（当类型为 json_schema 时）
+    /// JSON Schema (when type is json_schema)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub json_schema: Option<serde_json::Value>,
 
@@ -395,14 +395,14 @@ pub struct EmbedRequest {
     /// Model
     pub model: String,
 
-    /// input文本
+    /// Input text
     pub input: EmbedInput,
 
-    /// 编码format
+    /// Encoding format
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encoding_format: Option<String>,
 
-    /// 维度
+    /// Dimensions
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dimensions: Option<u32>,
 
@@ -411,17 +411,17 @@ pub struct EmbedRequest {
     pub user: Option<String>,
 }
 
-/// 嵌入input
+/// Embedding input
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum EmbedInput {
-    /// 单个字符串
+    /// Single string
     Single(String),
-    /// 字符串数组
+    /// String array
     Multiple(Vec<String>),
-    /// 整数数组（token IDs）
+    /// Integer array (token IDs)
     TokenIds(Vec<u32>),
-    /// 整数数组的数组
+    /// Array of integer arrays
     MultipleTokenIds(Vec<Vec<u32>>),
 }
 
@@ -432,14 +432,14 @@ pub struct ImageRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
 
-    /// 图像描述提示
+    /// Image description prompt
     pub prompt: String,
 
-    /// 生成图像count
+    /// Number of images to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
 
-    /// 图像质量
+    /// Image quality
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality: Option<String>,
 
@@ -447,11 +447,11 @@ pub struct ImageRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<String>,
 
-    /// 图像尺寸
+    /// Image size
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<String>,
 
-    /// 图像风格
+    /// Image style
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
 
@@ -463,17 +463,17 @@ pub struct ImageRequest {
 /// Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AudioTranscriptionRequest {
-    /// 音频文件数据
+    /// Audio file data
     pub file: Vec<u8>,
 
     /// Model
     pub model: String,
 
-    /// 语言（ISO-639-1 format）
+    /// Language (ISO-639-1 format)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
 
-    /// 提示词
+    /// Prompt
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
 
@@ -481,7 +481,7 @@ pub struct AudioTranscriptionRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<String>,
 
-    /// 温度
+    /// Temperature
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
 }
@@ -495,7 +495,7 @@ impl ChatRequest {
         }
     }
 
-    /// 添加message
+    /// Add message
     pub fn add_message(mut self, role: MessageRole, content: impl Into<MessageContent>) -> Self {
         self.messages.push(ChatMessage {
             role,
@@ -508,17 +508,17 @@ impl ChatRequest {
         self
     }
 
-    /// 添加System message
+    /// Add system message
     pub fn add_system_message(self, content: impl Into<String>) -> Self {
         self.add_message(MessageRole::System, MessageContent::Text(content.into()))
     }
 
-    /// 添加User message
+    /// Add user message
     pub fn add_user_message(self, content: impl Into<String>) -> Self {
         self.add_message(MessageRole::User, MessageContent::Text(content.into()))
     }
 
-    /// 添加Assistant message
+    /// Add assistant message
     pub fn add_assistant_message(self, content: impl Into<String>) -> Self {
         self.add_message(MessageRole::Assistant, MessageContent::Text(content.into()))
     }
@@ -541,19 +541,19 @@ impl ChatRequest {
         self
     }
 
-    /// 添加工具
+    /// Add tools
     pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
         self.tools = Some(tools);
         self
     }
 
-    /// 估算input token count
+    /// Estimate input token count
     pub fn estimate_input_tokens(&self) -> u32 {
         let mut total = 0;
 
-        // 粗略估算：每个message的角色和content
+        // Rough estimate: each message's role and content
         for message in &self.messages {
-            total += 4; // message结构开销
+            total += 4; // message structure overhead
 
             if let Some(content) = &message.content {
                 match content {
@@ -567,22 +567,22 @@ impl ChatRequest {
                                     total += (text.len() as f64 / 4.0).ceil() as u32;
                                 }
                                 ContentPart::ImageUrl { .. } => {
-                                    total += 85; // 固定的图像 token consumption
+                                    total += 85; // fixed image token consumption
                                 }
                                 ContentPart::Audio { .. } => {
-                                    total += 100; // 估算的音频 token consumption
+                                    total += 100; // estimated audio token consumption
                                 }
                                 ContentPart::Image { .. } => {
-                                    total += 85; // 固定的图像 token consumption
+                                    total += 85; // fixed image token consumption
                                 }
                                 ContentPart::Document { .. } => {
-                                    total += 1000; // 估算的文档 token consumption
+                                    total += 1000; // estimated document token consumption
                                 }
                                 ContentPart::ToolResult { .. } => {
-                                    total += 50; // 工具结果 token consumption
+                                    total += 50; // tool result token consumption
                                 }
                                 ContentPart::ToolUse { .. } => {
-                                    total += 100; // 工具usage token consumption
+                                    total += 100; // tool usage token consumption
                                 }
                             }
                         }
@@ -607,26 +607,26 @@ impl From<&str> for MessageContent {
     }
 }
 
-/// inputAudio data
+/// Input audio data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InputAudio {
-    /// Base64 编码的Audio data
+    /// Base64 encoded audio data
     pub data: String,
-    /// 音频format
+    /// Audio format
     pub format: String,
 }
 
-/// 函数call选择
+/// Function call selection
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum FunctionCallChoice {
-    /// 不call函数
+    /// Do not call function
     None,
-    /// 自动决定
+    /// Auto decide
     Auto,
-    /// 指定函数
+    /// Specify function
     Function {
-        /// function_name
+        /// Function name
         name: String,
     },
 }
@@ -636,27 +636,27 @@ pub enum FunctionCallChoice {
 pub struct CompletionRequest {
     /// Model
     pub model: String,
-    /// input文本提示
+    /// Input text prompt
     pub prompt: String,
-    /// 采样温度
+    /// Sampling temperature
     #[serde(skip_serializing_if = "Option::is_none")]
     pub temperature: Option<f32>,
-    /// 生成的maximum token 数
+    /// Maximum number of tokens to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
-    /// 核采样parameter
+    /// Nucleus sampling parameter
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_p: Option<f32>,
-    /// 频率惩罚
+    /// Frequency penalty
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency_penalty: Option<f32>,
-    /// 存在惩罚
+    /// Presence penalty
     #[serde(skip_serializing_if = "Option::is_none")]
     pub presence_penalty: Option<f32>,
-    /// 停止序列
+    /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop: Option<Vec<String>>,
-    /// Returns选择count
+    /// Number of choices to return
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
     /// Response
@@ -672,29 +672,29 @@ pub struct CompletionRequest {
 pub struct EmbeddingRequest {
     /// Model
     pub model: String,
-    /// input文本或文本列表
+    /// Input text or text list
     pub input: EmbeddingInput,
     /// user_id
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
-    /// 嵌入format
+    /// Embedding format
     #[serde(skip_serializing_if = "Option::is_none")]
     pub encoding_format: Option<String>,
-    /// 维度count
+    /// Dimensions count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub dimensions: Option<u32>,
-    /// 任务类型 (用于Vertex AIetc)
+    /// Task type (for Vertex AI etc)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub task_type: Option<String>,
 }
 
-/// 嵌入input类型
+/// Embedding input type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum EmbeddingInput {
-    /// 单个文本
+    /// Single text
     Text(String),
-    /// 文本列表
+    /// Text list
     Array(Vec<String>),
 }
 
@@ -707,7 +707,7 @@ impl EmbeddingInput {
         }
     }
 
-    /// 转换为文本向量
+    /// Convert to text vector
     pub fn to_vec(&self) -> Vec<String> {
         match self {
             EmbeddingInput::Text(text) => vec![text.clone()],
@@ -719,24 +719,24 @@ impl EmbeddingInput {
 /// Request
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageGenerationRequest {
-    /// 图像描述提示
+    /// Image description prompt
     pub prompt: String,
     /// Model
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    /// 生成图像count
+    /// Number of images to generate
     #[serde(skip_serializing_if = "Option::is_none")]
     pub n: Option<u32>,
-    /// 图像尺寸
+    /// Image size
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<String>,
-    /// 图像质量
+    /// Image quality
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quality: Option<String>,
     /// Response
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_format: Option<String>,
-    /// 风格
+    /// Style
     #[serde(skip_serializing_if = "Option::is_none")]
     pub style: Option<String>,
     /// user_id
@@ -748,19 +748,19 @@ pub struct ImageGenerationRequest {
 // Anthropic-specific Types
 // ============================================================================
 
-/// 文档源数据 (Anthropic PDF 支持)
+/// Document source data (Anthropic PDF support)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentSource {
-    /// 媒体类型 (application/pdf)
+    /// Media type (application/pdf)
     pub media_type: String,
-    /// Base64 编码的数据
+    /// Base64 encoded data
     pub data: String,
 }
 
-/// cache控制 (Anthropic Cache Control)
+/// Cache control (Anthropic Cache Control)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheControl {
-    /// cache类型 ("ephemeral", "persistent")
+    /// Cache type ("ephemeral", "persistent")
     #[serde(rename = "type")]
     pub cache_type: String,
 }
@@ -768,18 +768,18 @@ pub struct CacheControl {
 /// Settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThinkingConfig {
-    /// enabled思考模式
+    /// Enable thinking mode
     pub enabled: bool,
 }
 
 /// Settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ComputerToolConfig {
-    /// 屏幕宽度
+    /// Screen width
     pub display_width: u32,
-    /// 屏幕高度
+    /// Screen height
     pub display_height: u32,
-    /// 显示密度
+    /// Display density
     #[serde(skip_serializing_if = "Option::is_none")]
     pub display_density: Option<u32>,
 }
@@ -787,11 +787,11 @@ pub struct ComputerToolConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
-    /// 服务器名称
+    /// Server name
     pub name: String,
-    /// 服务器端点
+    /// Server endpoint
     pub endpoint: String,
-    /// 认证信息
+    /// Authentication info
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth: Option<serde_json::Value>,
 }
@@ -803,15 +803,15 @@ pub struct AnthropicRequestParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system: Option<String>,
     
-    /// 停止序列
+    /// Stop sequences
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stop_sequences: Option<Vec<String>>,
     
-    /// 顶部 K 采样
+    /// Top K sampling
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_k: Option<u32>,
     
-    /// 元数据
+    /// Metadata
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<AnthropicMetadata>,
     
@@ -823,26 +823,26 @@ pub struct AnthropicRequestParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computer_use: Option<ComputerToolConfig>,
     
-    /// MCP 服务器列表
+    /// MCP server list
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_servers: Option<Vec<McpServerConfig>>,
 }
 
-/// Anthropic 元数据
+/// Anthropic metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnthropicMetadata {
-    /// 用户 ID
+    /// User ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
-    /// 会话 ID
+    /// Session ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
-    /// 自定义数据
+    /// Custom data
     #[serde(flatten)]
     pub custom: HashMap<String, serde_json::Value>,
 }
 
-/// 增强的 ChatRequest 以支持 Anthropic 特性
+/// Enhanced ChatRequest to support Anthropic features
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnthropicChatRequest {
     #[serde(flatten)]

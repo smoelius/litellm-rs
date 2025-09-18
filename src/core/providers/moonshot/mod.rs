@@ -1,6 +1,6 @@
 //! Moonshot AI Provider (Refactored)
 //!
-//! Moonshot (月之暗面) AI model integration using the base infrastructure.
+//! Moonshot (Dark Side of the Moon) AI model integration using the base infrastructure.
 //! This implementation eliminates the need for common_utils.rs.
 
 use async_trait::async_trait;

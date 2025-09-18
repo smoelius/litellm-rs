@@ -1,6 +1,6 @@
 //! Azure AI Models Registry
 //!
-//! Azure AI Foundry支持的模型定义和能力映射
+//! Azure AI Foundry supported model definitions and capability mappings
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
@@ -14,23 +14,23 @@ pub struct AzureAIModelSpec {
     pub id: String,
     /// Model
     pub name: String,
-    /// 提供商（如OpenAI, Cohereetc）
+    /// Provider (such as OpenAI, Cohere, etc.)
     pub provider: String,
     /// Model
     pub model_type: AzureAIModelType,
-    /// 支持的能力
+    /// Supported capabilities
     pub capabilities: Vec<ProviderCapability>,
-    /// maximuminputtoken数
+    /// Maximum input token count
     pub max_input_tokens: u32,
-    /// maximumoutputtoken数
+    /// Maximum output token count
     pub max_output_tokens: u32,
     /// Response
     pub supports_streaming: bool,
-    /// 是否支持函数call
+    /// Whether function calling is supported
     pub supports_function_calling: bool,
-    /// 是否支持多模态input
+    /// Whether multimodal input is supported
     pub supports_multimodal: bool,
-    /// 定价信息（每1K tokens）
+    /// Pricing information (per 1K tokens)
     pub input_price_per_1k: Option<f64>,
     pub output_price_per_1k: Option<f64>,
 }
@@ -67,7 +67,7 @@ impl AzureAIModelRegistry {
     
     /// Default
     fn register_default_models(&mut self) {
-        // Chat模型
+        // Chat models
         self.register_model(AzureAIModelSpec {
             id: "gpt-4o".to_string(),
             name: "GPT-4 Omni".to_string(),
@@ -122,7 +122,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: Some(0.0015),
         });
         
-        // Cohere模型
+        // Cohere models
         self.register_model(AzureAIModelSpec {
             id: "command-r-plus".to_string(),
             name: "Cohere Command R Plus".to_string(),
@@ -159,7 +159,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: Some(0.015),
         });
         
-        // Mistral模型
+        // Mistral models
         self.register_model(AzureAIModelSpec {
             id: "mistral-large-latest".to_string(),
             name: "Mistral Large".to_string(),
@@ -178,7 +178,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: Some(0.012),
         });
         
-        // AI21 Jamba模型
+        // AI21 Jamba models
         self.register_model(AzureAIModelSpec {
             id: "ai21-jamba-instruct".to_string(),
             name: "AI21 Jamba Instruct".to_string(),
@@ -197,7 +197,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: Some(0.0007),
         });
         
-        // 嵌入模型
+        // Embedding models
         self.register_model(AzureAIModelSpec {
             id: "text-embedding-3-large".to_string(),
             name: "OpenAI Text Embedding 3 Large".to_string(),
@@ -243,7 +243,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: None,
         });
         
-        // 图像生成模型
+        // Image generation models
         self.register_model(AzureAIModelSpec {
             id: "dall-e-3".to_string(),
             name: "DALL-E 3".to_string(),
@@ -255,7 +255,7 @@ impl AzureAIModelRegistry {
             supports_streaming: false,
             supports_function_calling: false,
             supports_multimodal: false,
-            input_price_per_1k: Some(0.04), // 每张image价格
+            input_price_per_1k: Some(0.04), // Price per image
             output_price_per_1k: None,
         });
         
@@ -270,7 +270,7 @@ impl AzureAIModelRegistry {
             supports_streaming: false,
             supports_function_calling: false,
             supports_multimodal: false,
-            input_price_per_1k: Some(0.04), // 每张image价格
+            input_price_per_1k: Some(0.04), // Price per image
             output_price_per_1k: None,
         });
         
@@ -289,7 +289,7 @@ impl AzureAIModelRegistry {
             output_price_per_1k: None,
         });
         
-        // 重排序模型
+        // Rerank models
         self.register_model(AzureAIModelSpec {
             id: "cohere-rerank-v3".to_string(),
             name: "Cohere Rerank V3".to_string(),
@@ -326,10 +326,10 @@ impl AzureAIModelRegistry {
         let model_id = model.id.clone();
         let model_type = model.model_type.clone();
         
-        // 添加到主映射
+        // Add to main mapping
         self.models.insert(model_id.clone(), model);
         
-        // 添加到类型映射
+        // Add to type mapping
         self.type_mapping
             .entry(model_type)
             .or_default()
@@ -369,21 +369,21 @@ impl AzureAIModelRegistry {
     /// Model
     pub fn supports_capability(&self, model_id: &str, capability: &ProviderCapability) -> bool {
         if let Some(model) = self.models.get(model_id) {
-            // 已知模型：usage精确的能力映射
+            // Known model: use precise capability mapping
             model.capabilities.contains(capability)
         } else {
-            // Validation
+            // Unknown model: use heuristic validation
             match capability {
                 ProviderCapability::ChatCompletion => true,
                 ProviderCapability::ChatCompletionStream => true,
                 ProviderCapability::Embeddings => model_id.contains("embed"),
                 ProviderCapability::ImageGeneration => model_id.contains("dall-e") || model_id.contains("flux"),
-                _ => false, // 其他能力保持保守
+                _ => false, // Other capabilities remain conservative
             }
         }
     }
     
-    /// 转换为ModelInfoformat
+    /// Convert to ModelInfo format
     pub fn to_model_infos(&self) -> Vec<ModelInfo> {
         self.models
             .values()

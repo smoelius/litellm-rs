@@ -1,6 +1,6 @@
-//! 统一的价格计算系统
+//! Unified pricing calculation system
 //!
-//! 与Pythonversion共享model_prices_and_context_window.json数据
+//! Shares model_prices_and_context_window.json data with Python version
 
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -12,11 +12,11 @@ use tracing::warn;
 /// Model
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelPricing {
-    /// 每个inputtoken的成本
+    /// Cost per input token
     #[serde(default)]
     pub input_cost_per_token: f64,
 
-    /// 每个outputtoken的成本
+    /// Cost per output token
     #[serde(default)]
     pub output_cost_per_token: f64,
 
@@ -24,36 +24,36 @@ pub struct ModelPricing {
     #[serde(default)]
     pub output_cost_per_reasoning_token: f64,
 
-    /// maximumtoken数（兼容旧字段）
+    /// Maximum token count (compatible with legacy field)
     #[serde(default)]
     pub max_tokens: Option<u32>,
 
-    /// maximuminputtoken数
+    /// Maximum input token count
     #[serde(default)]
     pub max_input_tokens: Option<u32>,
 
-    /// maximumoutputtoken数
+    /// Maximum output token count
     #[serde(default)]
     pub max_output_tokens: Option<u32>,
 
-    /// Provider名称
+    /// Provider name
     #[serde(default)]
     pub litellm_provider: Option<String>,
 
-    /// 模式（chat, embedding, completionetc）
+    /// Mode (chat, embedding, completion, etc.)
     #[serde(default)]
     pub mode: Option<String>,
 
-    /// 是否支持函数call
+    /// Whether function calling is supported
     #[serde(default)]
     pub supports_function_calling: Option<bool>,
 
-    /// 是否支持视觉
+    /// Whether vision is supported
     #[serde(default)]
     pub supports_vision: Option<bool>,
 }
 
-/// usage信息
+/// Usage information
 #[derive(Debug, Clone)]
 pub struct Usage {
     pub prompt_tokens: u32,
@@ -62,14 +62,14 @@ pub struct Usage {
     pub reasoning_tokens: Option<u32>,
 }
 
-/// 价格数据库
+/// Pricing database
 #[derive(Debug, Clone)]
 pub struct PricingDatabase {
     models: HashMap<String, ModelPricing>,
 }
 
 impl PricingDatabase {
-    /// 从JSON文件加载价格数据
+    /// Load pricing data from JSON file
     pub fn from_json_file<P: AsRef<Path>>(path: P) -> Result<Self, String> {
         let content =
             fs::read_to_string(path).map_err(|e| format!("Failed to read pricing file: {}", e))?;
@@ -77,15 +77,15 @@ impl PricingDatabase {
         let all_data: HashMap<String, serde_json::Value> = serde_json::from_str(&content)
             .map_err(|e| format!("Failed to parse pricing JSON: {}", e))?;
 
-        // 过滤掉不是实际模型的条目（如 sample_spec）
+        // Filter out entries that are not actual models (e.g., sample_spec)
         let mut models = HashMap::new();
         for (key, value) in all_data {
-            // 跳过文档和示例条目
+            // Skip documentation and sample entries
             if key == "sample_spec" || key.starts_with("_") || key.contains("example") {
                 continue;
             }
             
-            // 尝试将值parse为ModelPricing
+            // Try to parse value as ModelPricing
             match serde_json::from_value::<ModelPricing>(value) {
                 Ok(pricing) => {
                     models.insert(key, pricing);
@@ -103,9 +103,9 @@ impl PricingDatabase {
         Ok(Self { models })
     }
 
-    /// 从Python的JSON文件加载（自动查找）
+    /// Load from Python JSON file (automatic search)
     pub fn from_python_json() -> Result<Self, String> {
-        // 尝试多个可能的路径
+        // Try multiple possible paths
         let possible_paths = vec![
             "model_prices_and_context_window.json",
             "../model_prices_and_context_window.json",
@@ -124,9 +124,9 @@ impl PricingDatabase {
         Ok(Self::default())
     }
 
-    /// 计算成本
+    /// Calculate cost
     pub fn calculate(&self, model: &str, usage: &Usage) -> f64 {
-        // 直接查找模型
+        // Direct model lookup
         if let Some(pricing) = self.models.get(model) {
             return self.calculate_with_pricing(pricing, usage);
         }
@@ -138,21 +138,21 @@ impl PricingDatabase {
             }
         }
 
-        // 找不到价格信息
+        // Pricing information not found
         0.0
     }
 
-    /// usage指定的价格信息计算成本
+    /// Calculate cost using specified pricing information from usage
     fn calculate_with_pricing(&self, pricing: &ModelPricing, usage: &Usage) -> f64 {
         let mut cost = 0.0;
 
-        // inputtoken成本
+        // Input token cost
         cost += usage.prompt_tokens as f64 * pricing.input_cost_per_token;
 
-        // outputtoken成本
+        // Output token cost
         cost += usage.completion_tokens as f64 * pricing.output_cost_per_token;
 
-        // 推理token成本（如果有）
+        // Reasoning token cost (if available)
         if let Some(reasoning_tokens) = usage.reasoning_tokens {
             cost += reasoning_tokens as f64 * pricing.output_cost_per_reasoning_token;
         }
@@ -186,7 +186,7 @@ impl PricingDatabase {
                         None
                     }
                 } else if model_id.to_lowercase().contains(&provider.to_lowercase()) {
-                    // 如果没有显式的provider字段，通过模型名称推断
+                    // If no explicit provider field, infer through model name
                     Some(model_id.clone())
                 } else {
                     None
@@ -208,19 +208,19 @@ impl PricingDatabase {
 
         Some(ModelInfo {
             id: model_id.to_string(),
-            name: model_id.replace(['-', '_'], " "), // 简单的名称转换
+            name: model_id.replace(['-', '_'], " "), // Simple name transformation
             provider: provider.to_string(),
             max_context_length: pricing
                 .max_input_tokens
                 .unwrap_or_else(|| pricing.max_tokens.unwrap_or(4096)),
             max_output_length: pricing.max_output_tokens,
-            supports_streaming: true, // 大多数现代模型都支持流式
+            supports_streaming: true, // Most modern models support streaming
             supports_tools: pricing.supports_function_calling.unwrap_or(false),
             supports_multimodal: pricing.supports_vision.unwrap_or(false),
             input_cost_per_1k_tokens: Some(pricing.input_cost_per_token * 1000.0),
             output_cost_per_1k_tokens: Some(pricing.output_cost_per_token * 1000.0),
             currency: "USD".to_string(),
-            capabilities: vec![], // 可以后续扩展
+            capabilities: vec![], // Can be extended later
             created_at: None,
             updated_at: None,
             metadata: HashMap::new(),
@@ -241,7 +241,7 @@ impl PricingDatabase {
 
 impl Default for PricingDatabase {
     fn default() -> Self {
-        // 内置一些常用模型的价格作为备用
+        // Built-in pricing for some common models as backup
         let mut models = HashMap::new();
 
         // OpenAI models
@@ -363,7 +363,7 @@ impl Default for PricingDatabase {
     }
 }
 
-// 全局价格数据库（懒加载）
+// Global pricing database (lazy loading)
 pub static GLOBAL_PRICING_DB: Lazy<PricingDatabase> = Lazy::new(|| {
     PricingDatabase::from_python_json().unwrap_or_else(|e| {
         warn!(
@@ -379,7 +379,7 @@ pub fn get_pricing_db() -> &'static PricingDatabase {
     &GLOBAL_PRICING_DB
 }
 
-/// 快速计算成本
+/// Quick cost calculation
 pub fn calculate_cost(model: &str, prompt_tokens: u32, completion_tokens: u32) -> f64 {
     let usage = Usage {
         prompt_tokens,

@@ -94,7 +94,7 @@ impl GeminiErrorMapper {
         ProviderError::api_error("gemini", 500, "Unknown API error")
     }
 
-    /// 提取重试延迟
+    /// Extract retry delay
     fn extract_retry_after(body: &str) -> Option<u64> {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(body) {
             if let Some(error) = json.get("error") {

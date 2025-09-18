@@ -349,7 +349,7 @@ impl VertexAIProvider {
             data: embeddings.clone(),
             model: model_name,
             usage: None, // Vertex AI doesn't return token usage for embeddings
-            embeddings: Some(embeddings), // 向后兼容字段
+            embeddings: Some(embeddings), // Backward compatibility field
         })
     }
 
@@ -580,7 +580,7 @@ impl LLMProvider for VertexAIProvider {
         }
     }
 
-    /// 将OpenAIformat的parameter映射为VertexAI API的parameterformat
+    /// Map OpenAI format parameters to VertexAI API parameter format
     async fn map_openai_params(
         &self,
         params: HashMap<String, Value>,
@@ -589,14 +589,14 @@ impl LLMProvider for VertexAIProvider {
         let mut vertex_params = HashMap::new();
         let vertex_model = super::parse_vertex_model(model);
 
-        // 基础parameter映射
+        // Basic parameter mapping
         if let Some(messages) = params.get("messages") {
             vertex_params.insert("contents".to_string(), messages.clone());
         }
 
         vertex_params.insert("model".to_string(), Value::String(vertex_model.model_id()));
 
-        // 生成parameter映射
+        // Generation parameter mapping
         let mut generation_config = serde_json::Map::new();
 
         if let Some(max_tokens) = params.get("max_tokens") {
@@ -770,7 +770,7 @@ impl LLMProvider for VertexAIProvider {
             .unwrap_or_default()
             .to_string();
 
-        // usage_stats信息
+        // Usage statistics information
         let usage = response_json.get("usageMetadata").map(|usage_json| {
             let input_tokens = usage_json
                 .get("promptTokenCount")

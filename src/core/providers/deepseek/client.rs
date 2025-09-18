@@ -1,6 +1,6 @@
 //! DeepSeek Client
 //!
-//! 请求转换、响应process和模型定义
+//! Request transformation, response processing, and model definitions
 
 use serde_json::{Value, json};
 
@@ -8,7 +8,7 @@ use super::models::get_deepseek_registry;
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::{common::ModelInfo, requests::ChatRequest, responses::ChatResponse};
 
-/// DeepSeek API客户端逻辑
+/// DeepSeek API client logic
 pub struct DeepSeekClient;
 
 impl DeepSeekClient {
@@ -52,7 +52,7 @@ impl DeepSeekClient {
             });
         }
 
-        // 先尝试直接反序列化
+        // First try direct deserialization
         if let Ok(chat_response) = serde_json::from_value::<ChatResponse>(response.clone()) {
             return Ok(chat_response);
         }
@@ -62,7 +62,7 @@ impl DeepSeekClient {
             .ok_or_else(|| ProviderError::response_parsing("deepseek", "Response is not an object".to_string()))?
             .clone();
 
-        // 如果没有id字段，生成一个
+        // If no id field, generate one
         if !response_obj.contains_key("id") {
             use std::time::{SystemTime, UNIX_EPOCH};
             let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis();
@@ -74,7 +74,7 @@ impl DeepSeekClient {
             response_obj.insert("object".to_string(), Value::String("chat.completion".to_string()));
         }
 
-        // 如果没有created字段，添加current时间戳
+        // If no created field, add current timestamp
         if !response_obj.contains_key("created") {
             use std::time::{SystemTime, UNIX_EPOCH};
             let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
@@ -86,7 +86,7 @@ impl DeepSeekClient {
             response_obj.insert("model".to_string(), Value::String("deepseek-chat".to_string()));
         }
 
-        // 再次尝试反序列化
+        // Try deserialization again
         serde_json::from_value(Value::Object(response_obj))
             .map_err(|e| ProviderError::response_parsing("deepseek", e.to_string()))
     }

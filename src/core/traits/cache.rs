@@ -1,14 +1,14 @@
-//! cache系统 trait 定义
+//! Cache system trait definitions
 //!
-//! 提供统一的cache接口，支持多种cache后端
+//! Provides unified cache interface supporting multiple cache backends
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// cache核心 trait
+/// Core cache trait
 ///
-/// 定义统一的cache操作接口
+/// Defines unified cache operation interface
 #[async_trait]
 pub trait Cache<K, V>: Send + Sync
 where
@@ -36,7 +36,7 @@ where
     /// Get
     async fn ttl(&self, key: &K) -> Result<Option<Duration>, Self::Error>;
 
-    /// 清空所有cache
+    /// Clear all cache
     async fn clear(&self) -> Result<(), Self::Error>;
 
     /// Get
@@ -64,33 +64,33 @@ where
     }
 }
 
-/// cache键 trait
+/// Cache key trait
 ///
-/// 定义cache键必须支持的操作
+/// Defines operations that cache keys must support
 pub trait CacheKey: Send + Sync + Clone + std::fmt::Debug + std::hash::Hash + Eq {
-    /// 将键序列化为字符串
+    /// Serialize key to string
     fn to_cache_key(&self) -> String;
 
-    /// 从字符串反序列化键
+    /// Deserialize key from string
     fn from_cache_key(s: &str) -> Result<Self, CacheError>
     where
         Self: Sized;
 }
 
-/// cache值 trait
+/// Cache value trait
 ///
-/// 定义cache值必须支持的操作
+/// Defines operations that cache values must support
 pub trait CacheValue: Send + Sync + Clone + std::fmt::Debug {
-    /// 序列化为字节
+    /// Serialize to bytes
     fn to_bytes(&self) -> Result<Vec<u8>, CacheError>;
 
-    /// 从字节反序列化
+    /// Deserialize from bytes
     fn from_bytes(bytes: &[u8]) -> Result<Self, CacheError>
     where
         Self: Sized;
 }
 
-/// 为 String implementation CacheKey
+/// Implementation of CacheKey for String
 impl CacheKey for String {
     fn to_cache_key(&self) -> String {
         self.clone()
@@ -101,7 +101,7 @@ impl CacheKey for String {
     }
 }
 
-/// 为所有implementation了 Serialize + DeserializeOwned 的类型implementation CacheValue
+/// Implementation of CacheValue for all types that implement Serialize + DeserializeOwned
 impl<T> CacheValue for T
 where
     T: Serialize + for<'de> Deserialize<'de> + Send + Sync + Clone + std::fmt::Debug,
@@ -115,18 +115,18 @@ where
     }
 }
 
-/// cache统计信息
+/// Cache statistics
 #[derive(Debug, Clone)]
 pub struct CacheStats {
-    /// cache命中次数
+    /// Cache hit count
     pub hits: u64,
-    /// cache未命中次数
+    /// Cache miss count
     pub misses: u64,
-    /// current键的count
+    /// Current key count
     pub key_count: usize,
-    /// usage的内存量（字节）
+    /// Used memory amount (bytes)
     pub memory_usage: usize,
-    /// 命中率
+    /// Hit rate
     pub hit_rate: f64,
 }
 
@@ -155,7 +155,7 @@ impl Default for CacheStats {
     }
 }
 
-/// 带统计功能的cache trait
+/// Cache trait with statistics functionality
 #[async_trait]
 pub trait CacheWithStats<K, V>: Cache<K, V>
 where
@@ -165,28 +165,28 @@ where
     /// Get
     async fn stats(&self) -> Result<CacheStats, Self::Error>;
 
-    /// 重置统计信息
+    /// Reset statistics
     async fn reset_stats(&self) -> Result<(), Self::Error>;
 }
 
-/// cache事件类型
+/// Cache event types
 #[derive(Debug, Clone)]
 pub enum CacheEvent<K, V> {
-    /// cache命中
+    /// Cache hit
     Hit { key: K },
-    /// cache未命中
+    /// Cache miss
     Miss { key: K },
     /// Settings
     Set { key: K, value: V },
     /// Delete
     Delete { key: K },
-    /// cache过期
+    /// Cache expiration
     Expire { key: K },
-    /// cache清空
+    /// Cache clear
     Clear,
 }
 
-/// cache事件监听器
+/// Cache event listener
 #[async_trait]
 pub trait CacheEventListener<K, V>: Send + Sync
 where

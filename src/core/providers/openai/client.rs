@@ -421,7 +421,7 @@ impl LLMProvider for OpenAIProvider {
         Ok(input_cost + output_cost)
     }
 
-    // ==================== Python LiteLLM 兼容接口 ====================
+    // ==================== Python LiteLLM Compatible Interface ====================
 
     fn get_supported_openai_params(&self, model: &str) -> &'static [&'static str] {
         // Return parameters based on model capabilities

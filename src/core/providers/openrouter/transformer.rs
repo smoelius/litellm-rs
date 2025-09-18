@@ -1,6 +1,6 @@
-//! OpenRouter 请求/响应转换器
+//! OpenRouter request/response transformer
 //!
-//! OpenRouterusageOpenAI兼容的API，但需要process额外的parameter
+//! OpenRouter uses OpenAI-compatible API, but needs to process additional parameters
 
 use super::error::OpenRouterError;
 use crate::core::providers::openai::models as openai_models;
@@ -12,7 +12,7 @@ use crate::core::types::{
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// OpenRouterspecific_params
+/// OpenRouter specific parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[derive(Default)]
 pub struct OpenRouterExtraParams {
@@ -36,22 +36,22 @@ pub struct OpenRouterErrorModel {
     pub error_type: Option<String>,
 }
 
-/// Request
-/// 继承自OpenAI转换器，因为OpenRouter是OpenAI兼容的
+/// Request transformer
+/// Inherits from OpenAI transformer, because OpenRouter is OpenAI compatible
 pub struct OpenRouterRequestTransformer;
 
 impl OpenRouterRequestTransformer {
-    /// Request
-    /// OpenRouterusageOpenAIformat，但支持额外的parameter
+    /// Transform request
+    /// OpenRouter uses OpenAI format, but supports additional parameters
     pub fn transform_request(
         request: ChatRequest,
         extra_params: Option<OpenRouterExtraParams>,
     ) -> Result<openai_models::OpenAIChatRequest, OpenRouterError> {
-        // Request
+        // Transform to OpenAI request
         let openai_request = OpenAIRequestTransformer::transform(request)
             .map_err(|e| OpenRouterError::InvalidRequest(e.to_string()))?;
 
-        // 如果有OpenRouterspecific_params，添加到extra_body
+        // If there are OpenRouter specific params, add to extra_body
         if let Some(extra) = extra_params {
             let mut extra_body = HashMap::new();
 
@@ -71,58 +71,58 @@ impl OpenRouterRequestTransformer {
                 extra_body.insert("provider".to_string(), serde_json::to_value(provider)?);
             }
 
-            // OpenRouter的extra_bodyparameter会通过OpenAI客户端传递
-            // Request
+            // OpenRouter's extra_body parameters will be passed through OpenAI client
+            // Additional request processing could be done here
         }
 
         Ok(openai_request)
     }
 
-    /// Check
-    /// Model
+    /// Check if should keep cache control
+    /// Model specific logic
     pub fn should_keep_cache_control(model: &str) -> bool {
         model.to_lowercase().contains("claude")
     }
 }
 
-/// Response
+/// Response transformer
 pub struct OpenRouterResponseTransformer;
 
 impl OpenRouterResponseTransformer {
-    /// Response
+    /// Transform response
     pub fn transform_response(
         response: openai_models::OpenAIChatResponse,
     ) -> Result<ChatResponse, OpenRouterError> {
-        // Handle
+        // Delegate to OpenAI transformer
         crate::core::providers::openai::transformer::OpenAIResponseTransformer::transform(response)
             .map_err(|e| OpenRouterError::Transformation(e.to_string()))
     }
 
-    /// Response
+    /// Transform stream chunk
     pub fn transform_stream_chunk(
         chunk: openai_models::OpenAIStreamChunk,
     ) -> Result<ChatChunk, OpenRouterError> {
-        // Error
+        // Check for errors in chunk
         if let Some(error) = Self::check_error_in_chunk(&chunk) {
             return Err(error);
         }
 
-        // OpenRouter可能在delta中包含reasoning字段
-        // Handle
+        // OpenRouter may include reasoning field in delta
+        // Handle OpenRouter-specific delta fields if needed
 
-        // Handle
+        // Delegate to OpenAI transformer
         crate::core::providers::openai::transformer::OpenAIResponseTransformer::transform_stream_chunk(chunk)
             .map_err(|e| OpenRouterError::Transformation(e.to_string()))
     }
 
-    /// Response
+    /// Check error in chunk
     fn check_error_in_chunk(_chunk: &openai_models::OpenAIStreamChunk) -> Option<OpenRouterError> {
-        // Response
-        // Handle
-        None // Error
+        // OpenRouter specific error checking could be implemented here
+        // Handle any special error patterns
+        None // No error found
     }
 
-    /// Response
+    /// Parse error response
     pub fn parse_error(error_body: &str, status_code: u16) -> OpenRouterError {
         if let Ok(error_model) = serde_json::from_str::<OpenRouterErrorModel>(error_body) {
             let message = format!(
@@ -149,7 +149,7 @@ impl OpenRouterResponseTransformer {
     }
 }
 
-/// Create
+/// Create OpenRouter headers
 pub fn create_openrouter_headers(
     api_key: &str,
     http_referer: Option<&str>,
@@ -163,7 +163,7 @@ pub fn create_openrouter_headers(
     // Content type
     headers.insert("Content-Type".to_string(), "application/json".to_string());
 
-    // OpenRouter特定的HTTP头
+    // OpenRouter specific HTTP headers
     if let Some(referer) = http_referer {
         headers.insert("HTTP-Referer".to_string(), referer.to_string());
     }

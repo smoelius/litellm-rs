@@ -466,7 +466,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     info!("✅ Configuration validation passed");
     info!(
-        "📊 启用的模型: {}",
+        "📊 Enabled models: {}",
         enabled_models
             .iter()
             .map(|m| m.name.as_str())

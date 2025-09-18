@@ -43,7 +43,7 @@ impl AzureAIConfig {
             .as_ref()
             .ok_or("Azure AI API base URL not set")?;
         
-        // 确保base URL以'/'结尾，path不以'/'开头
+        // Ensure base URL ends with '/' and path doesn't start with '/'
         let base = base_url.trim_end_matches('/');
         let endpoint_path = path.trim_start_matches('/');
         
@@ -84,7 +84,7 @@ impl AzureAIConfig {
     }
 }
 
-// implementationProviderConfig trait
+// Implementation of ProviderConfig trait
 impl ProviderConfig for AzureAIConfig {
     fn validate(&self) -> Result<(), String> {
         self.base.validate("azure_ai")
@@ -107,18 +107,18 @@ impl ProviderConfig for AzureAIConfig {
     }
 }
 
-/// Azure AI端点类型枚举
+/// Azure AI endpoint type enumeration
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AzureAIEndpointType {
-    /// 聊天完成端点
+    /// Chat completions endpoint
     ChatCompletions,
-    /// 嵌入生成端点
+    /// Embeddings endpoint
     Embeddings,
-    /// 图像嵌入端点（多模态）
+    /// Image embeddings endpoint (multimodal)
     ImageEmbeddings,
-    /// 图像生成端点
+    /// Image generation endpoint
     ImageGeneration,
-    /// 重排序端点
+    /// Rerank endpoint
     Rerank,
 }
 

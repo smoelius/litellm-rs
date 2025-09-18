@@ -1,28 +1,28 @@
-//! 转换器 trait 定义
+//! Transformer trait definitions
 //!
-//! 提供不同 provider 之间请求/响应format转换的统一接口
+//! Provides unified interface for request/response format conversion between different providers
 
 use futures::Stream;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-/// 转换器核心 trait
+/// Core transformer trait
 ///
-/// 提供从一种format转换到另一种format的能力
+/// Provides capability to convert from one format to another
 pub trait Transform<From, To>: Send + Sync {
     /// Error
     type Error: std::error::Error + Send + Sync + 'static;
 
-    /// 单次转换
+    /// Single item transformation
     fn transform(input: From) -> Result<To, Self::Error>;
 
-    /// 批量转换
+    /// Batch transformation
     fn transform_batch(inputs: Vec<From>) -> Result<Vec<To>, Self::Error> {
         inputs.into_iter().map(Self::transform).collect()
     }
 
-    /// 流式转换
+    /// Stream transformation
     fn transform_stream<S>(stream: S) -> TransformStream<S, Self>
     where
         S: Stream<Item = From> + Send,
@@ -32,22 +32,22 @@ pub trait Transform<From, To>: Send + Sync {
     }
 }
 
-/// 双向转换器 trait
+/// Bidirectional transformer trait
 ///
-/// 支持双向转换的转换器
+/// Transformer that supports bidirectional conversion
 pub trait BidirectionalTransform<A, B>: Transform<A, B> + Transform<B, A> {
-    /// A 到 B 的转换
+    /// A to B conversion
     fn forward(input: A) -> Result<B, <Self as Transform<A, B>>::Error> {
         <Self as Transform<A, B>>::transform(input)
     }
 
-    /// B 到 A 的转换  
+    /// B to A conversion  
     fn backward(input: B) -> Result<A, <Self as Transform<B, A>>::Error> {
         <Self as Transform<B, A>>::transform(input)
     }
 }
 
-/// 流式转换包装器
+/// Stream transformation wrapper
 pub struct TransformStream<S, T> {
     stream: S,
     _phantom: PhantomData<T>,
@@ -72,10 +72,10 @@ where
     }
 }
 
-/// 转换器注册表
+/// Transformer registry
 pub struct TransformerRegistry {
-    // 这里可以存储不同类型转换器的映射
-    // 暂时简化implementation
+    // Here we can store mappings of different type transformers
+    // Simplified implementation for now
 }
 
 impl TransformerRegistry {
@@ -87,7 +87,7 @@ impl TransformerRegistry {
     where
         T: Transform<(), ()> + 'static,
     {
-        // 实际implementation中会存储转换器
+        // In actual implementation, transformers would be stored
         todo!("Implement transformer registration")
     }
 }

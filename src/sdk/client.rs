@@ -8,7 +8,7 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-/// 完整功能的 LLM 客户端
+/// Full-featured LLM client
 #[derive(Debug)]
 pub struct LLMClient {
     config: ClientConfig,
@@ -17,7 +17,7 @@ pub struct LLMClient {
     load_balancer: Arc<LoadBalancer>,
 }
 
-/// 提供商统计信息
+/// Provider statistics
 #[derive(Debug, Clone, Default)]
 pub struct ProviderStats {
     pub requests: u64,
@@ -29,13 +29,13 @@ pub struct ProviderStats {
     pub health_score: f64,
 }
 
-/// 负载均衡器
+/// Load balancer
 #[derive(Debug)]
 pub struct LoadBalancer {
     strategy: LoadBalancingStrategy,
 }
 
-/// 负载均衡策略
+/// Load balancing strategy
 #[derive(Debug, Clone)]
 pub enum LoadBalancingStrategy {
     RoundRobin,
@@ -89,7 +89,7 @@ impl LLMClient {
 
         for provider in &self.config.providers {
             let provider_stats = ProviderStats {
-                health_score: 1.0, // 初始健康分数
+                health_score: 1.0, // Initial health score
                 ..Default::default()
             };
             stats.insert(provider.id.clone(), provider_stats);
@@ -101,10 +101,10 @@ impl LLMClient {
         Ok(())
     }
 
-    /// 发送Chat message（usage负载均衡）
+    /// Send chat message (using load balancing)
     pub async fn chat(&self, messages: Vec<Message>) -> Result<ChatResponse> {
         let request = ChatRequest {
-            model: String::new(), // Settings
+            model: String::new(), // Will be set by load balancer
             messages,
             options: ChatOptions::default(),
         };
@@ -112,24 +112,24 @@ impl LLMClient {
         self.chat_with_options(request).await
     }
 
-    /// 发送Chat message（带选项）
+    /// Send chat message (with options)
     pub async fn chat_with_options(&self, request: ChatRequest) -> Result<ChatResponse> {
         let start_time = SystemTime::now();
 
-        // 选择最佳提供商
+        // Select best provider
         let provider = self.select_provider(&request).await?;
 
-        // Request
+        // Execute request
         let result = self.execute_chat_request(&provider.id, request).await;
 
-        // Update
+        // Update statistics
         self.update_provider_stats(&provider.id, start_time, &result)
             .await;
 
         result
     }
 
-    /// 流式聊天
+    /// Streaming chat
     pub async fn chat_stream(
         &self,
         messages: Vec<Message>,
@@ -138,12 +138,12 @@ impl LLMClient {
         self.execute_stream_request(&provider.id, messages).await
     }
 
-    /// 选择提供商
+    /// Select provider
     async fn select_provider(
         &self,
         request: &ChatRequest,
     ) -> Result<&crate::sdk::config::ProviderConfig> {
-        // 如果指定了模型，找到支持该模型的提供商
+        // If model is specified, find provider that supports it
         if !request.model.is_empty() {
             for provider in &self.config.providers {
                 if provider.models.contains(&request.model) && provider.enabled {
@@ -156,18 +156,18 @@ impl LLMClient {
             )));
         }
 
-        // usage负载均衡策略选择提供商
+        // Use load balancing strategy to select provider
         self.load_balancer
             .select_provider(&self.config.providers, &self.provider_stats)
             .await
     }
 
-    /// Request
+    /// Select provider for stream
     async fn select_provider_for_stream(
         &self,
         _messages: &[Message],
     ) -> Result<&crate::sdk::config::ProviderConfig> {
-        // 找到支持流式的提供商
+        // Find provider that supports streaming
         for provider in &self.config.providers {
             if provider.enabled {
                 return Ok(provider);
@@ -176,7 +176,7 @@ impl LLMClient {
         Err(SDKError::NoDefaultProvider)
     }
 
-    /// Request
+    /// Execute chat request
     async fn execute_chat_request(
         &self,
         provider_id: &str,
@@ -214,7 +214,7 @@ impl LLMClient {
         }
     }
 
-    /// Request
+    /// Execute stream request
     async fn execute_stream_request(
         &self,
         provider_id: &str,
@@ -227,8 +227,8 @@ impl LLMClient {
             .find(|p| p.id == provider_id)
             .ok_or_else(|| SDKError::ProviderNotFound(provider_id.to_string()))?;
 
-        // Request
-        // 现在Returns一个简单的模拟流
+        // Stream implementation
+        // Currently returns a simple mock stream
         use futures::stream;
 
         let chunk = ChatChunk {
@@ -254,11 +254,11 @@ impl LLMClient {
         provider: &crate::sdk::config::ProviderConfig,
         request: ChatRequest,
     ) -> Result<ChatResponse> {
-        // 转换messageformat
+        // Convert message format
         let (system_message, anthropic_messages) =
             self.convert_messages_to_anthropic(&request.messages);
 
-        // Request
+        // Build request body
         let mut body = serde_json::json!({
             "model": provider.models.first().unwrap_or(&"claude-3-sonnet-20240229".to_string()),
             "messages": anthropic_messages,
@@ -277,7 +277,7 @@ impl LLMClient {
             body["top_p"] = serde_json::json!(top_p);
         }
 
-        // Request
+        // Send request
         let default_url = "https://api.anthropic.com".to_string();
         let base_url = provider.base_url.as_ref().unwrap_or(&default_url);
         let url = if base_url.contains("/v1") {
@@ -314,7 +314,7 @@ impl LLMClient {
             .await
             .map_err(|e| SDKError::ParseError(e.to_string()))?;
 
-        // Response
+        // Convert response
         self.convert_anthropic_response(
             anthropic_response,
             provider
@@ -363,7 +363,7 @@ impl LLMClient {
             )));
         }
 
-        // Response
+        // Parse response
         let openai_response: ChatResponse = response
             .json()
             .await
@@ -378,7 +378,7 @@ impl LLMClient {
         provider: &crate::sdk::config::ProviderConfig,
         request: ChatRequest,
     ) -> Result<ChatResponse> {
-        // Google API implementation占位符
+        // Google API implementation placeholder
         warn!("Google API not fully implemented, using mock response");
         self.create_mock_response(provider, &request.messages).await
     }
@@ -390,12 +390,12 @@ impl LLMClient {
         provider: &crate::sdk::config::ProviderConfig,
         request: ChatRequest,
     ) -> Result<ChatResponse> {
-        // Groq API implementation占位符
+        // Groq API implementation placeholder
         warn!("Groq API not fully implemented, using mock response");
         self.create_mock_response(provider, &request.messages).await
     }
 
-    /// Create
+    /// Create mock response
     async fn create_mock_response(
         &self,
         provider: &crate::sdk::config::ProviderConfig,
@@ -445,7 +445,7 @@ impl LLMClient {
         })
     }
 
-    /// 转换message到 Anthropic format
+    /// Convert messages to Anthropic format
     fn convert_messages_to_anthropic(
         &self,
         messages: &[Message],
@@ -472,14 +472,14 @@ impl LLMClient {
                         "content": self.convert_content_to_anthropic(message.content.as_ref())
                     }));
                 }
-                _ => {} // 忽略其他角色
+                _ => {} // Ignore other roles
             }
         }
 
         (system_message, anthropic_messages)
     }
 
-    /// 转换content到 Anthropic format
+    /// Convert content to Anthropic format
     fn convert_content_to_anthropic(&self, content: Option<&Content>) -> serde_json::Value {
         match content {
             Some(Content::Text(text)) => serde_json::json!(text),
@@ -503,7 +503,7 @@ impl LLMClient {
                                 }
                             }));
                         }
-                        _ => {} // 忽略其他类型
+                        _ => {} // Ignore other types
                     }
                 }
                 serde_json::json!(anthropic_content)
@@ -512,7 +512,7 @@ impl LLMClient {
         }
     }
 
-    /// Response
+    /// Convert Anthropic response
     fn convert_anthropic_response(
         &self,
         anthropic_response: serde_json::Value,
@@ -538,7 +538,7 @@ impl LLMClient {
                 prompt_tokens: u.get("input_tokens").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
                 completion_tokens: u.get("output_tokens").and_then(|v| v.as_u64()).unwrap_or(0)
                     as u32,
-                total_tokens: 0, // 将在下面计算
+                total_tokens: 0, // Will be calculated below
             }
         } else {
             Usage::default()
@@ -568,7 +568,7 @@ impl LLMClient {
         })
     }
 
-    /// Update
+    /// Update provider statistics
     async fn update_provider_stats(
         &self,
         provider_id: &str,
@@ -611,22 +611,22 @@ impl LLMClient {
         );
     }
 
-    /// 列出可用的提供商
+    /// List available providers
     pub fn list_providers(&self) -> Vec<String> {
         self.config.providers.iter().map(|p| p.id.clone()).collect()
     }
 
-    /// Get
+    /// Get provider statistics
     pub async fn get_provider_stats(&self) -> HashMap<String, ProviderStats> {
         self.provider_stats.read().await.clone()
     }
 
-    /// Configuration
+    /// Get configuration
     pub fn config(&self) -> &ClientConfig {
         &self.config
     }
 
-    /// Check
+    /// Health check
     pub async fn health_check(&self) -> Result<HashMap<String, bool>> {
         let mut health_status = HashMap::new();
 
@@ -638,7 +638,7 @@ impl LLMClient {
         Ok(health_status)
     }
 
-    /// Check
+    /// Check provider health
     async fn check_provider_health(&self, provider_id: &str) -> Result<()> {
         let simple_request = ChatRequest {
             model: String::new(),
@@ -654,7 +654,7 @@ impl LLMClient {
             },
         };
 
-        // Request
+        // Send test request
         self.execute_chat_request(provider_id, simple_request)
             .await?;
         Ok(())
@@ -680,11 +680,11 @@ impl LoadBalancer {
 
         match self.strategy {
             LoadBalancingStrategy::RoundRobin => {
-                // 简单的轮询选择第一个可用的提供商
+                // Simple round-robin: select first available provider
                 Ok(enabled_providers[0])
             }
             LoadBalancingStrategy::WeightedRandom => {
-                // 基于权重的随机选择
+                // Weighted random selection
                 use rand::Rng;
                 let total_weight: f32 = enabled_providers.iter().map(|p| p.weight).sum();
                 let mut rng = rand::thread_rng();
@@ -700,7 +700,7 @@ impl LoadBalancer {
                 Ok(enabled_providers[0])
             }
             LoadBalancingStrategy::HealthBased => {
-                // 基于健康分数选择
+                // Health-based selection
                 let stats_guard = stats.read().await;
                 let mut best_provider = enabled_providers[0];
                 let mut best_score = 0.0f64;
@@ -720,7 +720,7 @@ impl LoadBalancer {
                 Ok(best_provider)
             }
             LoadBalancingStrategy::LeastLatency => {
-                // 基于延迟选择
+                // Latency-based selection
                 let stats_guard = stats.read().await;
                 let mut best_provider = enabled_providers[0];
                 let mut best_latency = f64::INFINITY;

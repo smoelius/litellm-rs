@@ -63,7 +63,7 @@ impl DeepSeekStreamParser {
         Ok(results)
     }
 
-    /// parseSSE数据为ChatChunk
+    /// Parse SSE data as ChatChunk
     fn parse_sse_data(&self, data: &str) -> Result<Option<ChatChunk>, ProviderError> {
         let json: Value = serde_json::from_str(data).map_err(|e| {
             ProviderError::response_parsing("deepseek", format!("Invalid JSON: {}", e))
@@ -183,7 +183,7 @@ impl Stream for DeepSeekStream {
                 match self.parser.process_chunk(&chunk) {
                     Ok(chunks) => {
                         if chunks.is_empty() {
-                            // 没有完整的chunk，继续etc待更多数据
+                            // No complete chunk, continue waiting for more data
                             cx.waker().wake_by_ref();
                             Poll::Pending
                         } else {

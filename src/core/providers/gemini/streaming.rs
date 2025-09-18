@@ -1,6 +1,6 @@
 //! Gemini Streaming Module
 //!
-//! 独立的流式响应process，支持SSEparse和实时数据转换
+//! Independent streaming response processing, supporting SSE parsing and real-time data transformation
 
 use std::pin::Pin;
 
@@ -17,33 +17,33 @@ use crate::core::types::{
 
 use super::error::gemini_stream_error;
 
-/// SSE事件类型
+/// SSE event types
 #[derive(Debug, Clone)]
 pub enum GeminiSSEEvent {
-    /// 生成开始
+    /// Generation start
     GenerateContentResponse(Value),
     /// Error
     Error(Value),
-    /// Ping事件（心跳）
+    /// Ping event (heartbeat)
     Ping,
-    /// 完成
+    /// Completion
     Done,
-    /// 未知事件
+    /// Unknown event
     Unknown(String),
 }
 
-/// SSEparse器
+/// SSE parser
 pub struct GeminiSSEParser;
 
 impl GeminiSSEParser {
-    /// parseSSE行为事件
+    /// Parse SSE line as event
     pub fn parse_event(line: &str) -> Option<GeminiSSEEvent> {
         if line.is_empty() || line.starts_with(':') {
             return None;
         }
 
         if line.starts_with("event:") {
-            return None; // Handle
+            return None; // Handle event type
         }
 
         if line.starts_with("data:") {
@@ -57,14 +57,14 @@ impl GeminiSSEParser {
                 return Some(GeminiSSEEvent::Ping);
             }
 
-            // 尝试parseJSON
+            // Try to parse JSON
             if let Ok(json) = serde_json::from_str::<Value>(data) {
-                // Response
+                // Error response
                 if json.get("error").is_some() {
                     return Some(GeminiSSEEvent::Error(json));
                 }
                 
-                // Response
+                // Generate content response
                 if json.get("candidates").is_some() {
                     return Some(GeminiSSEEvent::GenerateContentResponse(json));
                 }
@@ -78,7 +78,7 @@ impl GeminiSSEParser {
         }
     }
 
-    /// Response
+    /// Transform to chat chunk
     pub fn transform_to_chat_chunk(
         event: &GeminiSSEEvent, 
         model: &str, 
@@ -101,7 +101,7 @@ impl GeminiSSEParser {
                         .and_then(|p| p.as_array())
                         .unwrap_or(&empty_parts);
 
-                    // 提取Text content增量
+                    // Extract text content delta
                     let mut text_parts = Vec::new();
                     for part in content {
                         if let Some(text) = part.get("text").and_then(|t| t.as_str()) {
@@ -122,7 +122,7 @@ impl GeminiSSEParser {
                             _ => "stop",
                         });
 
-                    // Create
+                    // Create delta
                     let delta = ChatDelta {
                         role: if !delta_content.is_empty() || finish_reason.is_some() { Some(MessageRole::Assistant) } else { None },
                         content: if delta_content.is_empty() { None } else { Some(delta_content) },
@@ -143,7 +143,7 @@ impl GeminiSSEParser {
                     });
                 }
 
-                // 提取usage_stats（如果可用）
+                // Extract usage stats (if available)
                 let usage = response.get("usageMetadata").map(|usage_metadata| Usage {
                         prompt_tokens: usage_metadata.get("promptTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
                         completion_tokens: usage_metadata.get("candidatesTokenCount").and_then(|v| v.as_u64()).unwrap_or(0) as u32,
@@ -153,7 +153,7 @@ impl GeminiSSEParser {
                     });
 
                 if choices.is_empty() && usage.is_none() {
-                    return Ok(None); // 跳过空的chunk
+                    return Ok(None); // Skip empty chunk
                 }
 
                 Ok(Some(ChatChunk {
@@ -170,7 +170,7 @@ impl GeminiSSEParser {
                 Err(super::error::GeminiErrorMapper::from_api_response(error))
             }
             GeminiSSEEvent::Done => {
-                // 发送最终的空chunk表示完成
+                // Send final empty chunk to indicate completion
                 Ok(Some(ChatChunk {
                     id: chunk_id.to_string(),
                     object: "chat.completion.chunk".to_string(),
@@ -191,14 +191,14 @@ impl GeminiSSEParser {
                     system_fingerprint: None,
                 }))
             }
-            GeminiSSEEvent::Ping => Ok(None), // 跳过ping事件
-            GeminiSSEEvent::Unknown(_) => Ok(None), // 跳过未知事件
+            GeminiSSEEvent::Ping => Ok(None), // Skip ping events
+            GeminiSSEEvent::Unknown(_) => Ok(None), // Skip unknown events
         }
     }
 }
 
 pin_project! {
-    /// Handle
+    /// Handle streaming response
     pub struct GeminiStream {
         #[pin]
         inner: Pin<Box<dyn Stream<Item = Result<ChatChunk, ProviderError>> + Send>>,
@@ -206,7 +206,7 @@ pin_project! {
 }
 
 impl GeminiStream {
-    /// Create
+    /// Create from response
     pub fn from_response(response: Response, model: String) -> Self {
         let chunk_id = format!("gemini-stream-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
         
@@ -215,7 +215,7 @@ impl GeminiStream {
             |state| async move {
                 let (mut lines, mut buffer, chunk_id, model) = state;
                 
-                // Handle
+                // Handle line buffer
                 if let Some(line_end) = buffer.find('\n') {
                     let line = buffer[..line_end].trim_end_matches('\r').to_string();
                     buffer = buffer[line_end + 1..].to_string();
@@ -227,7 +227,7 @@ impl GeminiStream {
                                 return Some((Ok(chunk), new_state));
                             }
                             Ok(None) => {
-                                // Handle
+                                // Handle continuation
                                 let chunk_id_cloned = chunk_id.clone();
                                 let model_cloned = model.clone();
                                 let new_state = (lines, buffer, chunk_id, model);
@@ -249,7 +249,7 @@ impl GeminiStream {
                     }
                 }
                 
-                // 读取更多数据
+                // Read more data
                 match lines.next().await {
                     Some(Ok(bytes)) => {
                         let text = String::from_utf8_lossy(&bytes);
@@ -258,7 +258,7 @@ impl GeminiStream {
                         let model_cloned = model.clone();
                         let new_state = (lines, buffer, chunk_id, model);
 
-                        // Handle
+                        // Handle stream data
                         Some((Ok(ChatChunk {
                             id: chunk_id_cloned,
                             object: "chat.completion.chunk".to_string(),
@@ -274,7 +274,7 @@ impl GeminiStream {
                         Some((Err(gemini_stream_error(format!("Stream read error: {}", e))), new_state))
                     }
                     None => {
-                        // Handle
+                        // Handle final buffer
                         if !buffer.trim().is_empty() {
                             if let Some(event) = GeminiSSEParser::parse_event(&buffer) {
                                 let new_state = (lines, buffer, chunk_id, model);
@@ -299,7 +299,7 @@ impl GeminiStream {
         }
     }
 
-    /// Create
+    /// Create from test data
     #[cfg(test)]
     pub fn from_test_data(data: Vec<String>, model: String) -> Self {
         let chunk_id = format!("gemini-test-{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos());
@@ -420,9 +420,9 @@ mod tests {
         let stream = GeminiStream::from_test_data(test_data, "gemini-pro".to_string());
         let chunks: Vec<_> = stream.collect().await;
         
-        assert_eq!(chunks.len(), 3); // 2个contentchunk + 1个完成chunk
-        
-        // Check
+        assert_eq!(chunks.len(), 3); // 2 content chunks + 1 completion chunk
+
+        // Check results
         assert!(chunks[0].is_ok());
         assert!(chunks[1].is_ok());
         assert!(chunks[2].is_ok());

@@ -1,11 +1,11 @@
 //! Anthropic Provider Implementation
 //!
-//! 完全重构的Anthropic提供者，基于DeepSeek架构模式
-//! Module
-//! - 零技术债务
-//! - 完整的功能支持
+//! Completely refactored Anthropic provider based on DeepSeek architecture pattern
+//! Features:
+//! - Zero technical debt
+//! - Complete feature support
 
-// 核心模块 - 遵循DeepSeek 6模块架构
+// Core modules - following DeepSeek 6-module architecture
 pub mod client;
 pub mod config;
 pub mod error;
@@ -13,7 +13,7 @@ pub mod models;
 pub mod provider;
 pub mod streaming;
 
-// 重新导出核心组件
+// Re-export core components
 pub use client::AnthropicClient;
 pub use config::{AnthropicConfig, AnthropicConfigBuilder};
 pub use error::{
@@ -32,7 +32,7 @@ pub use provider::{
 };
 pub use streaming::{AnthropicStream, SSEEvent, SSEParser, StreamUtils};
 
-// 便捷类型别名
+// Convenient type aliases
 pub type Error = error::AnthropicError;
 pub type Config = config::AnthropicConfig;
 pub type Provider = provider::AnthropicProvider;
@@ -44,7 +44,7 @@ pub type Registry = models::AnthropicModelRegistry;
 pub const VERSION: &str = "2.0.0";
 pub const PROVIDER_NAME: &str = "anthropic";
 
-/// API常量
+/// API constants
 pub const DEFAULT_BASE_URL: &str = "https://api.anthropic.com";
 pub const DEFAULT_API_VERSION: &str = "2023-06-01";
 pub const MAX_CONTEXT_LENGTH: u32 = 200_000;
@@ -130,7 +130,7 @@ pub fn estimate_cost(
     CostCalculator::calculate_cost(model_id, estimated_input_tokens, estimated_output_tokens)
 }
 
-/// 模块信息
+/// Module information
 pub mod info {
     use super::*;
     
@@ -244,9 +244,9 @@ mod tests {
 
     #[test]
     fn test_provider_creation() {
-        // 这是一个模拟测试，实际usage中需要有效的API key
+        // This is a mock test, actual usage requires a valid API key
         let result = new_provider("sk-ant-test-key-123456789012345");
-        // Validation
+        // Configuration validation
         assert!(result.is_err() || result.is_ok());
     }
 }

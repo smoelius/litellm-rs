@@ -1,56 +1,56 @@
 //! Gemini Model Registry
 //!
-//! 统一的模型注册表系统，包含所有Gemini模型的能力和定价信息
+//! Unified model registry system containing capabilities and pricing information for all Gemini models
 
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use crate::core::types::common::ModelInfo;
 
-/// Model
+/// Model features
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ModelFeature {
-    /// 多模态支持（图像、视频、音频）
+    /// Multimodal support (images, videos, audio)
     MultimodalSupport,
-    /// tool_call支持
+    /// Tool calling support
     ToolCalling,
-    /// 函数call支持
+    /// Function calling support
     FunctionCalling,
-    /// Response
+    /// Streaming support
     StreamingSupport,
-    /// 上下文cache支持
+    /// Context caching support
     ContextCaching,
-    /// 系统指令支持
+    /// System instructions support
     SystemInstructions,
-    /// Handle
+    /// Batch processing support
     BatchProcessing,
-    /// JSON模式支持
+    /// JSON mode support
     JsonMode,
-    /// 代码执行支持
+    /// Code execution support
     CodeExecution,
-    /// 搜索增强支持
+    /// Search grounding support
     SearchGrounding,
-    /// 视频理解支持
+    /// Video understanding support
     VideoUnderstanding,
-    /// 音频理解支持  
+    /// Audio understanding support  
     AudioUnderstanding,
-    /// 实时流式支持
+    /// Real-time streaming support
     RealtimeStreaming,
 }
 
 /// Model
 #[derive(Debug, Clone, PartialEq)]
 pub enum GeminiModelFamily {
-    /// Gemini 2.0 系列
+    /// Gemini 2.0 series
     Gemini20Flash,
     Gemini20FlashThinking,
     
-    /// Gemini 1.5 系列
+    /// Gemini 1.5 series
     Gemini15Pro,
     Gemini15Flash,
     Gemini15Flash8B,
     
-    /// Gemini 1.0 系列
+    /// Gemini 1.0 series
     Gemini10Pro,
     Gemini10ProVision,
     
@@ -61,36 +61,36 @@ pub enum GeminiModelFamily {
 /// Model
 #[derive(Debug, Clone)]
 pub struct ModelPricing {
-    /// inputtoken价格（每百万token美元）
+    /// Input token price (USD per million tokens)
     pub input_price: f64,
-    /// outputtoken价格（每百万token美元）
+    /// Output token price (USD per million tokens)
     pub output_price: f64,
-    /// cacheinput价格（optional）
+    /// Cached input price (optional)
     pub cached_input_price: Option<f64>,
-    /// 图像价格（每张）
+    /// Image price (per image)
     pub image_price: Option<f64>,
-    /// 视频价格（每seconds）
+    /// Video price (per second)
     pub video_price_per_second: Option<f64>,
-    /// 音频价格（每seconds）
+    /// Audio price (per second)
     pub audio_price_per_second: Option<f64>,
 }
 
-/// Model
+/// Model limits
 #[derive(Debug, Clone)]
 pub struct ModelLimits {
-    /// maximum上下文长度
+    /// Maximum context length
     pub max_context_length: u32,
-    /// maximumoutputtoken数
+    /// Maximum output tokens
     pub max_output_tokens: u32,
-    /// maximumimagecount
+    /// Maximum image count
     pub max_images: Option<u32>,
-    /// maximum视频长度（seconds）
+    /// Maximum video length (seconds)
     pub max_video_seconds: Option<u32>,
-    /// maximum音频长度（seconds）
+    /// Maximum audio length (seconds)
     pub max_audio_seconds: Option<u32>,
-    /// Request
+    /// Requests per minute limit
     pub rpm_limit: Option<u32>,
-    /// Token limit per minute
+    /// Tokens per minute limit
     pub tpm_limit: Option<u32>,
 }
 
@@ -101,11 +101,11 @@ pub struct ModelSpec {
     pub model_info: ModelInfo,
     /// Model
     pub family: GeminiModelFamily,
-    /// 支持的特性
+    /// Supported features
     pub features: Vec<ModelFeature>,
-    /// 定价信息
+    /// Pricing information
     pub pricing: ModelPricing,
-    /// 限制信息
+    /// Limit information
     pub limits: ModelLimits,
 }
 
@@ -184,7 +184,7 @@ impl GeminiModelRegistry {
             },
         });
 
-        // Gemini 2.0 Flash Thinking (实验性)
+        // Gemini 2.0 Flash Thinking (experimental)
         self.register_model("gemini-2.0-flash-thinking-exp", ModelSpec {
             model_info: ModelInfo {
                 id: "gemini-2.0-flash-thinking-exp".to_string(),
@@ -526,11 +526,11 @@ pub fn get_gemini_registry() -> &'static GeminiModelRegistry {
     REGISTRY.get_or_init(GeminiModelRegistry::new)
 }
 
-/// 成本计算工具
+/// Cost calculation utility
 pub struct CostCalculator;
 
 impl CostCalculator {
-    /// 计算基础成本
+    /// Calculate basic cost
     pub fn calculate_cost(
         model_id: &str,
         prompt_tokens: u32,
@@ -545,7 +545,7 @@ impl CostCalculator {
         Some(input_cost + output_cost)
     }
 
-    /// 计算多模态成本
+    /// Calculate multimodal cost
     pub fn calculate_multimodal_cost(
         model_id: &str,
         prompt_tokens: u32,
@@ -568,25 +568,25 @@ impl CostCalculator {
             remaining_prompt_tokens = remaining_prompt_tokens.saturating_sub(cached);
         }
         
-        // 普通inputtoken
+        // Regular input tokens
         let input_cost = (remaining_prompt_tokens as f64 / 1_000_000.0) * pricing.input_price;
         total_cost += input_cost;
         
-        // outputtoken
+        // Output tokens
         let output_cost = (completion_tokens as f64 / 1_000_000.0) * pricing.output_price;
         total_cost += output_cost;
         
-        // 图像成本
+        // Image cost
         if let (Some(img_count), Some(img_price)) = (images, pricing.image_price) {
             total_cost += img_count as f64 * img_price;
         }
         
-        // 视频成本
+        // Video cost
         if let (Some(video_secs), Some(video_price)) = (video_seconds, pricing.video_price_per_second) {
             total_cost += video_secs as f64 * video_price;
         }
         
-        // 音频成本
+        // Audio cost
         if let (Some(audio_secs), Some(audio_price)) = (audio_seconds, pricing.audio_price_per_second) {
             total_cost += audio_secs as f64 * audio_price;
         }
@@ -594,9 +594,9 @@ impl CostCalculator {
         Some(total_cost)
     }
 
-    /// 估算tokencount
+    /// Estimate token count
     pub fn estimate_tokens(text: &str) -> u32 {
-        // Geminiusage约4个字符=1个token的比例（英文）
+        // Gemini uses approximately 4 characters = 1 token ratio (English)
         (text.len() as f32 / 4.0).ceil() as u32
     }
 }
@@ -609,13 +609,13 @@ mod tests {
     fn test_model_registry() {
         let registry = get_gemini_registry();
         
-        // 测试Gemini 2.0 Flash
+        // Test Gemini 2.0 Flash
         let flash_spec = registry.get_model_spec("gemini-2.0-flash-exp").unwrap();
         assert_eq!(flash_spec.family, GeminiModelFamily::Gemini20Flash);
         assert!(flash_spec.features.contains(&ModelFeature::MultimodalSupport));
         assert!(flash_spec.features.contains(&ModelFeature::VideoUnderstanding));
         
-        // 测试定价
+        // Test pricing
         assert_eq!(flash_spec.pricing.input_price, 0.01);
         assert_eq!(flash_spec.pricing.output_price, 0.04);
     }
@@ -644,7 +644,7 @@ mod tests {
         assert!(cost.is_some());
         
         let cost_value = cost.unwrap();
-        // 预期: (1000/1M * $0.075) + (500/1M * $0.30) = $0.000075 + $0.00015 = $0.000225
+        // Expected: (1000/1M * $0.075) + (500/1M * $0.30) = $0.000075 + $0.00015 = $0.000225
         assert!((cost_value - 0.000225).abs() < 0.000001);
     }
 
@@ -652,10 +652,10 @@ mod tests {
     fn test_feature_support() {
         let registry = get_gemini_registry();
         
-        // Gemini 2.0 Flash支持视频理解
+        // Gemini 2.0 Flash supports video understanding
         assert!(registry.supports_feature("gemini-2.0-flash-exp", &ModelFeature::VideoUnderstanding));
         
-        // Gemini 1.0 Pro不支持多模态
+        // Gemini 1.0 Pro does not support multimodal
         assert!(!registry.supports_feature("gemini-1.0-pro", &ModelFeature::VideoUnderstanding));
     }
 }

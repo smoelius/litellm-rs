@@ -6,31 +6,31 @@
 //!
 //! Error handling
 //!
-//! ## 1. Trait 层 (本文件)
+//! ## 1. Trait Layer (this file)
 //! Error handling
 //! Error handling
-//!   - is_retryable(): 是否可重试
-//!   - retry_delay(): 重试延迟时间
-//!   - http_status(): HTTP 状态码映射
-//!   - 工厂方法: not_supported(), authentication_failed() etc
+//!   - is_retryable(): Whether retryable
+//!   - retry_delay(): Retry delay duration
+//!   - http_status(): HTTP status code mapping
+//!   - Factory methods: not_supported(), authentication_failed() etc
 //!
 //! Implementation
 //! Error handling
-//!   - Authentication: 认证失败
-//!   - RateLimit: 速率限制
-//!   - ModelNotFound: 模型不存在
-//!   - InvalidRequest: 无效请求
+//!   - Authentication: Authentication failed
+//!   - RateLimit: Rate limit
+//!   - ModelNotFound: Model does not exist
+//!   - InvalidRequest: Invalid request
 //! Error handling
-//!   - Timeout: 超时
+//!   - Timeout: Timeout
 //! Error handling
-//!   - ServiceUnavailable: 服务不可用
-//!   - QuotaExceeded: 配额超限
+//!   - ServiceUnavailable: Service unavailable
+//!   - QuotaExceeded: Quota exceeded
 //!   - NotSupported: Feature not supported
 //! Error handling
 //!
-//! ## usage方式
+//! ## Usage
 //! ```rust
-//! // 所有 provider 都usage统一的 ProviderError
+//! // All providers use unified ProviderError
 //! use crate::core::providers::unified_provider::ProviderError;
 //!
 //! Error handling
@@ -38,10 +38,10 @@
 //! let err = ProviderError::rate_limit("anthropic", Some(60));
 //! ```
 //!
-//! ## 设计原则
+//! ## Design Principles
 //! Error handling
-//! 2. **可扩展**: 通过 trait 定义接口，便于未来扩展
-//! 3. **零成本抽象**: usage静态分发，无运行时开销
+//! 2. **Extensible**: Define interfaces through traits for future expansion
+//! 3. **Zero-cost abstraction**: Use static dispatch, no runtime overhead
 //! Types
 
 /// Error
@@ -142,15 +142,15 @@ pub enum LiteLLMError {
     #[error("Internal error: {0}")]
     Internal(String),
 
-    /// 服务不可用
+    /// Service unavailable
     #[error("Service unavailable: {0}")]
     ServiceUnavailable(String),
 
-    /// 未找到资源
+    /// Resource not found
     #[error("Not found: {resource}")]
     NotFound { resource: String },
 
-    /// 不支持的操作
+    /// Unsupported operation
     #[error("Unsupported operation: {operation}")]
     UnsupportedOperation { operation: String },
 }
@@ -474,7 +474,7 @@ impl LiteLLMError {
     }
 }
 
-/// HTTP 状态码映射
+/// HTTP status code mapping
 impl LiteLLMError {
     pub fn to_http_status(&self) -> u16 {
         match self {
@@ -685,7 +685,7 @@ impl From<OpenRouterError> for LiteLLMError {
     }
 }
 
-/// 结果类型别名
+/// Result type alias
 pub type LiteLLMResult<T> = Result<T, LiteLLMError>;
 pub type RoutingResult<T> = Result<T, RoutingError>;
 pub type ConfigResult<T> = Result<T, ConfigError>;

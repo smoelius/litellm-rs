@@ -10,7 +10,7 @@ pub struct AutoConfig;
 impl AutoConfig {
     /// Create
     /// 
-    /// # 示例
+    /// # Example
     /// ```
     /// Model
     /// // - "openrouter/google/palm-2-chat-bison"
@@ -49,12 +49,12 @@ impl AutoConfig {
         let provider_type = match provider_prefix {
             "openai" => ProviderType::OpenAI,
             "anthropic" => ProviderType::Anthropic,
-            "openrouter" => ProviderType::OpenAI, // OpenRouter usage OpenAI 兼容接口
+            "openrouter" => ProviderType::OpenAI, // OpenRouter uses OpenAI compatible API
             "azure" => ProviderType::Azure,
             "google" => ProviderType::Google,
             "cohere" => ProviderType::Cohere,
             "mistral" => ProviderType::Mistral,
-            "groq" => ProviderType::OpenAI, // Groq 也usage OpenAI 兼容接口
+            "groq" => ProviderType::OpenAI, // Groq also uses OpenAI compatible API
             "perplexity" => ProviderType::OpenAI,
             "together" => ProviderType::OpenAI,
             "fireworks" => ProviderType::OpenAI,
@@ -232,7 +232,7 @@ impl AutoConfig {
         Ok(())
     }
     
-    /// 列出所有支持的提供商
+    /// List all supported providers
     pub fn supported_providers() -> Vec<&'static str> {
         vec![
             "openai", "anthropic", "openrouter", "azure", "google", 

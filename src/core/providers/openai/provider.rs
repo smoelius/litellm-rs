@@ -156,7 +156,7 @@ impl LLMProvider for OpenAIProvider {
             .await
     }
 
-    // ==================== Python LiteLLM 兼容接口 ====================
+    // ==================== Python LiteLLM Compatible Interface ====================
 
     fn get_supported_openai_params(&self, model: &str) -> &'static [&'static str] {
         self.client.get_supported_openai_params(model)

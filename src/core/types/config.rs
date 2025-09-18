@@ -29,13 +29,13 @@ pub struct LiteLLMConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServerConfig {
-    /// 监听地址
+    /// Listen address
     pub host: String,
 
-    /// 监听端口
+    /// Listen port
     pub port: u16,
 
-    /// 工作线程数
+    /// Worker thread count
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workers: Option<usize>,
 
@@ -51,7 +51,7 @@ pub struct ServerConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tls: Option<TlsConfig>,
 
-    /// 启用的功能
+    /// Enabled features
     #[serde(default)]
     pub features: Vec<String>,
 }
@@ -59,13 +59,13 @@ pub struct ServerConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TlsConfig {
-    /// 证书文件路径
+    /// Certificate file path
     pub cert_file: String,
 
-    /// 私钥文件路径
+    /// Private key file path
     pub key_file: String,
 
-    /// enabled HTTP/2
+    /// Enabled HTTP/2
     #[serde(default)]
     pub http2: bool,
 }
@@ -73,24 +73,24 @@ pub struct TlsConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProviderConfigEntry {
-    /// Provider 名称（唯一标识）
+    /// Provider name (unique identifier)
     pub name: String,
 
-    /// Provider 类型
+    /// Provider type
     pub provider_type: String,
 
-    /// enabled
+    /// Enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// 路由权重 (0.0-1.0)
+    /// Routing weight (0.0-1.0)
     #[serde(default = "default_weight")]
     pub weight: f64,
 
     /// Configuration
     pub config: serde_json::Value,
 
-    /// 标签（用于路由和过滤）
+    /// Labels (for routing and filtering)
     #[serde(default)]
     pub tags: HashMap<String, String>,
 
@@ -110,14 +110,14 @@ pub struct ProviderConfigEntry {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OpenAIProviderConfig {
-    /// API 密钥
+    /// API key
     pub api_key: String,
 
-    /// API 基础 URL
+    /// API base URL
     #[serde(skip_serializing_if = "Option::is_none")]
     pub api_base: Option<String>,
 
-    /// 组织 ID
+    /// Organization ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub organization: Option<String>,
 
@@ -133,7 +133,7 @@ pub struct OpenAIProviderConfig {
     #[serde(default)]
     pub models: Vec<String>,
 
-    /// 自定义头部
+    /// Custom headers
     #[serde(default)]
     pub headers: HashMap<String, String>,
 }
@@ -177,7 +177,7 @@ impl crate::core::traits::ProviderConfig for OpenAIProviderConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoutingConfig {
-    /// 路由策略
+    /// Routing strategy
     pub strategy: RoutingStrategyConfig,
 
     /// Configuration
@@ -195,74 +195,74 @@ pub struct RoutingConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum RoutingStrategyConfig {
-    /// 轮询策略
+    /// Round robin strategy
     #[serde(rename = "round_robin")]
     RoundRobin,
 
-    /// 最少负载策略
+    /// Least load strategy
     #[serde(rename = "least_loaded")]
     LeastLoaded,
 
-    /// 成本优化策略
+    /// Cost optimization strategy
     #[serde(rename = "cost_optimized")]
     CostOptimized {
-        /// 性能权重 (0.0-1.0)
+        /// Performance weight (0.0-1.0)
         performance_weight: f32,
     },
 
-    /// 延迟优化策略
+    /// Latency optimization strategy
     #[serde(rename = "latency_based")]
     LatencyBased {
-        /// 延迟阈值（milliseconds）
+        /// Latency threshold (milliseconds)
         latency_threshold_ms: u64,
     },
 
-    /// 标签路由策略
+    /// Tag-based routing strategy
     #[serde(rename = "tag_based")]
     TagBased {
-        /// 标签选择器
+        /// tag selectors
         selectors: Vec<TagSelector>,
     },
 
-    /// 自定义策略
+    /// Custom strategy
     #[serde(rename = "custom")]
     Custom {
-        /// 策略类名
+        /// Strategy class name
         class: String,
         /// Configuration
         config: serde_json::Value,
     },
 }
 
-/// 标签选择器
+/// tag selectors
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TagSelector {
-    /// 标签键
+    /// Tag key
     pub key: String,
 
-    /// 标签值（支持通配符）
+    /// Tag value (supports wildcards)
     pub value: String,
 
-    /// 操作符
+    /// Operator
     #[serde(default)]
     pub operator: TagOperator,
 }
 
-/// 标签操作符
+/// Tag operator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TagOperator {
-    /// etc于
+    /// Equals
     Eq,
-    /// 不etc于
+    /// Not equals
     Ne,
-    /// 包含
+    /// Contains
     In,
-    /// 不包含
+    /// Not contains
     NotIn,
-    /// 存在
+    /// Exists
     Exists,
-    /// 不存在
+    /// Not exists
     NotExists,
 }
 
@@ -279,15 +279,15 @@ pub struct HealthCheckConfig {
     #[serde(default = "default_health_check_interval")]
     pub interval_seconds: u64,
 
-    /// 超时时间（seconds）
+    /// Timeout duration（seconds）
     #[serde(default = "default_health_check_timeout")]
     pub timeout_seconds: u64,
 
-    /// 健康阈值（连续成功次数）
+    /// Health threshold（consecutive successes）
     #[serde(default = "default_health_threshold")]
     pub healthy_threshold: u32,
 
-    /// 不健康阈值（连续失败次数）
+    /// Unhealthy threshold (consecutive failures)
     #[serde(default = "default_unhealthy_threshold")]
     pub unhealthy_threshold: u32,
 
@@ -295,7 +295,7 @@ pub struct HealthCheckConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub endpoint: Option<String>,
 
-    /// enabled
+    /// Enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -303,11 +303,11 @@ pub struct HealthCheckConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CircuitBreakerConfig {
-    /// 失败阈值
+    /// Failure threshold
     #[serde(default = "default_failure_threshold")]
     pub failure_threshold: u32,
 
-    /// 恢复超时时间（seconds）
+    /// Recovery timeout (seconds)
     #[serde(default = "default_recovery_timeout")]
     pub recovery_timeout_seconds: u64,
 
@@ -315,7 +315,7 @@ pub struct CircuitBreakerConfig {
     #[serde(default = "default_half_open_requests")]
     pub half_open_max_requests: u32,
 
-    /// enabled
+    /// Enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -323,7 +323,7 @@ pub struct CircuitBreakerConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadBalancerConfig {
-    /// 算法类型
+    /// Algorithm type
     pub algorithm: LoadBalancerAlgorithm,
 
     /// Configuration
@@ -331,40 +331,40 @@ pub struct LoadBalancerConfig {
     pub session_affinity: Option<SessionAffinityConfig>,
 }
 
-/// 负载均衡算法
+/// Load balancer algorithm
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LoadBalancerAlgorithm {
-    /// 轮询
+    /// Round robin
     RoundRobin,
-    /// 加权轮询
+    /// Weighted round robin
     WeightedRoundRobin,
     /// Connection
     LeastConnections,
-    /// 一致性哈希
+    /// Consistent hash
     ConsistentHash,
 }
 
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionAffinityConfig {
-    /// 粘性类型
+    /// Affinity type
     pub affinity_type: SessionAffinityType,
 
-    /// 超时时间（seconds）
+    /// Timeout duration（seconds）
     #[serde(default = "default_session_timeout")]
     pub timeout_seconds: u64,
 }
 
-/// 会话粘性类型
+/// Session affinity type
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum SessionAffinityType {
-    /// 基于客户端 IP
+    /// Based on client IP
     ClientIp,
-    /// 基于用户 ID
+    /// Based on user ID
     UserId,
-    /// 基于自定义头部
+    /// Based on custom header
     CustomHeader { header_name: String },
 }
 
@@ -375,19 +375,19 @@ pub struct RetryConfig {
     #[serde(default = "default_max_retries")]
     pub max_retries: u32,
 
-    /// 初始延迟（milliseconds）
+    /// Initial delay（milliseconds）
     #[serde(default = "default_initial_delay_ms")]
     pub initial_delay_ms: u64,
 
-    /// maximum延迟（milliseconds）
+    /// Maximum delay (milliseconds)
     #[serde(default = "default_max_delay_ms")]
     pub max_delay_ms: u64,
 
-    /// 是否usage指数退避
+    /// Use exponential backoff
     #[serde(default = "default_true")]
     pub exponential_backoff: bool,
 
-    /// 是否添加随机抖动
+    /// Add random jitter
     #[serde(default = "default_true")]
     pub jitter: bool,
 
@@ -399,7 +399,7 @@ pub struct RetryConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RateLimitConfig {
-    /// 算法类型
+    /// Algorithm type
     pub algorithm: RateLimitAlgorithm,
 
     /// Request
@@ -410,24 +410,24 @@ pub struct RateLimitConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub requests_per_minute: Option<u32>,
 
-    /// Token 速率限制（每分钟）
+    /// Token rate limit (per minute)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tokens_per_minute: Option<u32>,
 
-    /// 突发限制
+    /// Burst limit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub burst_size: Option<u32>,
 }
 
-/// 速率限制算法
+/// Rate limit algorithm
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RateLimitAlgorithm {
-    /// 令牌桶
+    /// Token bucket
     TokenBucket,
-    /// 滑动窗口
+    /// Sliding window
     SlidingWindow,
-    /// 固定窗口
+    /// Fixed window
     FixedWindow,
 }
 
@@ -459,10 +459,10 @@ pub struct MiddlewareConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum CacheConfig {
-    /// 内存cache
+    /// Memory cache
     #[serde(rename = "memory")]
     Memory {
-        /// maximum大小
+        /// Maximum size
         max_size: usize,
         /// TTL（seconds）
         #[serde(with = "duration_serde")]
@@ -482,7 +482,7 @@ pub enum CacheConfig {
         pool_size: u32,
     },
 
-    /// 分层cache
+    /// Layered cache
     #[serde(rename = "tiered")]
     Tiered {
         /// L1 cache
@@ -497,7 +497,7 @@ pub enum CacheConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
-    /// 启用的认证方式
+    /// Enabled authentication methods
     pub methods: Vec<AuthMethod>,
 
     /// Configuration
@@ -509,7 +509,7 @@ pub struct AuthConfig {
     pub api_key: Option<ApiKeyConfig>,
 }
 
-/// 认证方式
+/// Authentication methods
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AuthMethod {
@@ -519,29 +519,29 @@ pub enum AuthMethod {
     ApiKey,
     /// Basic Auth
     Basic,
-    /// 自定义认证
+    /// Custom authentication
     Custom { handler: String },
 }
 
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
-    /// 签名密钥
+    /// Signing key
     pub secret: String,
 
-    /// 算法
+    /// Algorithm
     #[serde(default = "default_jwt_algorithm")]
     pub algorithm: String,
 
-    /// 过期时间（seconds）
+    /// Expiration time (seconds)
     #[serde(default = "default_jwt_expiration")]
     pub expiration_seconds: u64,
 
-    /// 发行人
+    /// Issuer
     #[serde(skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
 
-    /// 受众
+    /// Audience
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audience: Option<String>,
 }
@@ -549,15 +549,15 @@ pub struct JwtConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKeyConfig {
-    /// 头部名称
+    /// Header name
     #[serde(default = "default_api_key_header")]
     pub header_name: String,
 
-    /// 前缀
+    /// Prefix
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prefix: Option<String>,
 
-    /// 有效的 API 密钥列表
+    /// Valid API key list
     #[serde(default)]
     pub valid_keys: Vec<String>,
 }
@@ -565,22 +565,22 @@ pub struct ApiKeyConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CorsConfig {
-    /// 允许的源
+    /// Allowed origins
     pub allowed_origins: Vec<String>,
 
-    /// 允许的方法
+    /// Allowed methods
     #[serde(default = "default_cors_methods")]
     pub allowed_methods: Vec<String>,
 
-    /// 允许的头部
+    /// Allowed headers
     #[serde(default = "default_cors_headers")]
     pub allowed_headers: Vec<String>,
 
-    /// 是否允许凭证
+    /// Allow credentials
     #[serde(default)]
     pub allow_credentials: bool,
 
-    /// maximum年龄（seconds）
+    /// Maximum age (seconds)
     #[serde(default = "default_cors_max_age")]
     pub max_age_seconds: u64,
 }
@@ -604,15 +604,15 @@ pub struct ObservabilityConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricsConfig {
-    /// enabled
+    /// Enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// 端点路径
+    /// Endpoint path
     #[serde(default = "default_metrics_endpoint")]
     pub endpoint: String,
 
-    /// 收集间隔（seconds）
+    /// Collection interval (seconds)
     #[serde(default = "default_metrics_interval")]
     pub interval_seconds: u64,
 }
@@ -620,11 +620,11 @@ pub struct MetricsConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TracingConfig {
-    /// enabled
+    /// Enabled
     #[serde(default = "default_true")]
     pub enabled: bool,
 
-    /// 采样率 (0.0-1.0)
+    /// Sampling rate (0.0-1.0)
     #[serde(default = "default_sampling_rate")]
     pub sampling_rate: f64,
 
@@ -636,52 +636,52 @@ pub struct TracingConfig {
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JaegerConfig {
-    /// Agent 端点
+    /// Agent endpoint
     pub agent_endpoint: String,
 
-    /// 服务名称
+    /// Service name
     pub service_name: String,
 }
 
 /// Configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoggingConfig {
-    /// 日志级别
+    /// Log level
     #[serde(default = "default_log_level")]
     pub level: String,
 
-    /// outputformat
+    /// Output format
     #[serde(default = "default_log_format")]
     pub format: LogFormat,
 
-    /// output目标
+    /// Output target
     #[serde(default)]
     pub outputs: Vec<LogOutput>,
 }
 
-/// 日志format
+/// Log format
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum LogFormat {
-    /// 纯文本
+    /// Plain text
     Text,
     /// JSON format
     Json,
-    /// 结构化format
+    /// Structured format
     Structured,
 }
 
-/// 日志output
+/// Log output
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum LogOutput {
-    /// 控制台output
+    /// Console output
     #[serde(rename = "console")]
     Console,
-    /// 文件output
+    /// File output
     #[serde(rename = "file")]
     File { path: String },
-    /// 系统日志
+    /// System log
     #[serde(rename = "syslog")]
     Syslog { facility: String },
 }
@@ -771,7 +771,7 @@ fn default_log_format() -> LogFormat {
     LogFormat::Json
 }
 
-// Duration 序列化模块
+// Duration serialization module
 mod duration_serde {
     use serde::{Deserialize, Deserializer, Serializer};
     use std::time::Duration;

@@ -1,6 +1,6 @@
 //! Types
 //!
-//! 定义系统中usage的通用数据结构和枚举
+//! Defines common data structures and enums used in the system
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,25 +14,25 @@ pub struct RequestContext {
     /// Request
     pub request_id: String,
 
-    /// 用户 ID
+    /// User ID
     pub user_id: Option<String>,
 
-    /// 客户端 IP
+    /// Client IP
     pub client_ip: Option<String>,
 
-    /// 用户代理
+    /// User agent
     pub user_agent: Option<String>,
 
-    /// 自定义头部
+    /// Custom headers
     pub headers: HashMap<String, String>,
 
-    /// 开始时间
+    /// Start time
     pub start_time: SystemTime,
 
-    /// 额外的元数据
+    /// Extra metadata
     pub metadata: HashMap<String, serde_json::Value>,
 
-    /// 追踪 ID（用于分布式追踪）
+    /// Trace ID (for distributed tracing)
     pub trace_id: Option<String>,
 
     /// Span ID
@@ -60,7 +60,7 @@ impl Default for RequestContext {
 }
 
 impl RequestContext {
-    /// Create
+    /// Created at
     pub fn new() -> Self {
         Self::default()
     }
@@ -83,13 +83,13 @@ impl RequestContext {
         self
     }
 
-    /// 添加头部
+    /// Add header
     pub fn with_header(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.headers.insert(key.into(), value.into());
         self
     }
 
-    /// 添加元数据
+    /// Add metadata
     pub fn with_metadata(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
         self.metadata.insert(key.into(), value);
         self
@@ -107,41 +107,41 @@ impl RequestContext {
     }
 }
 
-/// Provider 能力枚举
+/// Provider capability enum
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProviderCapability {
-    /// 聊天完成
+    /// Chat completion
     ChatCompletion,
-    /// 流式聊天完成
+    /// Streaming chat completion
     ChatCompletionStream,
-    /// 嵌入生成
+    /// Embeddings generation
     Embeddings,
-    /// 图像生成
+    /// Image generation
     ImageGeneration,
-    /// 图像编辑
+    /// Image editing
     ImageEdit,
-    /// 图像变化
+    /// Image variation
     ImageVariation,
-    /// 音频转录
+    /// Audio transcription
     AudioTranscription,
-    /// 音频翻译
+    /// Audio translation
     AudioTranslation,
-    /// 语音合成
+    /// Text to speech
     TextToSpeech,
-    /// tool_call
+    /// Tool calling
     ToolCalling,
-    /// 函数call（向后兼容）
+    /// Function calling (backward compatibility)
     FunctionCalling,
-    /// 代码执行
+    /// Code execution
     CodeExecution,
-    /// 文件上传
+    /// File upload
     FileUpload,
-    /// 微调
+    /// Fine-tuning
     FineTuning,
     /// Handle
     BatchProcessing,
-    /// 实时 API
+    /// Real-time API
     RealtimeApi,
 }
 
@@ -154,43 +154,43 @@ pub struct ModelInfo {
     /// Model
     pub name: String,
 
-    /// 提供商
+    /// Provider
     pub provider: String,
 
-    /// maximum上下文长度
+    /// Maximum context length
     pub max_context_length: u32,
 
-    /// maximumoutput长度
+    /// Maximum output length
     pub max_output_length: Option<u32>,
 
-    /// 是否支持流式
+    /// Supports streaming
     pub supports_streaming: bool,
 
-    /// 是否支持tool_call
+    /// Supports tool calling
     pub supports_tools: bool,
 
-    /// 是否支持多模态
+    /// Supports multimodal
     pub supports_multimodal: bool,
 
-    /// input价格（每 1K token）
+    /// Input price (per 1K tokens)
     pub input_cost_per_1k_tokens: Option<f64>,
 
-    /// output价格（每 1K token）
+    /// Output price (per 1K tokens)
     pub output_cost_per_1k_tokens: Option<f64>,
 
-    /// 货币单位
+    /// Currency unit
     pub currency: String,
 
-    /// 支持的功能
+    /// Supported features
     pub capabilities: Vec<ProviderCapability>,
 
-    /// Create
+    /// Created at
     pub created_at: Option<SystemTime>,
 
-    /// Update
+    /// Updated at
     pub updated_at: Option<SystemTime>,
 
-    /// 额外的元数据
+    /// Extra metadata
     pub metadata: HashMap<String, serde_json::Value>,
 }
 
@@ -216,17 +216,17 @@ impl Default for ModelInfo {
     }
 }
 
-/// 健康状态
+/// Health status
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HealthStatus {
-    /// 健康
+    /// Healthy
     Healthy,
-    /// 不健康
+    /// Unhealthy
     Unhealthy,
-    /// 未知状态
+    /// Unknown status
     Unknown,
-    /// 降级服务
+    /// Degraded service
     Degraded,
 }
 
@@ -239,19 +239,19 @@ impl Default for HealthStatus {
 /// Check
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthCheckResult {
-    /// 状态
+    /// Status
     pub status: HealthStatus,
 
     /// Check
     pub checked_at: SystemTime,
 
-    /// 延迟（milliseconds）
+    /// Latency (milliseconds)
     pub latency_ms: Option<u64>,
 
     /// Error
     pub error: Option<String>,
 
-    /// 额外的详情
+    /// Extra details
     pub details: HashMap<String, serde_json::Value>,
 }
 
@@ -267,65 +267,65 @@ impl Default for HealthCheckResult {
     }
 }
 
-/// 指标数据点
+/// Metric data point
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricDataPoint {
-    /// 指标名称
+    /// Metric name
     pub name: String,
 
-    /// 指标值
+    /// Metric value
     pub value: f64,
 
-    /// 标签
+    /// Labels
     pub labels: HashMap<String, String>,
 
-    /// 时间戳
+    /// Timestamp
     pub timestamp: SystemTime,
 }
 
-/// 指标类型
+/// Metric type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum MetricType {
-    /// 计数器
+    /// Counter
     Counter,
-    /// 仪表盘
+    /// Gauge
     Gauge,
-    /// 直方图
+    /// Histogram
     Histogram,
-    /// 摘要
+    /// Summary
     Summary,
 }
 
-/// 指标定义
+/// Metric definition
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MetricDefinition {
-    /// 指标名称
+    /// Metric name
     pub name: String,
 
-    /// 指标类型
+    /// Metric type
     pub metric_type: MetricType,
 
-    /// 描述
+    /// Description
     pub description: String,
 
-    /// 单位
+    /// Unit
     pub unit: Option<String>,
 
-    /// 标签
+    /// Labels
     pub labels: Vec<String>,
 }
 
-/// cache键类型
+/// Cache key type
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CacheKey {
-    /// cache类型
+    /// Cache type
     pub cache_type: String,
 
-    /// 键值
+    /// Key value
     pub key: String,
 
-    /// 额外的标识符
+    /// Extra identifiers
     pub identifiers: HashMap<String, String>,
 }
 
@@ -373,7 +373,7 @@ impl std::fmt::Display for CacheKey {
 pub enum ApiVersion {
     /// v1 version
     V1,
-    /// v2 version（未来扩展）
+    /// v2 version (future extension)
     V2,
 }
 
@@ -392,19 +392,19 @@ impl std::fmt::Display for ApiVersion {
     }
 }
 
-/// 服务状态
+/// Service status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceStatus {
-    /// 服务名称
+    /// Service name
     pub name: String,
 
     /// version
     pub version: String,
 
-    /// 状态
+    /// Status
     pub status: HealthStatus,
 
-    /// 启动时间
+    /// Start time
     pub uptime: SystemTime,
 
     /// Connection
@@ -419,26 +419,26 @@ pub struct ServiceStatus {
     /// Response
     pub avg_response_time_ms: f64,
 
-    /// 内存usage（字节）
+    /// Memory usage (bytes)
     pub memory_usage_bytes: u64,
 
-    /// CPU usage率（百分比）
+    /// CPU usage rate (percentage)
     pub cpu_usage_percent: f64,
 }
 
-/// 分页parameter
+/// Pagination parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Pagination {
-    /// 页码（从 1 开始）
+    /// Page number (starts from 1)
     pub page: u32,
 
-    /// 每页大小
+    /// Page size
     pub per_page: u32,
 
-    /// 总数
+    /// Total count
     pub total: Option<u64>,
 
-    /// 总页数
+    /// Total pages
     pub total_pages: Option<u32>,
 }
 
@@ -454,7 +454,7 @@ impl Default for Pagination {
 }
 
 impl Pagination {
-    /// 计算偏移量
+    /// Calculate offset
     pub fn offset(&self) -> u32 {
         (self.page - 1) * self.per_page
     }
@@ -467,23 +467,23 @@ impl Pagination {
     }
 }
 
-/// 排序parameter
+/// Sort parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SortOrder {
-    /// 排序字段
+    /// Sort field
     pub field: String,
 
-    /// 排序方向
+    /// Sort direction
     pub direction: SortDirection,
 }
 
-/// 排序方向
+/// Sort direction
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SortDirection {
-    /// 升序
+    /// Ascending
     Asc,
-    /// 降序
+    /// Descending
     Desc,
 }
 
@@ -493,51 +493,51 @@ impl Default for SortDirection {
     }
 }
 
-/// 过滤条件
+/// Filter criteria
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Filter {
-    /// 字段名
+    /// Field name
     pub field: String,
 
-    /// 操作符
+    /// Operator
     pub operator: FilterOperator,
 
-    /// 值
+    /// Value
     pub value: serde_json::Value,
 }
 
-/// 过滤操作符
+/// Filter operator
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilterOperator {
-    /// etc于
+    /// Equals
     Eq,
-    /// 不etc于
+    /// Not equals
     Ne,
-    /// 大于
+    /// Greater than
     Gt,
-    /// 大于etc于
+    /// Greater than or equal
     Gte,
-    /// 小于
+    /// Less than
     Lt,
-    /// 小于etc于
+    /// Less than or equal
     Lte,
-    /// 包含
+    /// Contains
     Contains,
-    /// 不包含
+    /// Not contains
     NotContains,
-    /// 在列表中
+    /// In list
     In,
-    /// 不在列表中
+    /// Not in list
     NotIn,
-    /// 以...开始
+    /// Starts with
     StartsWith,
-    /// 以...结束
+    /// Ends with
     EndsWith,
-    /// 正则匹配
+    /// Regex match
     Regex,
-    /// 为空
+    /// Is null
     IsNull,
-    /// 不为空
+    /// Is not null
     IsNotNull,
 }

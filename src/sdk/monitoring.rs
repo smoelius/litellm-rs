@@ -1,6 +1,6 @@
-//! SDK监控系统（简化版）
+//! SDK monitoring system (simplified version)
 
-/// 监控接口（占位符）
+/// Monitoring interface (placeholder)
 #[derive(Debug, Default)]
 pub struct Monitor;
 

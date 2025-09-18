@@ -1,6 +1,6 @@
-//! SDKcache系统（简化版）
+//! SDK cache system (simplified version)
 
-/// cache接口（占位符）
+/// Cache interface (placeholder)
 #[derive(Debug, Default)]
 pub struct Cache;
 
