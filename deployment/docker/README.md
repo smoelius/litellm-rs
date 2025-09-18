@@ -1,96 +1,85 @@
-# LiteLLM-RS Docker Deployment
+# Docker Build for LiteLLM-RS
 
-Docker files for building and running LiteLLM-RS.
+This directory contains Docker build files and scripts for the LiteLLM-RS gateway.
 
-## 🚀 Quick Start
+## Build Issues and Solutions
 
-```bash
-# Build the image
-./deployment/docker/build.sh
+### CMAKE Missing Error
 
-# Run the container
-docker run -p 8000:8000 litellm-rs:latest
+If you encounter the following error during Docker builds:
+
+```
+Missing dependency: cmake
+thread 'main' panicked at .../aws-lc-sys-0.31.0/builder/main.rs:463:40:
+called `Result::unwrap()` on an `Err` value: "Required build dependency is missing. Halting build."
 ```
 
-## 🛠️ Build Options
+This happens because the `aws-lc-sys` crate (used by `rustls` for TLS support) requires cmake and other build tools for compilation.
 
-```bash
-# Custom tag
-./deployment/docker/build.sh -t v1.0.0
+### Solution
 
-# Custom image name
-./deployment/docker/build.sh -n my-litellm
+The Dockerfile has been updated to include all necessary build dependencies:
 
-# Using environment variables
-IMAGE_TAG=dev ./deployment/docker/build.sh
-```
-
-## 🔧 Configuration
+- `cmake` - Required by aws-lc-sys
+- `build-essential` - C/C++ compilation tools
+- `clang` and `llvm` - Modern C/C++ compiler
+- `gcc-arm-linux-gnueabihf` - ARM cross-compilation support
+- `libc6-dev-armhf-cross` - ARM development headers
 
 ### Environment Variables
 
-```bash
-docker run -p 8000:8000 \
-  -e OPENAI_API_KEY=sk-... \
-  -e ANTHROPIC_API_KEY=sk-ant-... \
-  -e DATABASE_URL=postgresql://... \
-  -e REDIS_URL=redis://... \
-  litellm-rs:latest
-```
-
-### Volume Mounts
+The following environment variables are set for proper compilation:
 
 ```bash
-# Mount configuration
-docker run -p 8000:8000 \
-  -v $(pwd)/config:/app/config \
-  litellm-rs:latest
-
-# Mount data directory
-docker run -p 8000:8000 \
-  -v litellm_data:/app/data \
-  litellm-rs:latest
+CMAKE=cmake
+CC=clang
+CXX=clang++
+CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc
+PKG_CONFIG_ALLOW_CROSS=1
 ```
 
-## 📁 Files
+### Files
 
-- `Dockerfile` - Multi-stage build definition
-- `.dockerignore` - Build context exclusions
-- `build.sh` - Automated build script
-- `README.md` - This documentation
+- `Dockerfile` - Main multi-stage Dockerfile for all architectures
+- `Dockerfile.arm` - ARM-specific Dockerfile with enhanced dependencies
+- `build.sh` - Build script with error handling and cleanup
+- `.dockerignore` - Files to exclude from Docker context
 
-## 🐳 Docker Compose Example
-
-```yaml
-version: '3.8'
-services:
-  litellm:
-    image: litellm-rs:latest
-    ports:
-      - "8000:8000"
-      - "9090:9090"
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DATABASE_URL=postgresql://user:pass@postgres:5432/litellm
-    volumes:
-      - ./config:/app/config
-    depends_on:
-      - postgres
-
-  postgres:
-    image: postgres:15
-    environment:
-      - POSTGRES_DB=litellm
-      - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=pass
-```
-
-## 🔍 Health Check
+### Usage
 
 ```bash
-# Check container health
-curl http://localhost:8000/health
+# Build for current architecture
+./deployment/docker/build.sh
 
-# View metrics
-curl http://localhost:9090/metrics
+# Build with custom tag
+./deployment/docker/build.sh -t v1.0.0
+
+# Use ARM-specific Dockerfile
+docker build -f deployment/docker/Dockerfile.arm -t litellm-rs:arm .
 ```
+
+### Dependency Chain
+
+The cmake requirement comes from this dependency chain:
+
+```
+litellm-rs -> rustls -> aws-lc-rs -> aws-lc-sys (requires cmake)
+```
+
+This is a common pattern in Rust applications that use TLS/SSL functionality.
+
+### Troubleshooting
+
+1. **Build fails on ARM platforms**: Use `Dockerfile.arm` which includes additional ARM cross-compilation tools
+2. **Permission errors**: Ensure Docker has proper permissions and the daemon is running
+3. **Out of space**: The build process can be large, ensure sufficient disk space (2GB+ recommended)
+4. **Network issues**: Some dependencies are downloaded during build, ensure internet connectivity
+
+### GitHub Actions
+
+The CI/CD pipeline automatically builds for multiple architectures including:
+- `linux/amd64`
+- `linux/arm64`
+- `linux/arm/v7`
+
+The enhanced Dockerfile should resolve cmake-related build failures across all platforms.
