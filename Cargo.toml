@@ -1,6 +1,6 @@
 [package]
 name = "litellm-rs"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 rust-version = "1.87"
 authors = ["lifcc"]
@@ -182,6 +182,7 @@ full = ["postgres", "redis", "s3", "metrics", "tracing", "vector-db", "websocket
 # Metadata
 [package.metadata.docs.rs]
 # Exclude vector-db feature because qdrant-client fails on docs.rs read-only filesystem
+all-features = false
 features = ["postgres", "sqlite", "redis", "s3", "metrics", "tracing", "websockets", "analytics"]
 rustdoc-args = ["--cfg", "docsrs"]
 
