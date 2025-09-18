@@ -28,7 +28,6 @@ RUN rm src/main.rs
 # Copy source code
 COPY src ./src
 COPY config ./config
-COPY migrations ./migrations
 
 # Build the application
 RUN cargo build --release --features "postgres sqlite redis s3 metrics tracing websockets analytics"
@@ -54,9 +53,8 @@ WORKDIR /app
 COPY --from=builder /app/target/release/gateway /usr/local/bin/gateway
 COPY --from=builder /app/target/release/google-gateway /usr/local/bin/google-gateway
 
-# Copy configuration and migration files
+# Copy configuration files
 COPY --from=builder /app/config ./config
-COPY --from=builder /app/migrations ./migrations
 
 # Create data directory
 RUN mkdir -p /app/data && chown -R appuser:appuser /app
