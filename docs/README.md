@@ -93,18 +93,6 @@ make build            # Build release binary
 make docker           # Build Docker image
 ```
 
-## 📋 Feature Comparison
-
-| Feature | Python LiteLLM | LiteLLM-RS |
-|---------|---------------|------------|
-| **Performance** | ~100 req/s | ~10,000 req/s |
-| **Memory Usage** | ~100MB | ~10MB |
-| **Type Safety** | Runtime | Compile-time |
-| **Providers** | 100+ | 100+ |
-| **OpenAI Compat** | ✅ | ✅ |
-| **Streaming** | ✅ | ✅ |
-| **Enterprise** | ✅ | ✅ |
-
 ## 🤝 Contributing
 
 1. Read the [Provider Implementation Guide](./architecture/provider-implementation.md)
