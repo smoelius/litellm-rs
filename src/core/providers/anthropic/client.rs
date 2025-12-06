@@ -138,8 +138,8 @@ impl AnthropicClient {
 
         // Authentication header
         if let Some(ref api_key) = self.config.api_key {
-            if let Ok(auth_header) = format!("Bearer {}", api_key).parse() {
-                headers.insert("Authorization", auth_header);
+            if let Ok(api_key_header) = api_key.parse() {
+                headers.insert("x-api-key", api_key_header);
             }
         }
 
