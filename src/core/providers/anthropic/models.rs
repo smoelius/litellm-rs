@@ -123,6 +123,59 @@ impl AnthropicModelRegistry {
 
     /// Initialize model registry
     fn initialize_models(&mut self) {
+        // Claude Opus 4.5
+        self.register_model(
+            "claude-opus-4-5-20251101",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "claude-opus-4-5-20251101".to_string(),
+                    name: "Claude Opus 4.5".to_string(),
+                    provider: "anthropic".to_string(),
+                    max_context_length: 200_000,
+                    max_output_length: Some(16_384),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.015),
+                    output_cost_per_1k_tokens: Some(0.075),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: AnthropicModelFamily::Claude3Opus,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::CacheControl,
+                    ModelFeature::SystemMessages,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::ThinkingMode,
+                ],
+                pricing: ModelPricing {
+                    input_price: 15.0,
+                    output_price: 75.0,
+                    cache_write_price: Some(18.75),
+                    cache_read_price: Some(1.50),
+                    batch_discount: Some(0.5),
+                },
+                limits: ModelLimits {
+                    max_context_length: 200_000,
+                    max_output_tokens: 16_384,
+                    max_images: Some(20),
+                    max_document_size_mb: Some(32),
+                },
+                config: ModelConfig::default(),
+            },
+        );
+
         // Claude 3.5 Sonnet
         self.register_model(
             "claude-3-5-sonnet-20241022",
