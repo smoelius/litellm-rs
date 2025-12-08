@@ -13,12 +13,14 @@ pub mod cost; // Unified cost calculation system
 // pub mod function_calling; // Temporarily disabled
 pub mod models;
 pub mod providers;
+pub mod rate_limiter; // Rate limiting system
 pub mod router;
 pub mod security;
 pub mod semantic_cache;
 pub mod streaming;
 pub mod traits;
 pub mod types;
+// pub mod virtual_keys; // TODO: Enable when database methods are implemented
 pub mod webhooks;
 
 // Re-export commonly used types

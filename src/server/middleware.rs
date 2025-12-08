@@ -203,7 +203,31 @@ pub fn get_request_context(req: &HttpRequest) -> Result<RequestContext, actix_we
 }
 
 /// Rate limiting middleware for Actix-web
-pub struct RateLimitMiddleware;
+pub struct RateLimitMiddleware {
+    limiter: Option<Arc<crate::core::rate_limiter::RateLimiter>>,
+}
+
+impl RateLimitMiddleware {
+    /// Create a new rate limit middleware
+    pub fn new(limiter: Arc<crate::core::rate_limiter::RateLimiter>) -> Self {
+        Self {
+            limiter: Some(limiter),
+        }
+    }
+
+    /// Create with global rate limiter
+    pub fn global() -> Self {
+        Self {
+            limiter: crate::core::rate_limiter::get_global_rate_limiter(),
+        }
+    }
+}
+
+impl Default for RateLimitMiddleware {
+    fn default() -> Self {
+        Self::global()
+    }
+}
 
 impl<S, B> Transform<S, ServiceRequest> for RateLimitMiddleware
 where
@@ -218,13 +242,17 @@ where
     type Future = Ready<Result<Self::Transform, Self::InitError>>;
 
     fn new_transform(&self, service: S) -> Self::Future {
-        ready(Ok(RateLimitMiddlewareService { service }))
+        ready(Ok(RateLimitMiddlewareService {
+            service,
+            limiter: self.limiter.clone(),
+        }))
     }
 }
 
 /// Service implementation for rate limiting middleware
 pub struct RateLimitMiddlewareService<S> {
     service: S,
+    limiter: Option<Arc<crate::core::rate_limiter::RateLimiter>>,
 }
 
 impl<S, B> Service<ServiceRequest> for RateLimitMiddlewareService<S>
@@ -247,7 +275,7 @@ where
             .unwrap_or("unknown")
             .to_string();
 
-        // Skip rate limiting for health checks
+        // Skip rate limiting for health checks and metrics
         if path == "/health" || path == "/metrics" {
             let fut = self.service.call(req);
             return Box::pin(async move {
@@ -256,14 +284,75 @@ where
             });
         }
 
-        // TODO: Implement rate limiting logic
-        // For now, just pass through
-        debug!("Rate limiting check for {} from {}", path, client_ip);
+        // Get rate limiter
+        let limiter = self.limiter.clone();
+
+        // Extract API key for per-key rate limiting (prefer over IP)
+        let rate_limit_key = req
+            .headers()
+            .get("x-api-key")
+            .or_else(|| req.headers().get("authorization"))
+            .and_then(|h| h.to_str().ok())
+            .map(|s| {
+                // Hash the key for privacy
+                use std::hash::{Hash, Hasher};
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                s.hash(&mut hasher);
+                format!("key:{:x}", hasher.finish())
+            })
+            .unwrap_or_else(|| format!("ip:{}", client_ip));
+
+        debug!("Rate limiting check for {} (key: {})", path, rate_limit_key);
 
         let fut = self.service.call(req);
         Box::pin(async move {
-            let res = fut.await?;
-            Ok(res)
+            // Check rate limit
+            if let Some(limiter) = limiter {
+                let result = limiter.check(&rate_limit_key).await;
+
+                if !result.allowed {
+                    warn!(
+                        "Rate limit exceeded for {}: {}/{} requests",
+                        rate_limit_key, result.current_count, result.limit
+                    );
+
+                    // Return 429 Too Many Requests
+                    let retry_after = result.retry_after_secs.unwrap_or(60);
+                    return Err(actix_web::error::ErrorTooManyRequests(format!(
+                        "Rate limit exceeded. Retry after {} seconds.",
+                        retry_after
+                    )));
+                }
+
+                // Record the request
+                limiter.record(&rate_limit_key).await;
+
+                // Process request and add rate limit headers to response
+                let mut res = fut.await?;
+                let headers = res.headers_mut();
+
+                headers.insert(
+                    actix_web::http::header::HeaderName::from_static("x-ratelimit-limit"),
+                    HeaderValue::from_str(&result.limit.to_string())
+                        .unwrap_or(HeaderValue::from_static("0")),
+                );
+                headers.insert(
+                    actix_web::http::header::HeaderName::from_static("x-ratelimit-remaining"),
+                    HeaderValue::from_str(&result.remaining.saturating_sub(1).to_string())
+                        .unwrap_or(HeaderValue::from_static("0")),
+                );
+                headers.insert(
+                    actix_web::http::header::HeaderName::from_static("x-ratelimit-reset"),
+                    HeaderValue::from_str(&result.reset_after_secs.to_string())
+                        .unwrap_or(HeaderValue::from_static("0")),
+                );
+
+                Ok(res)
+            } else {
+                // No rate limiter configured, pass through
+                let res = fut.await?;
+                Ok(res)
+            }
         })
     }
 }
