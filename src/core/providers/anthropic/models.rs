@@ -33,6 +33,12 @@ pub enum ModelFeature {
 /// Model
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnthropicModelFamily {
+    /// Claude Opus 4.5 models (latest flagship)
+    ClaudeOpus45,
+    /// Claude Sonnet 4.5 models (latest balanced)
+    ClaudeSonnet45,
+    /// Claude Sonnet 4 models
+    ClaudeSonnet4,
     /// Claude 3.5 Sonnet models
     Claude35Sonnet,
     /// Claude 3 Opus models
@@ -123,6 +129,220 @@ impl AnthropicModelRegistry {
 
     /// Initialize model registry
     fn initialize_models(&mut self) {
+        // Claude Opus 4.5 (Latest flagship model - November 2025)
+        self.register_model(
+            "claude-opus-4-5-20251101",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "claude-opus-4-5-20251101".to_string(),
+                    name: "Claude Opus 4.5".to_string(),
+                    provider: "anthropic".to_string(),
+                    max_context_length: 200_000,
+                    max_output_length: Some(32_000),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.015),
+                    output_cost_per_1k_tokens: Some(0.075),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: AnthropicModelFamily::ClaudeOpus45,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::CacheControl,
+                    ModelFeature::SystemMessages,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::ThinkingMode,
+                    ModelFeature::ComputerUse,
+                ],
+                pricing: ModelPricing {
+                    input_price: 15.0,
+                    output_price: 75.0,
+                    cache_write_price: Some(18.75),
+                    cache_read_price: Some(1.50),
+                    batch_discount: Some(0.5),
+                },
+                limits: ModelLimits {
+                    max_context_length: 200_000,
+                    max_output_tokens: 32_000,
+                    max_images: Some(100),
+                    max_document_size_mb: Some(100),
+                },
+                config: ModelConfig::default(),
+            },
+        );
+
+        // Claude Sonnet 4.5 (Latest balanced model - November 2025)
+        self.register_model(
+            "claude-sonnet-4-5-20251101",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "claude-sonnet-4-5-20251101".to_string(),
+                    name: "Claude Sonnet 4.5".to_string(),
+                    provider: "anthropic".to_string(),
+                    max_context_length: 200_000,
+                    max_output_length: Some(16_000),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.003),
+                    output_cost_per_1k_tokens: Some(0.015),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: AnthropicModelFamily::ClaudeSonnet45,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::CacheControl,
+                    ModelFeature::SystemMessages,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::ThinkingMode,
+                    ModelFeature::ComputerUse,
+                ],
+                pricing: ModelPricing {
+                    input_price: 3.0,
+                    output_price: 15.0,
+                    cache_write_price: Some(3.75),
+                    cache_read_price: Some(0.30),
+                    batch_discount: Some(0.5),
+                },
+                limits: ModelLimits {
+                    max_context_length: 200_000,
+                    max_output_tokens: 16_000,
+                    max_images: Some(100),
+                    max_document_size_mb: Some(100),
+                },
+                config: ModelConfig::default(),
+            },
+        );
+
+        // Claude Sonnet 4 (October 2025)
+        self.register_model(
+            "claude-sonnet-4-20251022",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "claude-sonnet-4-20251022".to_string(),
+                    name: "Claude Sonnet 4".to_string(),
+                    provider: "anthropic".to_string(),
+                    max_context_length: 200_000,
+                    max_output_length: Some(16_000),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.003),
+                    output_cost_per_1k_tokens: Some(0.015),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: AnthropicModelFamily::ClaudeSonnet4,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::CacheControl,
+                    ModelFeature::SystemMessages,
+                    ModelFeature::BatchProcessing,
+                    ModelFeature::ThinkingMode,
+                    ModelFeature::ComputerUse,
+                ],
+                pricing: ModelPricing {
+                    input_price: 3.0,
+                    output_price: 15.0,
+                    cache_write_price: Some(3.75),
+                    cache_read_price: Some(0.30),
+                    batch_discount: Some(0.5),
+                },
+                limits: ModelLimits {
+                    max_context_length: 200_000,
+                    max_output_tokens: 16_000,
+                    max_images: Some(100),
+                    max_document_size_mb: Some(100),
+                },
+                config: ModelConfig::default(),
+            },
+        );
+
+        // Claude 3.5 Haiku (October 2024)
+        self.register_model(
+            "claude-3-5-haiku-20241022",
+            ModelSpec {
+                model_info: ModelInfo {
+                    id: "claude-3-5-haiku-20241022".to_string(),
+                    name: "Claude 3.5 Haiku".to_string(),
+                    provider: "anthropic".to_string(),
+                    max_context_length: 200_000,
+                    max_output_length: Some(8_192),
+                    supports_streaming: true,
+                    supports_tools: true,
+                    supports_multimodal: true,
+                    input_cost_per_1k_tokens: Some(0.001),
+                    output_cost_per_1k_tokens: Some(0.005),
+                    currency: "USD".to_string(),
+                    capabilities: vec![
+                        crate::core::types::common::ProviderCapability::ChatCompletion,
+                        crate::core::types::common::ProviderCapability::ChatCompletionStream,
+                        crate::core::types::common::ProviderCapability::ToolCalling,
+                    ],
+                    created_at: None,
+                    updated_at: None,
+                    metadata: std::collections::HashMap::new(),
+                },
+                family: AnthropicModelFamily::Claude3Haiku,
+                features: vec![
+                    ModelFeature::MultimodalSupport,
+                    ModelFeature::ToolCalling,
+                    ModelFeature::FunctionCalling,
+                    ModelFeature::StreamingSupport,
+                    ModelFeature::CacheControl,
+                    ModelFeature::SystemMessages,
+                    ModelFeature::BatchProcessing,
+                ],
+                pricing: ModelPricing {
+                    input_price: 1.0,
+                    output_price: 5.0,
+                    cache_write_price: Some(1.25),
+                    cache_read_price: Some(0.10),
+                    batch_discount: Some(0.5),
+                },
+                limits: ModelLimits {
+                    max_context_length: 200_000,
+                    max_output_tokens: 8_192,
+                    max_images: Some(20),
+                    max_document_size_mb: Some(32),
+                },
+                config: ModelConfig::default(),
+            },
+        );
+
         // Claude 3.5 Sonnet
         self.register_model(
             "claude-3-5-sonnet-20241022",
@@ -461,8 +681,17 @@ impl AnthropicModelRegistry {
     pub fn from_model_name(model_name: &str) -> Option<AnthropicModelFamily> {
         let model_lower = model_name.to_lowercase();
 
-        if model_lower.contains("claude-3-5-sonnet") || model_lower.contains("claude-3.5-sonnet") {
+        // Check newest models first (most specific)
+        if model_lower.contains("claude-opus-4-5") || model_lower.contains("claude-opus-4.5") {
+            Some(AnthropicModelFamily::ClaudeOpus45)
+        } else if model_lower.contains("claude-sonnet-4-5") || model_lower.contains("claude-sonnet-4.5") {
+            Some(AnthropicModelFamily::ClaudeSonnet45)
+        } else if model_lower.contains("claude-sonnet-4") && !model_lower.contains("claude-sonnet-4-5") {
+            Some(AnthropicModelFamily::ClaudeSonnet4)
+        } else if model_lower.contains("claude-3-5-sonnet") || model_lower.contains("claude-3.5-sonnet") {
             Some(AnthropicModelFamily::Claude35Sonnet)
+        } else if model_lower.contains("claude-3-5-haiku") || model_lower.contains("claude-3.5-haiku") {
+            Some(AnthropicModelFamily::Claude3Haiku)
         } else if model_lower.contains("claude-3-opus") {
             Some(AnthropicModelFamily::Claude3Opus)
         } else if model_lower.contains("claude-3-sonnet") {

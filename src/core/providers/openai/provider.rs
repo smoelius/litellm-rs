@@ -349,12 +349,12 @@ mod tests {
 
         assert_eq!(
             provider.get_best_model_for_task(OpenAITask::ComplexReasoning),
-            Some("o1-preview".to_string())
+            Some("o3-mini".to_string()) // Updated to latest reasoning model
         );
 
         assert_eq!(
             provider.get_best_model_for_task(OpenAITask::CostSensitive),
-            Some("gpt-3.5-turbo".to_string())
+            Some("gpt-4o-mini".to_string()) // Updated to GPT-4O Mini
         );
     }
 

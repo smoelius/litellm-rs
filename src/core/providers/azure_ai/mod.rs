@@ -38,7 +38,7 @@ use crate::core::types::{
 };
 
 /// Main Azure AI provider following unified architecture
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AzureAIProvider {
     config: AzureAIConfig,
     chat_handler: AzureAIChatHandler,

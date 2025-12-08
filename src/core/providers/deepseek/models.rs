@@ -138,24 +138,115 @@ impl DeepSeekModelRegistry {
         config
     }
 
-    /// Default
+    /// Default models for DeepSeek
     fn add_default_models(&mut self) {
-        let default_models = vec![
+        // Model data: (id, name, context_len, output_len, input_cost, output_cost, has_reasoning)
+        let default_models: Vec<(&str, &str, u32, Option<u32>, f64, f64, bool)> = vec![
+            // DeepSeek V3 (December 2024 - Latest)
             (
                 "deepseek-chat",
-                "DeepSeek-V3.1 Non-thinking Mode",
-                128000,
-                Some(8192),
+                "DeepSeek V3",
+                128_000,
+                Some(8_192),
+                0.00014,   // $0.14/1M input (cache miss)
+                0.00028,   // $0.28/1M output
+                false,
+            ),
+            (
+                "deepseek-coder",
+                "DeepSeek Coder V3",
+                128_000,
+                Some(8_192),
+                0.00014,
+                0.00028,
+                false,
+            ),
+            // DeepSeek R1 (Reasoning - January 2025)
+            (
+                "deepseek-r1",
+                "DeepSeek R1",
+                128_000,
+                Some(64_000),
+                0.00055,   // $0.55/1M input (cache miss)
+                0.00219,   // $2.19/1M output
+                true,
+            ),
+            (
+                "deepseek-r1-lite",
+                "DeepSeek R1 Lite Preview",
+                128_000,
+                Some(32_000),
+                0.00014,   // Same as V3 pricing
+                0.00028,
+                true,
             ),
             (
                 "deepseek-reasoner",
-                "DeepSeek-V3.1 Thinking Mode",
-                128000,
-                Some(8192),
+                "DeepSeek Reasoner (R1)",
+                128_000,
+                Some(64_000),
+                0.00055,
+                0.00219,
+                true,
+            ),
+            // DeepSeek R1 Distilled Models
+            (
+                "deepseek-r1-distill-llama-70b",
+                "DeepSeek R1 Distill Llama 70B",
+                128_000,
+                Some(32_000),
+                0.00055,
+                0.00219,
+                true,
+            ),
+            (
+                "deepseek-r1-distill-qwen-32b",
+                "DeepSeek R1 Distill Qwen 32B",
+                128_000,
+                Some(32_000),
+                0.00014,
+                0.00028,
+                true,
+            ),
+            (
+                "deepseek-r1-distill-qwen-14b",
+                "DeepSeek R1 Distill Qwen 14B",
+                128_000,
+                Some(32_000),
+                0.00014,
+                0.00028,
+                true,
+            ),
+            (
+                "deepseek-r1-distill-qwen-7b",
+                "DeepSeek R1 Distill Qwen 7B",
+                128_000,
+                Some(16_000),
+                0.00014,
+                0.00028,
+                true,
+            ),
+            (
+                "deepseek-r1-distill-llama-8b",
+                "DeepSeek R1 Distill Llama 8B",
+                128_000,
+                Some(16_000),
+                0.00014,
+                0.00028,
+                true,
+            ),
+            (
+                "deepseek-r1-distill-qwen-1.5b",
+                "DeepSeek R1 Distill Qwen 1.5B",
+                128_000,
+                Some(8_000),
+                0.00014,
+                0.00028,
+                true,
             ),
         ];
 
-        for (id, name, context_len, output_len) in default_models {
+        for (id, name, context_len, output_len, input_cost, output_cost, has_reasoning) in default_models {
             let model_info = ModelInfo {
                 id: id.to_string(),
                 name: name.to_string(),
@@ -165,13 +256,19 @@ impl DeepSeekModelRegistry {
                 supports_streaming: true,
                 supports_tools: true,
                 supports_multimodal: false,
-                input_cost_per_1k_tokens: Some(0.56),
-                output_cost_per_1k_tokens: Some(1.68),
+                input_cost_per_1k_tokens: Some(input_cost),
+                output_cost_per_1k_tokens: Some(output_cost),
                 currency: "USD".to_string(),
                 capabilities: vec![],
                 created_at: None,
                 updated_at: None,
-                metadata: HashMap::new(),
+                metadata: {
+                    let mut m = HashMap::new();
+                    if has_reasoning {
+                        m.insert("has_reasoning".to_string(), serde_json::Value::Bool(true));
+                    }
+                    m
+                },
             };
 
             let features = self.detect_features(&model_info);

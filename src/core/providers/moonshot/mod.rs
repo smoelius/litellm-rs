@@ -121,7 +121,7 @@ impl ErrorMapper<MoonshotError> for MoonshotErrorMapper {
 }
 
 /// Moonshot provider implementation (refactored)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MoonshotProvider {
     config: MoonshotConfig,
     base_client: BaseHttpClient,

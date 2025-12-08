@@ -213,7 +213,11 @@ pub fn compare_model_costs(
     }
 
     // Sort by cost (lowest first)
-    comparisons.sort_by(|a, b| a.total_cost.partial_cmp(&b.total_cost).unwrap());
+    comparisons.sort_by(|a, b| {
+        a.total_cost
+            .partial_cmp(&b.total_cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     comparisons
 }

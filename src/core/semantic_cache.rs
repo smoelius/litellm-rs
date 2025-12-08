@@ -76,12 +76,19 @@ pub struct SemanticCache {
     config: SemanticCacheConfig,
     /// Vector store for embeddings
     vector_store: Arc<dyn VectorStore>,
-    /// In-memory cache for recent entries
-    memory_cache: Arc<RwLock<HashMap<String, SemanticCacheEntry>>>,
     /// Embedding provider for generating embeddings
     embedding_provider: Arc<dyn EmbeddingProvider>,
+    /// Consolidated cache data - single lock for cache entries and statistics
+    cache_data: Arc<RwLock<CacheData>>,
+}
+
+/// Consolidated cache data - single lock for cache entries and statistics
+#[derive(Debug, Default)]
+struct CacheData {
+    /// In-memory cache for recent entries
+    entries: HashMap<String, SemanticCacheEntry>,
     /// Cache statistics
-    stats: Arc<RwLock<CacheStats>>,
+    stats: CacheStats,
 }
 
 /// Cache statistics
@@ -124,9 +131,8 @@ impl SemanticCache {
         Ok(Self {
             config,
             vector_store,
-            memory_cache: Arc::new(RwLock::new(HashMap::new())),
             embedding_provider,
-            stats: Arc::new(RwLock::new(CacheStats::default())),
+            cache_data: Arc::new(RwLock::new(CacheData::default())),
         })
     }
 
@@ -170,17 +176,19 @@ impl SemanticCache {
                 if let Some(entry) = self.get_cache_entry(&result.id).await? {
                     // Check if entry is still valid
                     if self.is_entry_valid(&entry) {
-                        // Update access statistics
-                        self.update_access_stats(&result.id, result.score as f64)
-                            .await?;
-
-                        // Update cache hit statistics
-                        let mut stats = self.stats.write().await;
-                        stats.hits += 1;
-                        stats.avg_hit_similarity = (stats.avg_hit_similarity
-                            * (stats.hits - 1) as f64
-                            + result.score as f64)
-                            / stats.hits as f64;
+                        // Update access and hit statistics with single lock
+                        {
+                            let mut data = self.cache_data.write().await;
+                            if let Some(cache_entry) = data.entries.get_mut(&result.id) {
+                                cache_entry.last_accessed = chrono::Utc::now();
+                                cache_entry.access_count += 1;
+                            }
+                            data.stats.hits += 1;
+                            data.stats.avg_hit_similarity = (data.stats.avg_hit_similarity
+                                * (data.stats.hits - 1) as f64
+                                + result.score as f64)
+                                / data.stats.hits as f64;
+                        }
 
                         info!(
                             "Cache hit! Similarity: {:.3}, Entry: {}",
@@ -196,8 +204,10 @@ impl SemanticCache {
         }
 
         // No cache hit
-        let mut stats = self.stats.write().await;
-        stats.misses += 1;
+        {
+            let mut data = self.cache_data.write().await;
+            data.stats.misses += 1;
+        }
 
         debug!(
             "Cache miss for prompt: {}",
@@ -262,16 +272,16 @@ impl SemanticCache {
         };
         self.vector_store.insert(vec![vector_data]).await?;
 
-        // Store in memory cache
-        let mut memory_cache = self.memory_cache.write().await;
-        memory_cache.insert(entry.id.clone(), entry);
+        // Store in memory cache and update statistics with single lock
+        let should_evict = {
+            let mut data = self.cache_data.write().await;
+            data.entries.insert(entry.id.clone(), entry);
+            data.stats.total_entries += 1;
+            data.entries.len() > self.config.max_cache_size
+        };
 
-        // Update statistics
-        let mut stats = self.stats.write().await;
-        stats.total_entries += 1;
-
-        // Check cache size limits
-        if memory_cache.len() > self.config.max_cache_size {
+        // Check cache size limits (eviction outside lock)
+        if should_evict {
             self.evict_old_entries().await?;
         }
 
@@ -334,17 +344,8 @@ impl SemanticCache {
 
     /// Get cache entry by ID
     async fn get_cache_entry(&self, entry_id: &str) -> Result<Option<SemanticCacheEntry>> {
-        // First check memory cache
-        {
-            let memory_cache = self.memory_cache.read().await;
-            if let Some(entry) = memory_cache.get(entry_id) {
-                return Ok(Some(entry.clone()));
-            }
-        }
-
-        // For now, vector store doesn't support direct entry retrieval
-        // In a full implementation, you would search by ID or use metadata
-        Ok(None)
+        let data = self.cache_data.read().await;
+        Ok(data.entries.get(entry_id).cloned())
     }
 
     /// Check if cache entry is still valid
@@ -359,18 +360,11 @@ impl SemanticCache {
 
     /// Update access statistics for a cache entry
     async fn update_access_stats(&self, entry_id: &str, _similarity: f64) -> Result<()> {
-        // Update in memory cache
-        {
-            let mut memory_cache = self.memory_cache.write().await;
-            if let Some(entry) = memory_cache.get_mut(entry_id) {
-                entry.last_accessed = chrono::Utc::now();
-                entry.access_count += 1;
-            }
+        let mut data = self.cache_data.write().await;
+        if let Some(entry) = data.entries.get_mut(entry_id) {
+            entry.last_accessed = chrono::Utc::now();
+            entry.access_count += 1;
         }
-
-        // Note: Vector store doesn't support access stats updates in this implementation
-        // In a full implementation, you would update metadata or use a separate stats store
-
         Ok(())
     }
 
@@ -378,8 +372,8 @@ impl SemanticCache {
     async fn remove_cache_entry(&self, entry_id: &str) -> Result<()> {
         // Remove from memory cache
         {
-            let mut memory_cache = self.memory_cache.write().await;
-            memory_cache.remove(entry_id);
+            let mut data = self.cache_data.write().await;
+            data.entries.remove(entry_id);
         }
 
         // Remove from vector store
@@ -390,30 +384,40 @@ impl SemanticCache {
 
     /// Evict old entries when cache is full
     async fn evict_old_entries(&self) -> Result<()> {
-        let mut memory_cache = self.memory_cache.write().await;
+        let entries_to_remove: Vec<String> = {
+            let data = self.cache_data.read().await;
 
-        // Sort entries by last access time and remove oldest 10%
-        let mut entries: Vec<_> = memory_cache
-            .iter()
-            .map(|(k, v)| (k.clone(), v.last_accessed))
-            .collect();
-        entries.sort_by_key(|(_, last_accessed)| *last_accessed);
+            // Sort entries by last access time and remove oldest 10%
+            let mut entries: Vec<_> = data
+                .entries
+                .iter()
+                .map(|(k, v)| (k.clone(), v.last_accessed))
+                .collect();
+            entries.sort_by_key(|(_, last_accessed)| *last_accessed);
 
-        let evict_count = (entries.len() as f64 * 0.1).ceil() as usize;
-        let entries_to_remove: Vec<String> = entries
-            .iter()
-            .take(evict_count)
-            .map(|(id, _)| id.clone())
-            .collect();
+            let evict_count = (entries.len() as f64 * 0.1).ceil() as usize;
+            entries
+                .iter()
+                .take(evict_count)
+                .map(|(id, _)| id.clone())
+                .collect()
+        };
 
+        let evict_count = entries_to_remove.len();
+
+        // Remove from cache
+        {
+            let mut data = self.cache_data.write().await;
+            for entry_id in &entries_to_remove {
+                data.entries.remove(entry_id);
+            }
+        }
+
+        // Also remove from vector store (async)
         for entry_id in entries_to_remove {
-            memory_cache.remove(&entry_id);
-
-            // Also remove from vector store (async)
             let vector_store = self.vector_store.clone();
-            let entry_id_clone = entry_id.clone();
             tokio::spawn(async move {
-                if let Err(e) = vector_store.delete(vec![entry_id_clone]).await {
+                if let Err(e) = vector_store.delete(vec![entry_id]).await {
                     warn!("Failed to delete entry from vector store: {}", e);
                 }
             });
@@ -425,25 +429,20 @@ impl SemanticCache {
 
     /// Get cache statistics
     pub async fn get_stats(&self) -> CacheStats {
-        self.stats.read().await.clone()
+        self.cache_data.read().await.stats.clone()
     }
 
     /// Clear all cache entries
     pub async fn clear_cache(&self) -> Result<()> {
-        // Clear memory cache
+        // Clear cache and reset statistics with single lock
         {
-            let mut memory_cache = self.memory_cache.write().await;
-            memory_cache.clear();
+            let mut data = self.cache_data.write().await;
+            data.entries.clear();
+            data.stats = CacheStats::default();
         }
 
         // Note: Vector store doesn't have clear_all method in current implementation
         // In a full implementation, you would delete all vectors or recreate the collection
-
-        // Reset statistics
-        {
-            let mut stats = self.stats.write().await;
-            *stats = CacheStats::default();
-        }
 
         info!("Cleared all cache entries");
         Ok(())
@@ -555,9 +554,8 @@ mod tests {
         SemanticCache {
             config,
             vector_store: Arc::new(TestVectorStore),
-            memory_cache: Arc::new(RwLock::new(HashMap::new())),
             embedding_provider: Arc::new(TestEmbeddingProvider),
-            stats: Arc::new(RwLock::new(CacheStats::default())),
+            cache_data: Arc::new(RwLock::new(CacheData::default())),
         }
     }
 

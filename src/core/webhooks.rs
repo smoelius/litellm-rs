@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 /// Webhook event types
@@ -141,14 +141,21 @@ pub struct WebhookDelivery {
 
 /// Webhook manager
 pub struct WebhookManager {
-    /// Registered webhooks
-    webhooks: Arc<RwLock<HashMap<String, WebhookConfig>>>,
     /// HTTP client for webhook requests
     client: Client,
+    /// Consolidated webhook data - single lock for all related state
+    data: Arc<RwLock<WebhookData>>,
+}
+
+/// Consolidated webhook data - single lock for all webhook-related state
+#[derive(Debug, Default)]
+struct WebhookData {
+    /// Registered webhooks
+    webhooks: HashMap<String, WebhookConfig>,
     /// Delivery queue
-    delivery_queue: Arc<RwLock<Vec<WebhookDelivery>>>,
+    delivery_queue: Vec<WebhookDelivery>,
     /// Webhook statistics
-    stats: Arc<RwLock<WebhookStats>>,
+    stats: WebhookStats,
 }
 
 /// Webhook statistics
@@ -175,10 +182,8 @@ impl WebhookManager {
             .expect("Failed to create HTTP client");
 
         Self {
-            webhooks: Arc::new(RwLock::new(HashMap::new())),
             client,
-            delivery_queue: Arc::new(RwLock::new(Vec::new())),
-            stats: Arc::new(RwLock::new(WebhookStats::default())),
+            data: Arc::new(RwLock::new(WebhookData::default())),
         }
     }
 
@@ -199,8 +204,8 @@ impl WebhookManager {
             ));
         }
 
-        let mut webhooks = self.webhooks.write().await;
-        webhooks.insert(id, config);
+        let mut data = self.data.write().await;
+        data.webhooks.insert(id, config);
 
         Ok(())
     }
@@ -209,8 +214,8 @@ impl WebhookManager {
     pub async fn unregister_webhook(&self, id: &str) -> Result<()> {
         info!("Unregistering webhook: {}", id);
 
-        let mut webhooks = self.webhooks.write().await;
-        webhooks.remove(id);
+        let mut data = self.data.write().await;
+        data.webhooks.remove(id);
 
         Ok(())
     }
@@ -219,22 +224,22 @@ impl WebhookManager {
     pub async fn send_event(
         &self,
         event_type: WebhookEventType,
-        data: serde_json::Value,
+        event_data: serde_json::Value,
         context: Option<RequestContext>,
     ) -> Result<()> {
         let payload = WebhookPayload {
             event_type: event_type.clone(),
             timestamp: chrono::Utc::now(),
             request_context: context,
-            data,
+            data: event_data,
             metadata: HashMap::new(),
         };
 
-        // Find webhooks subscribed to this event type
-        let webhooks = self.webhooks.read().await;
+        let mut data = self.data.write().await;
         let mut deliveries = Vec::new();
 
-        for (webhook_id, config) in webhooks.iter() {
+        // Find webhooks subscribed to this event type
+        for (webhook_id, config) in data.webhooks.iter() {
             if config.enabled && config.events.contains(&event_type) {
                 let delivery = WebhookDelivery {
                     id: Uuid::new_v4().to_string(),
@@ -252,16 +257,13 @@ impl WebhookManager {
             }
         }
 
-        // Add to delivery queue
+        // Add to delivery queue and update statistics
         let delivery_count = deliveries.len();
         if !deliveries.is_empty() {
-            let mut queue = self.delivery_queue.write().await;
-            queue.extend(deliveries);
-
-            // Update statistics
-            let mut stats = self.stats.write().await;
-            stats.total_events += 1;
-            *stats
+            data.delivery_queue.extend(deliveries);
+            data.stats.total_events += 1;
+            *data
+                .stats
                 .events_by_type
                 .entry(format!("{:?}", event_type))
                 .or_insert(0) += 1;
@@ -276,67 +278,92 @@ impl WebhookManager {
 
     /// Process webhook delivery queue
     pub async fn process_delivery_queue(&self) -> Result<()> {
-        let mut queue = self.delivery_queue.write().await;
-        let mut processed_deliveries = Vec::new();
+        // First, collect deliveries to process and their configs
+        let deliveries_to_process: Vec<(usize, WebhookDelivery, WebhookConfig)> = {
+            let data = self.data.read().await;
+            data.delivery_queue
+                .iter()
+                .enumerate()
+                .filter(|(_, delivery)| {
+                    delivery.status == WebhookDeliveryStatus::Pending
+                        || (delivery.status == WebhookDeliveryStatus::Retrying
+                            && delivery.next_retry_at.is_some_and(|t| t <= chrono::Utc::now()))
+                })
+                .filter_map(|(idx, delivery)| {
+                    data.webhooks
+                        .get(&delivery.webhook_id)
+                        .map(|config| (idx, delivery.clone(), config.clone()))
+                })
+                .collect()
+        };
 
-        for delivery in queue.iter_mut() {
-            if delivery.status == WebhookDeliveryStatus::Pending
-                || (delivery.status == WebhookDeliveryStatus::Retrying
-                    && delivery
-                        .next_retry_at
-                        .is_some_and(|t| t <= chrono::Utc::now()))
-            {
-                let result = self.deliver_webhook(delivery).await;
-                processed_deliveries.push(delivery.id.clone());
+        // Process each delivery (without holding the lock)
+        let mut results: Vec<(usize, WebhookDeliveryStatus, Option<String>)> = Vec::new();
 
-                match result {
-                    Ok(_) => {
-                        delivery.status = WebhookDeliveryStatus::Delivered;
-                        let mut stats = self.stats.write().await;
-                        stats.successful_deliveries += 1;
-                    }
-                    Err(e) => {
-                        delivery.attempts += 1;
-                        delivery.last_attempt_at = Some(chrono::Utc::now());
+        for (idx, mut delivery, config) in deliveries_to_process {
+            let result = self.deliver_webhook_internal(&mut delivery, &config).await;
 
-                        if delivery.attempts
-                            >= self
-                                .get_webhook_config(&delivery.webhook_id)
-                                .await?
-                                .max_retries
-                        {
-                            delivery.status = WebhookDeliveryStatus::Failed;
-                            let mut stats = self.stats.write().await;
-                            stats.failed_deliveries += 1;
-                            error!("Webhook delivery failed permanently: {}", e);
-                        } else {
-                            delivery.status = WebhookDeliveryStatus::Retrying;
-                            delivery.next_retry_at = Some(
-                                chrono::Utc::now()
-                                    + chrono::Duration::seconds(
-                                        self.get_webhook_config(&delivery.webhook_id)
-                                            .await?
-                                            .retry_delay_seconds
-                                            as i64,
-                                    ),
-                            );
-                            warn!("Webhook delivery failed, will retry: {}", e);
-                        }
+            match result {
+                Ok(_) => {
+                    results.push((idx, WebhookDeliveryStatus::Delivered, None));
+                }
+                Err(e) => {
+                    delivery.attempts += 1;
+                    if delivery.attempts >= config.max_retries {
+                        results.push((idx, WebhookDeliveryStatus::Failed, Some(e.to_string())));
+                    } else {
+                        let next_retry = chrono::Utc::now()
+                            + chrono::Duration::seconds(config.retry_delay_seconds as i64);
+                        results.push((idx, WebhookDeliveryStatus::Retrying, Some(next_retry.to_rfc3339())));
                     }
                 }
             }
         }
 
-        // Remove completed deliveries (keep failed ones for debugging)
-        queue.retain(|d| d.status != WebhookDeliveryStatus::Delivered);
+        // Apply results with a single lock acquisition
+        {
+            let mut data = self.data.write().await;
+            for (idx, status, info) in results {
+                if let Some(delivery) = data.delivery_queue.get_mut(idx) {
+                    delivery.status = status.clone();
+                    delivery.last_attempt_at = Some(chrono::Utc::now());
+
+                    match status {
+                        WebhookDeliveryStatus::Delivered => {
+                            data.stats.successful_deliveries += 1;
+                        }
+                        WebhookDeliveryStatus::Failed => {
+                            data.stats.failed_deliveries += 1;
+                            if let Some(err) = info {
+                                error!("Webhook delivery failed permanently: {}", err);
+                            }
+                        }
+                        WebhookDeliveryStatus::Retrying => {
+                            if let Some(next_retry_str) = info {
+                                delivery.next_retry_at = chrono::DateTime::parse_from_rfc3339(&next_retry_str)
+                                    .ok()
+                                    .map(|dt| dt.with_timezone(&chrono::Utc));
+                            }
+                            delivery.attempts += 1;
+                        }
+                        _ => {}
+                    }
+                }
+            }
+
+            // Remove completed deliveries (keep failed ones for debugging)
+            data.delivery_queue.retain(|d| d.status != WebhookDeliveryStatus::Delivered);
+        }
 
         Ok(())
     }
 
-    /// Deliver a single webhook
-    async fn deliver_webhook(&self, delivery: &mut WebhookDelivery) -> Result<()> {
-        let config = self.get_webhook_config(&delivery.webhook_id).await?;
-
+    /// Deliver a single webhook (internal version with config)
+    async fn deliver_webhook_internal(
+        &self,
+        delivery: &mut WebhookDelivery,
+        config: &WebhookConfig,
+    ) -> Result<()> {
         let start_time = std::time::Instant::now();
 
         // Prepare request
@@ -373,10 +400,13 @@ impl WebhookManager {
 
         // Update delivery time statistics
         let delivery_time = start_time.elapsed().as_millis() as f64;
-        let mut stats = self.stats.write().await;
-        stats.avg_delivery_time_ms =
-            (stats.avg_delivery_time_ms * (stats.successful_deliveries as f64) + delivery_time)
-                / (stats.successful_deliveries + 1) as f64;
+        {
+            let mut data = self.data.write().await;
+            data.stats.avg_delivery_time_ms =
+                (data.stats.avg_delivery_time_ms * (data.stats.successful_deliveries as f64)
+                    + delivery_time)
+                    / (data.stats.successful_deliveries + 1) as f64;
+        }
 
         if (200..300).contains(&status_code) {
             debug!(
@@ -392,10 +422,16 @@ impl WebhookManager {
         }
     }
 
+    /// Deliver a single webhook
+    async fn deliver_webhook(&self, delivery: &mut WebhookDelivery) -> Result<()> {
+        let config = self.get_webhook_config(&delivery.webhook_id).await?;
+        self.deliver_webhook_internal(delivery, &config).await
+    }
+
     /// Get webhook configuration
     async fn get_webhook_config(&self, webhook_id: &str) -> Result<WebhookConfig> {
-        let webhooks = self.webhooks.read().await;
-        webhooks
+        let data = self.data.read().await;
+        data.webhooks
             .get(webhook_id)
             .cloned()
             .ok_or_else(|| GatewayError::NotFound(format!("Webhook not found: {}", webhook_id)))
@@ -421,19 +457,19 @@ impl WebhookManager {
 
     /// Get webhook statistics
     pub async fn get_stats(&self) -> WebhookStats {
-        self.stats.read().await.clone()
+        self.data.read().await.stats.clone()
     }
 
     /// List all registered webhooks
     pub async fn list_webhooks(&self) -> HashMap<String, WebhookConfig> {
-        self.webhooks.read().await.clone()
+        self.data.read().await.webhooks.clone()
     }
 
     /// Get delivery history
     pub async fn get_delivery_history(&self, limit: Option<usize>) -> Vec<WebhookDelivery> {
-        let queue = self.delivery_queue.read().await;
+        let data = self.data.read().await;
         let limit = limit.unwrap_or(100);
-        queue.iter().rev().take(limit).cloned().collect()
+        data.delivery_queue.iter().rev().take(limit).cloned().collect()
     }
 
     /// Start background delivery processor
@@ -460,10 +496,8 @@ impl WebhookManager {
 impl Clone for WebhookManager {
     fn clone(&self) -> Self {
         Self {
-            webhooks: self.webhooks.clone(),
             client: self.client.clone(),
-            delivery_queue: self.delivery_queue.clone(),
-            stats: self.stats.clone(),
+            data: self.data.clone(),
         }
     }
 }

@@ -123,7 +123,7 @@ impl ErrorMapper<MistralError> for MistralErrorMapper {
 }
 
 /// Mistral provider implementation (refactored)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MistralProvider {
     config: MistralConfig,
     base_client: BaseHttpClient,

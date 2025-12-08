@@ -103,7 +103,7 @@ impl Default for LlamaProviderConfig {
 }
 
 /// Meta Llama provider implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LlamaProvider {
     config: Arc<LlamaProviderConfig>,
     client: Arc<LlamaClient>,

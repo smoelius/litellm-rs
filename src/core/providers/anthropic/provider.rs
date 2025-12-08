@@ -24,7 +24,7 @@ use super::models::{ModelFeature, get_anthropic_registry};
 use super::streaming::AnthropicStream;
 
 /// Anthropic Provider - unified implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AnthropicProvider {
     config: AnthropicConfig,
     client: AnthropicClient,

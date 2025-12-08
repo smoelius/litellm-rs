@@ -6,10 +6,11 @@
 
 use crate::storage::StorageLayer;
 use crate::utils::error::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use tracing::{debug, error};
 
 /// Health checker for monitoring system component health
@@ -17,12 +18,19 @@ use tracing::{debug, error};
 pub struct HealthChecker {
     /// Storage layer for health data
     storage: Arc<StorageLayer>,
+    /// Consolidated health data - single lock for related data
+    health_data: Arc<RwLock<HealthData>>,
+    /// Whether health checking is active - using AtomicBool for lock-free access
+    active: AtomicBool,
+}
+
+/// Consolidated health data - single lock for all health-related state
+#[derive(Debug)]
+struct HealthData {
     /// Component health status
-    component_health: Arc<RwLock<HashMap<String, ComponentHealth>>>,
+    components: HashMap<String, ComponentHealth>,
     /// Overall health status
-    overall_health: Arc<RwLock<HealthStatus>>,
-    /// Whether health checking is active
-    active: Arc<RwLock<bool>>,
+    overall: HealthStatus,
 }
 
 /// Overall system health status
@@ -90,22 +98,26 @@ pub struct HealthCheckConfig {
 impl HealthChecker {
     /// Create a new health checker
     pub async fn new(storage: Arc<StorageLayer>) -> Result<Self> {
+        let initial_health = HealthStatus {
+            overall_healthy: true,
+            last_check: chrono::Utc::now(),
+            components: HashMap::new(),
+            uptime_seconds: 0,
+            summary: HealthSummary {
+                total_components: 0,
+                healthy_components: 0,
+                unhealthy_components: 0,
+                health_percentage: 100.0,
+            },
+        };
+
         Ok(Self {
             storage,
-            component_health: Arc::new(RwLock::new(HashMap::new())),
-            overall_health: Arc::new(RwLock::new(HealthStatus {
-                overall_healthy: true,
-                last_check: chrono::Utc::now(),
+            health_data: Arc::new(RwLock::new(HealthData {
                 components: HashMap::new(),
-                uptime_seconds: 0,
-                summary: HealthSummary {
-                    total_components: 0,
-                    healthy_components: 0,
-                    unhealthy_components: 0,
-                    health_percentage: 100.0,
-                },
+                overall: initial_health,
             })),
-            active: Arc::new(RwLock::new(false)),
+            active: AtomicBool::new(false),
         })
     }
 
@@ -113,7 +125,7 @@ impl HealthChecker {
     pub async fn start(&self) -> Result<()> {
         debug!("Starting health checker");
 
-        *self.active.write().await = true;
+        self.active.store(true, Ordering::Release);
 
         // Start health check tasks
         self.start_health_check_tasks().await;
@@ -124,14 +136,20 @@ impl HealthChecker {
     /// Stop health checking
     pub async fn stop(&self) -> Result<()> {
         debug!("Stopping health checker");
-        *self.active.write().await = false;
+        self.active.store(false, Ordering::Release);
         Ok(())
+    }
+
+    /// Check if health checker is active
+    #[inline]
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::Acquire)
     }
 
     /// Get current health status
     pub async fn get_status(&self) -> Result<HealthStatus> {
-        let status = self.overall_health.read().await.clone();
-        Ok(status)
+        let data = self.health_data.read();
+        Ok(data.overall.clone())
     }
 
     /// Check all components
@@ -182,15 +200,11 @@ impl HealthChecker {
             },
         };
 
-        // Update stored health status
+        // Update stored health status - single lock for both updates
         {
-            let mut stored_health = self.overall_health.write().await;
-            *stored_health = health_status.clone();
-        }
-
-        {
-            let mut stored_components = self.component_health.write().await;
-            *stored_components = components;
+            let mut data = self.health_data.write();
+            data.overall = health_status.clone();
+            data.components = components;
         }
 
         Ok(health_status)
@@ -417,7 +431,7 @@ impl HealthChecker {
             loop {
                 interval.tick().await;
 
-                if !*health_checker.active.read().await {
+                if !health_checker.is_active() {
                     break;
                 }
 
@@ -433,8 +447,8 @@ impl HealthChecker {
 
     /// Get component health by name
     pub async fn get_component_health(&self, component_name: &str) -> Option<ComponentHealth> {
-        let components = self.component_health.read().await;
-        components.get(component_name).cloned()
+        let data = self.health_data.read();
+        data.components.get(component_name).cloned()
     }
 
     /// Check if a specific component is healthy
@@ -448,8 +462,8 @@ impl HealthChecker {
 
     /// Get unhealthy components
     pub async fn get_unhealthy_components(&self) -> Vec<ComponentHealth> {
-        let components = self.component_health.read().await;
-        components
+        let data = self.health_data.read();
+        data.components
             .values()
             .filter(|component| !component.healthy)
             .cloned()
@@ -461,9 +475,8 @@ impl Clone for HealthChecker {
     fn clone(&self) -> Self {
         Self {
             storage: self.storage.clone(),
-            component_health: self.component_health.clone(),
-            overall_health: self.overall_health.clone(),
-            active: self.active.clone(),
+            health_data: self.health_data.clone(),
+            active: AtomicBool::new(self.active.load(Ordering::Acquire)),
         }
     }
 }

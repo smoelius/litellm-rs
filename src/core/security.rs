@@ -5,10 +5,23 @@
 
 use crate::core::models::openai::*;
 use crate::utils::error::Result;
+use once_cell::sync::Lazy;
 use regex::Regex;
 
 use std::collections::HashMap;
 use tracing::warn;
+
+// Pre-compiled regex patterns for PII detection
+static SSN_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").expect("Invalid SSN regex"));
+static EMAIL_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b").expect("Invalid email regex")
+});
+static PHONE_PATTERN: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\b\d{3}-\d{3}-\d{4}\b").expect("Invalid phone regex"));
+static CREDIT_CARD_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b").expect("Invalid credit card regex")
+});
 
 /// Content filter for detecting and handling sensitive content
 pub struct ContentFilter {
@@ -386,14 +399,13 @@ impl ContentFilter {
         vec![
             PIIPattern {
                 name: "SSN".to_string(),
-                pattern: Regex::new(r"\b\d{3}-\d{2}-\d{4}\b").unwrap(),
+                pattern: SSN_PATTERN.clone(),
                 replacement: PIIReplacement::Placeholder("XXX-XX-XXXX".to_string()),
                 confidence: 0.95,
             },
             PIIPattern {
                 name: "Email".to_string(),
-                pattern: Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
-                    .unwrap(),
+                pattern: EMAIL_PATTERN.clone(),
                 replacement: PIIReplacement::PartialMask {
                     keep_start: 2,
                     keep_end: 0,
@@ -402,13 +414,13 @@ impl ContentFilter {
             },
             PIIPattern {
                 name: "Phone".to_string(),
-                pattern: Regex::new(r"\b\d{3}-\d{3}-\d{4}\b").unwrap(),
+                pattern: PHONE_PATTERN.clone(),
                 replacement: PIIReplacement::Placeholder("XXX-XXX-XXXX".to_string()),
                 confidence: 0.85,
             },
             PIIPattern {
                 name: "CreditCard".to_string(),
-                pattern: Regex::new(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b").unwrap(),
+                pattern: CREDIT_CARD_PATTERN.clone(),
                 replacement: PIIReplacement::Placeholder("XXXX-XXXX-XXXX-XXXX".to_string()),
                 confidence: 0.9,
             },
@@ -454,7 +466,11 @@ impl ContentFilter {
                 pattern
                     .pattern
                     .replace_all(text, |caps: &regex::Captures| {
-                        let matched = caps.get(0).unwrap().as_str();
+                        // caps.get(0) should always succeed for a match, but handle gracefully
+                        let matched = match caps.get(0) {
+                            Some(m) => m.as_str(),
+                            None => return String::new(),
+                        };
                         let len = matched.len();
                         if len <= keep_start + keep_end {
                             "*".repeat(len)

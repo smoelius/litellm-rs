@@ -115,25 +115,50 @@ impl crate::core::traits::provider::ProviderConfig for VertexAIProviderConfig {
 /// Supported Vertex AI models
 #[derive(Debug, Clone)]
 pub enum VertexAIModel {
-    // Gemini models
-    GeminiPro,
-    GeminiProVision,
-    GeminiFlash,
-    GeminiFlashThinking,
-    GeminiUltra,
+    // Gemini 2.5 models (2025 - Latest)
+    Gemini25Pro,         // gemini-2.5-pro
+    Gemini25Flash,       // gemini-2.5-flash
+    Gemini25FlashLite,   // gemini-2.5-flash-lite-preview
 
-    // Partner models
+    // Gemini 2.0 models (2024-2025)
+    Gemini20Flash,           // gemini-2.0-flash
+    Gemini20FlashExp,        // gemini-2.0-flash-exp
+    Gemini20FlashThinking,   // gemini-2.0-flash-thinking-exp
+    Gemini20FlashLite,       // gemini-2.0-flash-lite
+
+    // Gemini 1.5 models (2024)
+    GeminiPro,               // gemini-1.5-pro
+    GeminiProVision,         // gemini-1.5-pro-vision (legacy)
+    GeminiFlash,             // gemini-1.5-flash
+    GeminiFlash8B,           // gemini-1.5-flash-8b
+
+    // Gemini 1.0 models (legacy)
+    GeminiUltra,             // gemini-ultra (deprecated)
+
+    // Partner models - Claude
     Claude3Opus,
     Claude3Sonnet,
     Claude3Haiku,
+    Claude35Sonnet,          // claude-3-5-sonnet@20241022
 
-    // Meta models
+    // Meta models - Llama 3.x and 4
     Llama3_70B,
     Llama3_8B,
+    Llama31_405B,            // llama-3.1-405b
+    Llama31_70B,             // llama-3.1-70b
+    Llama32_90B,             // llama-3.2-90b
+    Llama4Scout,             // llama-4-scout (2025)
+    Llama4Maverick,          // llama-4-maverick (2025)
 
     // AI21 models
     Jamba15Large,
     Jamba15Mini,
+    Jamba2,                  // jamba-2 (2025)
+
+    // Mistral models
+    MistralLarge,            // mistral-large
+    MistralNemo,             // mistral-nemo
+    Codestral,               // codestral
 
     // Custom model
     Custom(String),
@@ -143,18 +168,51 @@ impl VertexAIModel {
     /// Get the model ID string for API calls
     pub fn model_id(&self) -> String {
         match self {
-            Self::GeminiPro => "gemini-1.5-pro".to_string(),
+            // Gemini 2.5 models
+            Self::Gemini25Pro => "gemini-2.5-pro-preview-05-06".to_string(),
+            Self::Gemini25Flash => "gemini-2.5-flash-preview-05-20".to_string(),
+            Self::Gemini25FlashLite => "gemini-2.5-flash-lite-preview-06-17".to_string(),
+
+            // Gemini 2.0 models
+            Self::Gemini20Flash => "gemini-2.0-flash".to_string(),
+            Self::Gemini20FlashExp => "gemini-2.0-flash-exp".to_string(),
+            Self::Gemini20FlashThinking => "gemini-2.0-flash-thinking-exp-1219".to_string(),
+            Self::Gemini20FlashLite => "gemini-2.0-flash-lite".to_string(),
+
+            // Gemini 1.5 models
+            Self::GeminiPro => "gemini-1.5-pro-002".to_string(),
             Self::GeminiProVision => "gemini-1.5-pro-vision".to_string(),
-            Self::GeminiFlash => "gemini-1.5-flash".to_string(),
-            Self::GeminiFlashThinking => "gemini-2.0-flash-thinking-exp".to_string(),
+            Self::GeminiFlash => "gemini-1.5-flash-002".to_string(),
+            Self::GeminiFlash8B => "gemini-1.5-flash-8b".to_string(),
+
+            // Legacy
             Self::GeminiUltra => "gemini-ultra".to_string(),
+
+            // Claude models
             Self::Claude3Opus => "claude-3-opus@20240229".to_string(),
             Self::Claude3Sonnet => "claude-3-sonnet@20240229".to_string(),
             Self::Claude3Haiku => "claude-3-haiku@20240307".to_string(),
+            Self::Claude35Sonnet => "claude-3-5-sonnet@20241022".to_string(),
+
+            // Meta Llama models
             Self::Llama3_70B => "meta/llama3-70b-instruct-maas".to_string(),
             Self::Llama3_8B => "meta/llama3-8b-instruct-maas".to_string(),
+            Self::Llama31_405B => "meta/llama-3.1-405b-instruct-maas".to_string(),
+            Self::Llama31_70B => "meta/llama-3.1-70b-instruct-maas".to_string(),
+            Self::Llama32_90B => "meta/llama-3.2-90b-vision-instruct-maas".to_string(),
+            Self::Llama4Scout => "meta/llama-4-scout-17b-16e-instruct".to_string(),
+            Self::Llama4Maverick => "meta/llama-4-maverick-17b-128e-instruct".to_string(),
+
+            // AI21 models
             Self::Jamba15Large => "ai21/jamba-1.5-large".to_string(),
             Self::Jamba15Mini => "ai21/jamba-1.5-mini".to_string(),
+            Self::Jamba2 => "ai21/jamba-2-instruct".to_string(),
+
+            // Mistral models
+            Self::MistralLarge => "mistral/mistral-large-2411".to_string(),
+            Self::MistralNemo => "mistral/mistral-nemo".to_string(),
+            Self::Codestral => "mistral/codestral-2501".to_string(),
+
             Self::Custom(id) => id.clone(),
         }
     }
@@ -163,10 +221,17 @@ impl VertexAIModel {
     pub fn is_gemini(&self) -> bool {
         matches!(
             self,
-            Self::GeminiPro
+            Self::Gemini25Pro
+                | Self::Gemini25Flash
+                | Self::Gemini25FlashLite
+                | Self::Gemini20Flash
+                | Self::Gemini20FlashExp
+                | Self::Gemini20FlashThinking
+                | Self::Gemini20FlashLite
+                | Self::GeminiPro
                 | Self::GeminiProVision
                 | Self::GeminiFlash
-                | Self::GeminiFlashThinking
+                | Self::GeminiFlash8B
                 | Self::GeminiUltra
         )
     }
@@ -178,10 +243,20 @@ impl VertexAIModel {
             Self::Claude3Opus
                 | Self::Claude3Sonnet
                 | Self::Claude3Haiku
+                | Self::Claude35Sonnet
                 | Self::Llama3_70B
                 | Self::Llama3_8B
+                | Self::Llama31_405B
+                | Self::Llama31_70B
+                | Self::Llama32_90B
+                | Self::Llama4Scout
+                | Self::Llama4Maverick
                 | Self::Jamba15Large
                 | Self::Jamba15Mini
+                | Self::Jamba2
+                | Self::MistralLarge
+                | Self::MistralNemo
+                | Self::Codestral
         )
     }
 
@@ -189,54 +264,103 @@ impl VertexAIModel {
     pub fn supports_vision(&self) -> bool {
         matches!(
             self,
-            Self::GeminiProVision | Self::GeminiFlash | Self::GeminiPro
+            Self::Gemini25Pro
+                | Self::Gemini25Flash
+                | Self::Gemini25FlashLite
+                | Self::Gemini20Flash
+                | Self::Gemini20FlashExp
+                | Self::Gemini20FlashThinking
+                | Self::Gemini20FlashLite
+                | Self::GeminiPro
+                | Self::GeminiProVision
+                | Self::GeminiFlash
+                | Self::GeminiFlash8B
+                | Self::Llama32_90B
+                | Self::Llama4Scout
+                | Self::Llama4Maverick
         )
     }
 
     /// Check if model supports system messages
     pub fn supports_system_messages(&self) -> bool {
-        matches!(
-            self,
-            Self::GeminiPro
-                | Self::GeminiFlash
-                | Self::GeminiFlashThinking
-                | Self::GeminiUltra
-                | Self::Claude3Opus
-                | Self::Claude3Sonnet
-                | Self::Claude3Haiku
-                | Self::Llama3_70B
-                | Self::Llama3_8B
-        )
+        !matches!(self, Self::Custom(_))
     }
 
     /// Check if model supports response schema/JSON mode
     pub fn supports_response_schema(&self) -> bool {
-        matches!(
-            self,
-            Self::GeminiPro | Self::GeminiFlash | Self::GeminiFlashThinking | Self::GeminiUltra
-        )
+        self.is_gemini()
     }
 
     /// Check if model supports function calling
     pub fn supports_function_calling(&self) -> bool {
-        self.is_gemini()
+        self.is_gemini() || matches!(
+            self,
+            Self::Claude3Opus
+                | Self::Claude3Sonnet
+                | Self::Claude3Haiku
+                | Self::Claude35Sonnet
+                | Self::MistralLarge
+        )
+    }
+
+    /// Check if model supports thinking/reasoning mode
+    pub fn supports_thinking_mode(&self) -> bool {
+        matches!(
+            self,
+            Self::Gemini25Pro
+                | Self::Gemini25Flash
+                | Self::Gemini20FlashThinking
+        )
     }
 
     /// Get maximum context window
     pub fn max_context_tokens(&self) -> usize {
         match self {
-            Self::GeminiPro => 2_097_152,   // 2M tokens
-            Self::GeminiFlash => 1_048_576, // 1M tokens
-            Self::GeminiFlashThinking => 1_048_576,
+            // Gemini 2.5 models - 1M+ context
+            Self::Gemini25Pro => 1_048_576,        // 1M tokens
+            Self::Gemini25Flash => 1_048_576,      // 1M tokens
+            Self::Gemini25FlashLite => 1_048_576,  // 1M tokens
+
+            // Gemini 2.0 models
+            Self::Gemini20Flash => 1_048_576,
+            Self::Gemini20FlashExp => 1_048_576,
+            Self::Gemini20FlashThinking => 1_048_576,
+            Self::Gemini20FlashLite => 1_048_576,
+
+            // Gemini 1.5 models
+            Self::GeminiPro => 2_097_152,          // 2M tokens
             Self::GeminiProVision => 2_097_152,
+            Self::GeminiFlash => 1_048_576,        // 1M tokens
+            Self::GeminiFlash8B => 1_048_576,
+
+            // Legacy
             Self::GeminiUltra => 1_048_576,
+
+            // Claude models
             Self::Claude3Opus => 200_000,
             Self::Claude3Sonnet => 200_000,
             Self::Claude3Haiku => 200_000,
+            Self::Claude35Sonnet => 200_000,
+
+            // Llama models
             Self::Llama3_70B => 32_768,
             Self::Llama3_8B => 8_192,
+            Self::Llama31_405B => 128_000,
+            Self::Llama31_70B => 128_000,
+            Self::Llama32_90B => 128_000,
+            Self::Llama4Scout => 10_000_000,       // 10M context (claimed)
+            Self::Llama4Maverick => 1_000_000,     // 1M context
+
+            // AI21 models
             Self::Jamba15Large => 256_000,
             Self::Jamba15Mini => 256_000,
+            Self::Jamba2 => 256_000,
+
+            // Mistral models
+            Self::MistralLarge => 128_000,
+            Self::MistralNemo => 128_000,
+            Self::Codestral => 256_000,
+
             Self::Custom(_) => 32_768, // Default
         }
     }
@@ -244,23 +368,112 @@ impl VertexAIModel {
 
 /// Parse model string to VertexAIModel enum
 pub fn parse_vertex_model(model: &str) -> VertexAIModel {
-    match model {
-        "gemini-pro" | "gemini-1.5-pro" | "gemini-1.5-pro-001" => VertexAIModel::GeminiPro,
-        "gemini-pro-vision" | "gemini-1.5-pro-vision" => VertexAIModel::GeminiProVision,
-        "gemini-flash" | "gemini-1.5-flash" | "gemini-1.5-flash-001" => VertexAIModel::GeminiFlash,
-        "gemini-2.0-flash-thinking-exp" => VertexAIModel::GeminiFlashThinking,
-        "gemini-ultra" => VertexAIModel::GeminiUltra,
+    let model_lower = model.to_lowercase();
 
-        model if model.contains("claude-3-opus") => VertexAIModel::Claude3Opus,
-        model if model.contains("claude-3-sonnet") => VertexAIModel::Claude3Sonnet,
-        model if model.contains("claude-3-haiku") => VertexAIModel::Claude3Haiku,
-
-        model if model.contains("llama3-70b") => VertexAIModel::Llama3_70B,
-        model if model.contains("llama3-8b") => VertexAIModel::Llama3_8B,
-
-        model if model.contains("jamba-1.5-large") => VertexAIModel::Jamba15Large,
-        model if model.contains("jamba-1.5-mini") => VertexAIModel::Jamba15Mini,
-
-        _ => VertexAIModel::Custom(model.to_string()),
+    // Gemini 2.5 models (newest first)
+    if model_lower.contains("gemini-2.5-pro") {
+        return VertexAIModel::Gemini25Pro;
     }
+    if model_lower.contains("gemini-2.5-flash-lite") {
+        return VertexAIModel::Gemini25FlashLite;
+    }
+    if model_lower.contains("gemini-2.5-flash") {
+        return VertexAIModel::Gemini25Flash;
+    }
+
+    // Gemini 2.0 models
+    if model_lower.contains("gemini-2.0-flash-thinking") {
+        return VertexAIModel::Gemini20FlashThinking;
+    }
+    if model_lower.contains("gemini-2.0-flash-lite") {
+        return VertexAIModel::Gemini20FlashLite;
+    }
+    if model_lower.contains("gemini-2.0-flash-exp") {
+        return VertexAIModel::Gemini20FlashExp;
+    }
+    if model_lower.contains("gemini-2.0-flash") {
+        return VertexAIModel::Gemini20Flash;
+    }
+
+    // Gemini 1.5 models
+    if model_lower.contains("gemini-1.5-flash-8b") {
+        return VertexAIModel::GeminiFlash8B;
+    }
+    if model_lower.contains("gemini-1.5-pro-vision") || model_lower.contains("gemini-pro-vision") {
+        return VertexAIModel::GeminiProVision;
+    }
+    if model_lower.contains("gemini-1.5-pro") || model == "gemini-pro" {
+        return VertexAIModel::GeminiPro;
+    }
+    if model_lower.contains("gemini-1.5-flash") || model == "gemini-flash" {
+        return VertexAIModel::GeminiFlash;
+    }
+
+    // Legacy Gemini
+    if model_lower.contains("gemini-ultra") {
+        return VertexAIModel::GeminiUltra;
+    }
+
+    // Claude models (check more specific first)
+    if model_lower.contains("claude-3-5-sonnet") || model_lower.contains("claude-3.5-sonnet") {
+        return VertexAIModel::Claude35Sonnet;
+    }
+    if model_lower.contains("claude-3-opus") {
+        return VertexAIModel::Claude3Opus;
+    }
+    if model_lower.contains("claude-3-sonnet") {
+        return VertexAIModel::Claude3Sonnet;
+    }
+    if model_lower.contains("claude-3-haiku") {
+        return VertexAIModel::Claude3Haiku;
+    }
+
+    // Llama 4 models (newest first)
+    if model_lower.contains("llama-4-scout") || model_lower.contains("llama4-scout") {
+        return VertexAIModel::Llama4Scout;
+    }
+    if model_lower.contains("llama-4-maverick") || model_lower.contains("llama4-maverick") {
+        return VertexAIModel::Llama4Maverick;
+    }
+
+    // Llama 3.x models
+    if model_lower.contains("llama-3.2-90b") || model_lower.contains("llama3.2-90b") {
+        return VertexAIModel::Llama32_90B;
+    }
+    if model_lower.contains("llama-3.1-405b") || model_lower.contains("llama3.1-405b") {
+        return VertexAIModel::Llama31_405B;
+    }
+    if model_lower.contains("llama-3.1-70b") || model_lower.contains("llama3.1-70b") {
+        return VertexAIModel::Llama31_70B;
+    }
+    if model_lower.contains("llama3-70b") || model_lower.contains("llama-3-70b") {
+        return VertexAIModel::Llama3_70B;
+    }
+    if model_lower.contains("llama3-8b") || model_lower.contains("llama-3-8b") {
+        return VertexAIModel::Llama3_8B;
+    }
+
+    // AI21 Jamba models
+    if model_lower.contains("jamba-2") {
+        return VertexAIModel::Jamba2;
+    }
+    if model_lower.contains("jamba-1.5-large") {
+        return VertexAIModel::Jamba15Large;
+    }
+    if model_lower.contains("jamba-1.5-mini") {
+        return VertexAIModel::Jamba15Mini;
+    }
+
+    // Mistral models
+    if model_lower.contains("codestral") {
+        return VertexAIModel::Codestral;
+    }
+    if model_lower.contains("mistral-large") {
+        return VertexAIModel::MistralLarge;
+    }
+    if model_lower.contains("mistral-nemo") {
+        return VertexAIModel::MistralNemo;
+    }
+
+    VertexAIModel::Custom(model.to_string())
 }

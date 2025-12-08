@@ -186,7 +186,7 @@ impl ProviderErrorTrait for DeepInfraError {
 }
 
 /// DeepInfra provider
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeepInfraProvider {
     config: DeepInfraConfig,
     base_client: BaseHttpClient,

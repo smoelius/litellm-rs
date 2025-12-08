@@ -186,9 +186,13 @@ impl Stream for DeepSeekStream {
                             // No complete chunk, continue waiting for more data
                             cx.waker().wake_by_ref();
                             Poll::Pending
+                        } else if let Some(chunk) = chunks.into_iter().next() {
+                            // Handle first chunk
+                            Poll::Ready(Some(Ok(chunk)))
                         } else {
-                            // Handle
-                            Poll::Ready(Some(Ok(chunks.into_iter().next().unwrap())))
+                            // Shouldn't reach here since we checked is_empty, but handle gracefully
+                            cx.waker().wake_by_ref();
+                            Poll::Pending
                         }
                     }
                     Err(e) => Poll::Ready(Some(Err(e))),

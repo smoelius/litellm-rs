@@ -167,16 +167,12 @@ impl V0Provider {
     /// Create request headers
     fn create_headers(&self) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(
-            reqwest::header::AUTHORIZATION,
-            format!("Bearer {}", self.config.api_key)
-                .parse()
-                .expect("Invalid API key format"),
-        );
-        headers.insert(
-            reqwest::header::CONTENT_TYPE,
-            "application/json".parse().unwrap(),
-        );
+        if let Ok(auth_value) = format!("Bearer {}", self.config.api_key).parse() {
+            headers.insert(reqwest::header::AUTHORIZATION, auth_value);
+        }
+        if let Ok(content_type) = "application/json".parse() {
+            headers.insert(reqwest::header::CONTENT_TYPE, content_type);
+        }
         headers
     }
 

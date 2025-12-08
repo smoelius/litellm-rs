@@ -9,9 +9,18 @@ use std::sync::LazyLock;
 /// xAI model identifiers
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum XAIModel {
-    // Grok models
+    // Grok 4 models (2025 - Latest)
+    Grok4,
+    // Grok 3 models (2025)
+    Grok3,
+    Grok3Mini,
+    Grok3Fast,
+    // Grok 2 models (2024)
     Grok2,
     Grok2Mini,
+    Grok21212,     // Grok 2 (December 2024 update)
+    Grok2Vision,   // Grok 2 with vision
+    // Experimental
     GrokBeta,
     GrokVision,
 }
@@ -47,13 +56,83 @@ pub struct ModelInfo {
 static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new(|| {
     let mut configs = HashMap::new();
 
-    // Grok-2 (flagship model)
+    // ==================== Grok 4 (2025 - Latest) ====================
+    configs.insert(
+        "grok-4",
+        ModelInfo {
+            model_id: "grok-4",
+            display_name: "Grok 4",
+            context_length: 256000,    // 256K context
+            max_output_tokens: 128000,
+            supports_tools: true,
+            supports_vision: true,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 3.0,
+            output_cost_per_million: 15.0,
+            reasoning_cost_per_million: Some(15.0),
+        },
+    );
+
+    // ==================== Grok 3 (2025) ====================
+    configs.insert(
+        "grok-3",
+        ModelInfo {
+            model_id: "grok-3",
+            display_name: "Grok 3",
+            context_length: 131072,    // 128K context
+            max_output_tokens: 65536,
+            supports_tools: true,
+            supports_vision: true,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 3.0,
+            output_cost_per_million: 15.0,
+            reasoning_cost_per_million: Some(10.0),
+        },
+    );
+
+    configs.insert(
+        "grok-3-mini",
+        ModelInfo {
+            model_id: "grok-3-mini",
+            display_name: "Grok 3 Mini",
+            context_length: 131072,
+            max_output_tokens: 32768,
+            supports_tools: true,
+            supports_vision: false,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 0.3,
+            output_cost_per_million: 0.5,
+            reasoning_cost_per_million: Some(0.5),
+        },
+    );
+
+    configs.insert(
+        "grok-3-fast",
+        ModelInfo {
+            model_id: "grok-3-fast",
+            display_name: "Grok 3 Fast",
+            context_length: 131072,
+            max_output_tokens: 32768,
+            supports_tools: true,
+            supports_vision: false,
+            supports_web_search: true,
+            supports_reasoning: false,
+            input_cost_per_million: 5.0,
+            output_cost_per_million: 25.0,
+            reasoning_cost_per_million: None,
+        },
+    );
+
+    // ==================== Grok 2 (2024) ====================
     configs.insert(
         "grok-2",
         ModelInfo {
             model_id: "grok-2",
             display_name: "Grok-2",
-            context_length: 131072, // 128K context
+            context_length: 131072,    // 128K context
             max_output_tokens: 32768,
             supports_tools: true,
             supports_vision: false,
@@ -65,13 +144,12 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         },
     );
 
-    // Grok-2 Mini (smaller, faster model)
     configs.insert(
         "grok-2-mini",
         ModelInfo {
             model_id: "grok-2-mini",
             display_name: "Grok-2 Mini",
-            context_length: 131072, // 128K context
+            context_length: 131072,
             max_output_tokens: 16384,
             supports_tools: true,
             supports_vision: false,
@@ -83,7 +161,41 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         },
     );
 
-    // Grok Beta (experimental features)
+    configs.insert(
+        "grok-2-1212",
+        ModelInfo {
+            model_id: "grok-2-1212",
+            display_name: "Grok-2 (Dec 2024)",
+            context_length: 131072,
+            max_output_tokens: 32768,
+            supports_tools: true,
+            supports_vision: false,
+            supports_web_search: true,
+            supports_reasoning: true,
+            input_cost_per_million: 2.0,
+            output_cost_per_million: 10.0,
+            reasoning_cost_per_million: Some(10.0),
+        },
+    );
+
+    configs.insert(
+        "grok-2-vision-1212",
+        ModelInfo {
+            model_id: "grok-2-vision-1212",
+            display_name: "Grok-2 Vision (Dec 2024)",
+            context_length: 32768,
+            max_output_tokens: 8192,
+            supports_tools: true,
+            supports_vision: true,
+            supports_web_search: true,
+            supports_reasoning: false,
+            input_cost_per_million: 2.0,
+            output_cost_per_million: 10.0,
+            reasoning_cost_per_million: None,
+        },
+    );
+
+    // ==================== Experimental Models ====================
     configs.insert(
         "grok-beta",
         ModelInfo {
@@ -101,7 +213,6 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         },
     );
 
-    // Grok Vision (multimodal)
     configs.insert(
         "grok-vision-beta",
         ModelInfo {
@@ -168,8 +279,14 @@ impl XAIModel {
     /// Get the API model ID
     pub fn model_id(&self) -> &'static str {
         match self {
+            XAIModel::Grok4 => "grok-4",
+            XAIModel::Grok3 => "grok-3",
+            XAIModel::Grok3Mini => "grok-3-mini",
+            XAIModel::Grok3Fast => "grok-3-fast",
             XAIModel::Grok2 => "grok-2",
             XAIModel::Grok2Mini => "grok-2-mini",
+            XAIModel::Grok21212 => "grok-2-1212",
+            XAIModel::Grok2Vision => "grok-2-vision-1212",
             XAIModel::GrokBeta => "grok-beta",
             XAIModel::GrokVision => "grok-vision-beta",
         }
@@ -187,6 +304,19 @@ mod tests {
 
     #[test]
     fn test_model_info() {
+        // Test Grok-4 model info (latest)
+        let info = get_model_info("grok-4").unwrap();
+        assert_eq!(info.model_id, "grok-4");
+        assert_eq!(info.context_length, 256000);
+        assert!(info.supports_reasoning);
+        assert!(info.supports_vision);
+        assert!(info.supports_web_search);
+
+        // Test Grok-3 model info
+        let info = get_model_info("grok-3").unwrap();
+        assert_eq!(info.model_id, "grok-3");
+        assert!(info.supports_reasoning);
+
         // Test Grok-2 model info
         let info = get_model_info("grok-2").unwrap();
         assert_eq!(info.model_id, "grok-2");
@@ -209,6 +339,9 @@ mod tests {
     #[test]
     fn test_available_models() {
         let models = get_available_models();
+        assert!(models.contains(&"grok-4"));
+        assert!(models.contains(&"grok-3"));
+        assert!(models.contains(&"grok-3-mini"));
         assert!(models.contains(&"grok-2"));
         assert!(models.contains(&"grok-2-mini"));
         assert!(models.contains(&"grok-beta"));
@@ -217,10 +350,14 @@ mod tests {
 
     #[test]
     fn test_supports_reasoning() {
+        assert!(supports_reasoning_tokens("grok-4"));
+        assert!(supports_reasoning_tokens("grok-3"));
+        assert!(supports_reasoning_tokens("grok-3-mini"));
         assert!(supports_reasoning_tokens("grok-2"));
         assert!(supports_reasoning_tokens("grok-beta"));
         assert!(!supports_reasoning_tokens("grok-2-mini"));
         assert!(!supports_reasoning_tokens("grok-vision-beta"));
+        assert!(!supports_reasoning_tokens("grok-3-fast"));
     }
 
     #[test]
@@ -245,12 +382,15 @@ mod tests {
 
     #[test]
     fn test_xai_model_enum() {
+        assert_eq!(XAIModel::Grok4.model_id(), "grok-4");
+        assert_eq!(XAIModel::Grok3.model_id(), "grok-3");
+        assert_eq!(XAIModel::Grok3Mini.model_id(), "grok-3-mini");
         assert_eq!(XAIModel::Grok2.model_id(), "grok-2");
         assert_eq!(XAIModel::Grok2Mini.model_id(), "grok-2-mini");
         assert_eq!(XAIModel::GrokBeta.model_id(), "grok-beta");
         assert_eq!(XAIModel::GrokVision.model_id(), "grok-vision-beta");
 
-        let info = XAIModel::Grok2.info();
-        assert_eq!(info.display_name, "Grok-2");
+        let info = XAIModel::Grok4.info();
+        assert_eq!(info.display_name, "Grok 4");
     }
 }

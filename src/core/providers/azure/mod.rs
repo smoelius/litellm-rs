@@ -59,7 +59,7 @@ use crate::core::types::{
 use crate::core::traits::LLMProvider;
 
 /// Main Azure OpenAI provider - complete implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AzureOpenAIProvider {
     config: AzureConfig,
     chat_handler: AzureChatHandler,

@@ -12,14 +12,14 @@ use tracing::{debug, info};
 
 /// Load balancer for intelligent provider selection
 pub struct LoadBalancer {
-    /// Available providers
-    providers: Arc<DashMap<String, Provider>>,
+    /// Available providers - DashMap provides interior mutability, no need for Arc wrapper
+    providers: DashMap<String, Provider>,
     /// Strategy executor
     strategy: Arc<StrategyExecutor>,
     /// Health checker
     health_checker: Option<Arc<HealthChecker>>,
-    /// Provider model support cache with reference counting for efficiency
-    model_support_cache: Arc<DashMap<String, Arc<Vec<String>>>>,
+    /// Provider model support cache - removed nested Arc, Vec is cheap to clone for small lists
+    model_support_cache: DashMap<String, Vec<String>>,
 }
 
 impl LoadBalancer {
@@ -30,10 +30,10 @@ impl LoadBalancer {
         let strategy_executor = Arc::new(StrategyExecutor::new(strategy).await?);
 
         Ok(Self {
-            providers: Arc::new(DashMap::new()),
+            providers: DashMap::new(),
             strategy: strategy_executor,
             health_checker: None,
-            model_support_cache: Arc::new(DashMap::new()),
+            model_support_cache: DashMap::new(),
         })
     }
 
@@ -70,15 +70,20 @@ impl LoadBalancer {
         }
 
         // Use strategy to select provider
-        let _selected_name = self
+        let selected_name = self
             .strategy
             .select_provider(&healthy_providers, model, context)
             .await?;
 
-        // TODO: Fix provider cloning issue - need to redesign API to avoid cloning
-        Err(GatewayError::NotImplemented(
-            "Load balancer provider selection not implemented yet".to_string(),
-        ))
+        // Get the selected provider and clone it
+        if let Some(provider_ref) = self.providers.get(&selected_name) {
+            Ok(provider_ref.value().clone())
+        } else {
+            Err(GatewayError::ProviderNotFound(format!(
+                "Provider {} not found in load balancer",
+                selected_name
+            )))
+        }
     }
 
     /// Get providers that support a specific model
@@ -87,9 +92,10 @@ impl LoadBalancer {
         if let Some(cached_providers) = self.model_support_cache.get(model) {
             debug!(
                 "Found cached providers for model {}: {:?}",
-                model, cached_providers
+                model,
+                cached_providers.value()
             );
-            return Ok((**cached_providers).clone());
+            return Ok(cached_providers.value().clone());
         }
 
         // Query providers for model support
@@ -102,10 +108,9 @@ impl LoadBalancer {
             }
         }
 
-        // Cache the result with Arc for efficient sharing
-        let cached_result = Arc::new(supporting_providers.clone());
+        // Cache the result directly - Vec<String> is cheap to clone for typical provider lists
         self.model_support_cache
-            .insert(model.to_string(), cached_result);
+            .insert(model.to_string(), supporting_providers.clone());
 
         debug!(
             "Providers supporting model {}: {:?}",
@@ -133,13 +138,7 @@ impl LoadBalancer {
 
         // Selectively invalidate cache entries that might include this provider
         self.model_support_cache.retain(|_, providers| {
-            let mut updated_providers = (**providers).clone();
-            updated_providers.retain(|p| p != name);
-            if updated_providers.len() != providers.len() {
-                false // Remove this cache entry as it contained the removed provider
-            } else {
-                true // Keep this cache entry
-            }
+            !providers.contains(&name.to_string())
         });
 
         info!("Removed provider {} from load balancer", name);
@@ -197,7 +196,7 @@ impl LoadBalancer {
         let mut result = HashMap::new();
         for entry in self.model_support_cache.iter() {
             let (key, value) = entry.pair();
-            result.insert(key.clone(), (**value).clone());
+            result.insert(key.clone(), value.clone());
         }
         Ok(result)
     }

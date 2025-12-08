@@ -11,7 +11,7 @@ use std::collections::HashMap;
 type HmacSha256 = Hmac<Sha256>;
 
 /// AWS SigV4 signer for Bedrock requests
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SigV4Signer {
     access_key: String,
     secret_key: String,

@@ -93,15 +93,22 @@ pub enum OpenAIModelFamily {
     GPT4,
     GPT4Turbo,
     GPT4O,
+    GPT4OMini,
     GPT35,
-    GPT5, // Future model
-    O1,   // Reasoning models
+    GPT5,      // GPT-5 models (2025)
+    O1,        // O1 reasoning models
+    O1Pro,     // O1 Pro reasoning models
+    O3,        // O3 reasoning models (2025)
+    O3Mini,    // O3 Mini reasoning models
+    O4Mini,    // O4 Mini reasoning models (2025)
     DALLE2,
     DALLE3,
     Whisper,
     TTS,
     Embedding,
     Moderation,
+    GPT4OAudio, // GPT-4O with audio capabilities
+    Realtime,   // Realtime API models
 }
 
 /// Model-specific configuration
@@ -277,7 +284,14 @@ impl OpenAIModelRegistry {
     fn determine_family(&self, model_info: &ModelInfo) -> OpenAIModelFamily {
         let model_id = &model_info.id;
 
-        if model_id.starts_with("gpt-4o") {
+        // Check most specific patterns first
+        if model_id.starts_with("gpt-4o-mini") {
+            OpenAIModelFamily::GPT4OMini
+        } else if model_id.starts_with("gpt-4o-audio") || model_id.contains("audio-preview") {
+            OpenAIModelFamily::GPT4OAudio
+        } else if model_id.starts_with("gpt-4o-realtime") {
+            OpenAIModelFamily::Realtime
+        } else if model_id.starts_with("gpt-4o") {
             OpenAIModelFamily::GPT4O
         } else if model_id.starts_with("gpt-4-turbo")
             || model_id.starts_with("gpt-4-1106")
@@ -290,7 +304,15 @@ impl OpenAIModelRegistry {
             OpenAIModelFamily::GPT35
         } else if model_id.starts_with("gpt-5") {
             OpenAIModelFamily::GPT5
-        } else if model_id.starts_with("o1-") {
+        } else if model_id.starts_with("o4-mini") {
+            OpenAIModelFamily::O4Mini
+        } else if model_id.starts_with("o3-mini") {
+            OpenAIModelFamily::O3Mini
+        } else if model_id.starts_with("o3") {
+            OpenAIModelFamily::O3
+        } else if model_id.starts_with("o1-pro") {
+            OpenAIModelFamily::O1Pro
+        } else if model_id.starts_with("o1") {
             OpenAIModelFamily::O1
         } else if model_id.starts_with("dall-e-2") {
             OpenAIModelFamily::DALLE2
@@ -354,7 +376,187 @@ impl OpenAIModelRegistry {
     /// Add static model definitions as fallback
     fn add_static_models(&mut self) {
         let static_models = vec![
-            // GPT-4 models
+            // ==================== GPT-4O Models (2024-2025) ====================
+            (
+                "gpt-4o",
+                "GPT-4O",
+                OpenAIModelFamily::GPT4O,
+                128000,
+                Some(16384),
+                0.0025,  // $2.50/1M input
+                0.010,   // $10/1M output
+            ),
+            (
+                "gpt-4o-2024-11-20",
+                "GPT-4O (Nov 2024)",
+                OpenAIModelFamily::GPT4O,
+                128000,
+                Some(16384),
+                0.0025,
+                0.010,
+            ),
+            (
+                "gpt-4o-2024-08-06",
+                "GPT-4O (Aug 2024)",
+                OpenAIModelFamily::GPT4O,
+                128000,
+                Some(16384),
+                0.0025,
+                0.010,
+            ),
+            // GPT-4O Mini
+            (
+                "gpt-4o-mini",
+                "GPT-4O Mini",
+                OpenAIModelFamily::GPT4OMini,
+                128000,
+                Some(16384),
+                0.00015,  // $0.15/1M input
+                0.0006,   // $0.60/1M output
+            ),
+            (
+                "gpt-4o-mini-2024-07-18",
+                "GPT-4O Mini (Jul 2024)",
+                OpenAIModelFamily::GPT4OMini,
+                128000,
+                Some(16384),
+                0.00015,
+                0.0006,
+            ),
+            // GPT-4O Audio
+            (
+                "gpt-4o-audio-preview",
+                "GPT-4O Audio Preview",
+                OpenAIModelFamily::GPT4OAudio,
+                128000,
+                Some(16384),
+                0.0025,
+                0.010,
+            ),
+            (
+                "gpt-4o-audio-preview-2024-12-17",
+                "GPT-4O Audio (Dec 2024)",
+                OpenAIModelFamily::GPT4OAudio,
+                128000,
+                Some(16384),
+                0.0025,
+                0.010,
+            ),
+            // GPT-4O Realtime
+            (
+                "gpt-4o-realtime-preview",
+                "GPT-4O Realtime Preview",
+                OpenAIModelFamily::Realtime,
+                128000,
+                Some(4096),
+                0.005,
+                0.020,
+            ),
+            // ==================== O-Series Reasoning Models (2024-2025) ====================
+            // O1 Models
+            (
+                "o1",
+                "O1",
+                OpenAIModelFamily::O1,
+                200000,
+                Some(100000),
+                0.015,   // $15/1M input
+                0.060,   // $60/1M output
+            ),
+            (
+                "o1-2024-12-17",
+                "O1 (Dec 2024)",
+                OpenAIModelFamily::O1,
+                200000,
+                Some(100000),
+                0.015,
+                0.060,
+            ),
+            (
+                "o1-preview",
+                "O1 Preview",
+                OpenAIModelFamily::O1,
+                128000,
+                Some(32768),
+                0.015,
+                0.060,
+            ),
+            (
+                "o1-mini",
+                "O1 Mini",
+                OpenAIModelFamily::O1,
+                128000,
+                Some(65536),
+                0.003,   // $3/1M input
+                0.012,   // $12/1M output
+            ),
+            (
+                "o1-mini-2024-09-12",
+                "O1 Mini (Sep 2024)",
+                OpenAIModelFamily::O1,
+                128000,
+                Some(65536),
+                0.003,
+                0.012,
+            ),
+            // O1 Pro
+            (
+                "o1-pro",
+                "O1 Pro",
+                OpenAIModelFamily::O1Pro,
+                200000,
+                Some(100000),
+                0.150,   // $150/1M input (ChatGPT Pro)
+                0.600,   // $600/1M output
+            ),
+            (
+                "o1-pro-2024-12-17",
+                "O1 Pro (Dec 2024)",
+                OpenAIModelFamily::O1Pro,
+                200000,
+                Some(100000),
+                0.150,
+                0.600,
+            ),
+            // O3 Mini (2025)
+            (
+                "o3-mini",
+                "O3 Mini",
+                OpenAIModelFamily::O3Mini,
+                200000,
+                Some(100000),
+                0.0011,  // $1.10/1M input
+                0.0044,  // $4.40/1M output
+            ),
+            (
+                "o3-mini-2025-01-31",
+                "O3 Mini (Jan 2025)",
+                OpenAIModelFamily::O3Mini,
+                200000,
+                Some(100000),
+                0.0011,
+                0.0044,
+            ),
+            // O4 Mini (2025)
+            (
+                "o4-mini",
+                "O4 Mini",
+                OpenAIModelFamily::O4Mini,
+                200000,
+                Some(100000),
+                0.0011,
+                0.0044,
+            ),
+            (
+                "o4-mini-2025-04-16",
+                "O4 Mini (Apr 2025)",
+                OpenAIModelFamily::O4Mini,
+                200000,
+                Some(100000),
+                0.0011,
+                0.0044,
+            ),
+            // ==================== GPT-4 Legacy Models ====================
             (
                 "gpt-4",
                 "GPT-4",
@@ -374,15 +576,15 @@ impl OpenAIModelRegistry {
                 0.03,
             ),
             (
-                "gpt-4o",
-                "GPT-4O",
-                OpenAIModelFamily::GPT4O,
+                "gpt-4-turbo-2024-04-09",
+                "GPT-4 Turbo (Apr 2024)",
+                OpenAIModelFamily::GPT4Turbo,
                 128000,
                 Some(4096),
-                0.005,
-                0.015,
+                0.01,
+                0.03,
             ),
-            // GPT-3.5 models
+            // ==================== GPT-3.5 Models ====================
             (
                 "gpt-3.5-turbo",
                 "GPT-3.5 Turbo",
@@ -392,26 +594,16 @@ impl OpenAIModelRegistry {
                 0.0005,
                 0.0015,
             ),
-            // O1 models
             (
-                "o1-preview",
-                "O1 Preview",
-                OpenAIModelFamily::O1,
-                128000,
-                Some(32768),
-                0.015,
-                0.06,
+                "gpt-3.5-turbo-0125",
+                "GPT-3.5 Turbo (Jan 2024)",
+                OpenAIModelFamily::GPT35,
+                16385,
+                Some(4096),
+                0.0005,
+                0.0015,
             ),
-            (
-                "o1-mini",
-                "O1 Mini",
-                OpenAIModelFamily::O1,
-                128000,
-                Some(65536),
-                0.003,
-                0.012,
-            ),
-            // DALL-E models
+            // ==================== DALL-E Models ====================
             (
                 "dall-e-2",
                 "DALL-E 2",
@@ -430,7 +622,7 @@ impl OpenAIModelRegistry {
                 0.04,
                 0.08,
             ),
-            // Embedding models
+            // ==================== Embedding Models ====================
             (
                 "text-embedding-ada-002",
                 "Embedding Ada 002",
@@ -458,7 +650,7 @@ impl OpenAIModelRegistry {
                 0.00013,
                 0.00013,
             ),
-            // Whisper models
+            // ==================== Audio Models ====================
             (
                 "whisper-1",
                 "Whisper",
@@ -468,7 +660,6 @@ impl OpenAIModelRegistry {
                 0.006,
                 0.006,
             ),
-            // TTS models
             (
                 "tts-1",
                 "TTS 1",
@@ -503,10 +694,26 @@ impl OpenAIModelRegistry {
                     OpenAIModelFamily::GPT4
                         | OpenAIModelFamily::GPT4Turbo
                         | OpenAIModelFamily::GPT4O
+                        | OpenAIModelFamily::GPT4OMini
                         | OpenAIModelFamily::GPT35
+                        | OpenAIModelFamily::O1
+                        | OpenAIModelFamily::O1Pro
+                        | OpenAIModelFamily::O3
+                        | OpenAIModelFamily::O3Mini
+                        | OpenAIModelFamily::O4Mini
+                        | OpenAIModelFamily::GPT4OAudio
                 ),
-                supports_multimodal: matches!(family, OpenAIModelFamily::GPT4O)
-                    || id.contains("vision"),
+                supports_multimodal: matches!(
+                    family,
+                    OpenAIModelFamily::GPT4O
+                        | OpenAIModelFamily::GPT4OMini
+                        | OpenAIModelFamily::GPT4OAudio
+                        | OpenAIModelFamily::O1
+                        | OpenAIModelFamily::O1Pro
+                        | OpenAIModelFamily::O3
+                        | OpenAIModelFamily::O3Mini
+                        | OpenAIModelFamily::O4Mini
+                ) || id.contains("vision"),
                 input_cost_per_1k_tokens: Some(input_cost),
                 output_cost_per_1k_tokens: Some(output_cost),
                 currency: "USD".to_string(),
@@ -591,13 +798,13 @@ impl OpenAIModelRegistry {
         match use_case {
             OpenAIUseCase::GeneralChat => Some("gpt-4o".to_string()),
             OpenAIUseCase::CodeGeneration => Some("gpt-4o".to_string()),
-            OpenAIUseCase::Reasoning => Some("o1-preview".to_string()),
+            OpenAIUseCase::Reasoning => Some("o3-mini".to_string()), // Updated to O3 Mini
             OpenAIUseCase::Vision => Some("gpt-4o".to_string()),
             OpenAIUseCase::ImageGeneration => Some("dall-e-3".to_string()),
             OpenAIUseCase::AudioTranscription => Some("whisper-1".to_string()),
             OpenAIUseCase::TextToSpeech => Some("tts-1-hd".to_string()),
             OpenAIUseCase::Embeddings => Some("text-embedding-3-large".to_string()),
-            OpenAIUseCase::CostOptimized => Some("gpt-3.5-turbo".to_string()),
+            OpenAIUseCase::CostOptimized => Some("gpt-4o-mini".to_string()), // Updated to GPT-4O Mini
         }
     }
 }
@@ -676,11 +883,11 @@ mod tests {
         );
         assert_eq!(
             registry.get_recommended_model(OpenAIUseCase::Reasoning),
-            Some("o1-preview".to_string())
+            Some("o3-mini".to_string())
         );
         assert_eq!(
             registry.get_recommended_model(OpenAIUseCase::CostOptimized),
-            Some("gpt-3.5-turbo".to_string())
+            Some("gpt-4o-mini".to_string())
         );
     }
 }

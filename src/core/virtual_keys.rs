@@ -157,12 +157,19 @@ pub struct UpdateKeyRequest {
 pub struct VirtualKeyManager {
     /// Database connection
     database: Arc<Database>,
-    /// In-memory cache for frequently accessed keys
-    key_cache: Arc<RwLock<HashMap<String, VirtualKey>>>,
-    /// Rate limiting tracker
-    rate_limiter: Arc<RwLock<HashMap<String, RateLimitState>>>,
+    /// Consolidated key data - single lock for cache and rate limiting
+    key_data: Arc<RwLock<KeyManagerData>>,
     /// Key generation settings
     key_settings: KeyGenerationSettings,
+}
+
+/// Consolidated key manager data - single lock for cache and rate limiting
+#[derive(Debug, Default)]
+struct KeyManagerData {
+    /// In-memory cache for frequently accessed keys
+    cache: HashMap<String, VirtualKey>,
+    /// Rate limiting tracker
+    rate_limits: HashMap<String, RateLimitState>,
 }
 
 /// Rate limit state tracking
@@ -222,8 +229,7 @@ impl VirtualKeyManager {
     pub async fn new(database: Arc<Database>) -> Result<Self> {
         Ok(Self {
             database,
-            key_cache: Arc::new(RwLock::new(HashMap::new())),
-            rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+            key_data: Arc::new(RwLock::new(KeyManagerData::default())),
             key_settings: KeyGenerationSettings::default(),
         })
     }
@@ -269,8 +275,8 @@ impl VirtualKeyManager {
 
         // Cache the key
         {
-            let mut cache = self.key_cache.write().await;
-            cache.insert(key_hash, virtual_key.clone());
+            let mut data = self.key_data.write().await;
+            data.cache.insert(key_hash, virtual_key.clone());
         }
 
         info!("Virtual key created successfully: {}", virtual_key.key_id);
@@ -283,8 +289,8 @@ impl VirtualKeyManager {
 
         // Check cache first
         {
-            let cache = self.key_cache.read().await;
-            if let Some(key) = cache.get(&key_hash) {
+            let data = self.key_data.read().await;
+            if let Some(key) = data.cache.get(&key_hash) {
                 if self.is_key_valid(key) {
                     return Ok(key.clone());
                 }
@@ -315,8 +321,8 @@ impl VirtualKeyManager {
 
         // Update cache
         {
-            let mut cache = self.key_cache.write().await;
-            cache.insert(key_hash, virtual_key.clone());
+            let mut data = self.key_data.write().await;
+            data.cache.insert(key_hash, virtual_key.clone());
         }
 
         Ok(virtual_key)
@@ -329,8 +335,8 @@ impl VirtualKeyManager {
         tokens_requested: u32,
     ) -> Result<()> {
         if let Some(rate_limits) = &key.rate_limits {
-            let mut rate_limiter = self.rate_limiter.write().await;
-            let state = rate_limiter.entry(key.key_id.clone())
+            let mut data = self.key_data.write().await;
+            let state = data.rate_limits.entry(key.key_id.clone())
                 .or_insert_with(|| RateLimitState {
                     request_count: 0,
                     token_count: 0,
@@ -339,7 +345,7 @@ impl VirtualKeyManager {
                 });
 
             let now = Utc::now();
-            
+
             // Reset window if needed (1 minute window)
             if now.signed_duration_since(state.window_start) > Duration::minutes(1) {
                 state.request_count = 0;
@@ -385,8 +391,8 @@ impl VirtualKeyManager {
 
     /// Record request completion (for parallel request tracking)
     pub async fn record_request_completion(&self, key_id: &str) {
-        let mut rate_limiter = self.rate_limiter.write().await;
-        if let Some(state) = rate_limiter.get_mut(key_id) {
+        let mut data = self.key_data.write().await;
+        if let Some(state) = data.rate_limits.get_mut(key_id) {
             if state.parallel_requests > 0 {
                 state.parallel_requests -= 1;
             }
@@ -412,8 +418,8 @@ impl VirtualKeyManager {
 
         // Update cache
         {
-            let mut cache = self.key_cache.write().await;
-            for (_, key) in cache.iter_mut() {
+            let mut data = self.key_data.write().await;
+            for (_, key) in data.cache.iter_mut() {
                 if key.key_id == key_id {
                     key.spend += cost;
                     break;
@@ -472,8 +478,8 @@ impl VirtualKeyManager {
 
         // Update cache
         {
-            let mut cache = self.key_cache.write().await;
-            cache.insert(key.key_hash.clone(), key.clone());
+            let mut data = self.key_data.write().await;
+            data.cache.insert(key.key_hash.clone(), key.clone());
         }
 
         Ok(key)
@@ -487,10 +493,11 @@ impl VirtualKeyManager {
         // Delete from database
         self.database.delete_virtual_key(key_id).await?;
 
-        // Remove from cache
+        // Remove from cache and rate limits
         {
-            let mut cache = self.key_cache.write().await;
-            cache.remove(&key.key_hash);
+            let mut data = self.key_data.write().await;
+            data.cache.remove(&key.key_hash);
+            data.rate_limits.remove(key_id);
         }
 
         info!("Virtual key deleted: {}", key_id);
@@ -552,17 +559,17 @@ impl VirtualKeyManager {
     /// Reset budgets for expired keys
     pub async fn reset_expired_budgets(&self) -> Result<()> {
         let keys_to_reset = self.database.get_keys_with_expired_budgets().await?;
-        
+
         for mut key in keys_to_reset {
             key.spend = 0.0;
             key.budget_reset_at = self.calculate_budget_reset(&key.budget_duration);
-            
+
             self.database.update_virtual_key(&key).await?;
-            
+
             // Update cache
             {
-                let mut cache = self.key_cache.write().await;
-                cache.insert(key.key_hash.clone(), key);
+                let mut data = self.key_data.write().await;
+                data.cache.insert(key.key_hash.clone(), key);
             }
         }
 
@@ -578,8 +585,7 @@ mod tests {
     fn test_key_generation() {
         let manager = VirtualKeyManager {
             database: Arc::new(Database::new_mock()),
-            key_cache: Arc::new(RwLock::new(HashMap::new())),
-            rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+            key_data: Arc::new(RwLock::new(KeyManagerData::default())),
             key_settings: KeyGenerationSettings::default(),
         };
 
@@ -592,15 +598,14 @@ mod tests {
     fn test_key_hashing() {
         let manager = VirtualKeyManager {
             database: Arc::new(Database::new_mock()),
-            key_cache: Arc::new(RwLock::new(HashMap::new())),
-            rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+            key_data: Arc::new(RwLock::new(KeyManagerData::default())),
             key_settings: KeyGenerationSettings::default(),
         };
 
         let key = "sk-test123";
         let hash1 = manager.hash_key(key);
         let hash2 = manager.hash_key(key);
-        
+
         assert_eq!(hash1, hash2);
         assert_ne!(hash1, key);
     }
@@ -609,8 +614,7 @@ mod tests {
     fn test_key_validation() {
         let manager = VirtualKeyManager {
             database: Arc::new(Database::new_mock()),
-            key_cache: Arc::new(RwLock::new(HashMap::new())),
-            rate_limiter: Arc::new(RwLock::new(HashMap::new())),
+            key_data: Arc::new(RwLock::new(KeyManagerData::default())),
             key_settings: KeyGenerationSettings::default(),
         };
 

@@ -21,7 +21,7 @@ use crate::core::types::{
 use super::streaming::DeepSeekStream;
 use super::{DeepSeekClient, DeepSeekConfig, DeepSeekErrorMapper};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeepSeekProvider {
     config: DeepSeekConfig,
     pool_manager: Arc<GlobalPoolManager>,

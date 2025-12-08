@@ -17,7 +17,7 @@ use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::ErrorMapper;
 
 /// Bedrock HTTP client wrapper
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BedrockClient {
     base_client: BaseHttpClient,
     auth: AwsAuth,

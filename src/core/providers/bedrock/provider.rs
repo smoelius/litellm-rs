@@ -34,7 +34,7 @@ const BEDROCK_CAPABILITIES: &[ProviderCapability] = &[
 ];
 
 /// AWS Bedrock provider implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BedrockProvider {
     client: BedrockClient,
     models: Vec<ModelInfo>,

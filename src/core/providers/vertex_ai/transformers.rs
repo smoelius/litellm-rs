@@ -14,7 +14,7 @@ use super::{
 };
 
 /// Transformer for Gemini models
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct GeminiTransformer;
 
 impl Default for GeminiTransformer {
@@ -276,7 +276,7 @@ impl GeminiTransformer {
 }
 
 /// Transformer for partner models (Claude, Llama, etc.)
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PartnerModelTransformer;
 
 impl Default for PartnerModelTransformer {

@@ -23,7 +23,7 @@ use super::models::get_openrouter_registry;
 // use super::streaming::OpenRouterStream; // Unused for now
 
 /// OpenRouter provider implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OpenRouterProvider {
     config: OpenRouterConfig,
     pool_manager: Arc<GlobalPoolManager>,

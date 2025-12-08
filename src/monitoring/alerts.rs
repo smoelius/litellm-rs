@@ -5,10 +5,12 @@
 use crate::config::AlertingConfig;
 use crate::monitoring::{Alert, AlertSeverity};
 use crate::utils::error::{GatewayError, Result};
+use parking_lot::{Mutex, RwLock};
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::RwLock as TokioRwLock;
 use tracing::{debug, error, info, warn};
 
 /// Alert manager for handling and dispatching alerts
@@ -16,18 +18,25 @@ use tracing::{debug, error, info, warn};
 pub struct AlertManager {
     /// Configuration
     config: AlertingConfig,
-    /// Pending alerts queue
+    /// Consolidated storage for all alert-related data
+    storage: Arc<RwLock<AlertStorage>>,
+    /// Pending alerts queue (separate for fast lock-free access)
     pending_alerts: Arc<Mutex<VecDeque<Alert>>>,
+    /// Notification channels - using tokio RwLock because we need to hold across await points
+    notification_channels: Arc<TokioRwLock<Vec<Box<dyn NotificationChannel>>>>,
+    /// Whether the alert manager is active - using AtomicBool for lock-free access
+    active: AtomicBool,
+}
+
+/// Consolidated alert storage - single lock for related data
+#[derive(Debug, Default)]
+struct AlertStorage {
     /// Alert history
-    alert_history: Arc<RwLock<VecDeque<Alert>>>,
+    history: VecDeque<Alert>,
     /// Alert rules
-    alert_rules: Arc<RwLock<HashMap<String, AlertRule>>>,
-    /// Notification channels
-    notification_channels: Arc<RwLock<Vec<Box<dyn NotificationChannel>>>>,
-    /// Whether the alert manager is active
-    active: Arc<RwLock<bool>>,
+    rules: HashMap<String, AlertRule>,
     /// Alert statistics
-    stats: Arc<RwLock<AlertStats>>,
+    stats: AlertStats,
 }
 
 /// Alert rule for automated alerting
@@ -147,12 +156,10 @@ impl AlertManager {
 
         Ok(Self {
             config: config.clone(),
+            storage: Arc::new(RwLock::new(AlertStorage::default())),
             pending_alerts: Arc::new(Mutex::new(VecDeque::new())),
-            alert_history: Arc::new(RwLock::new(VecDeque::new())),
-            alert_rules: Arc::new(RwLock::new(HashMap::new())),
-            notification_channels: Arc::new(RwLock::new(notification_channels)),
-            active: Arc::new(RwLock::new(false)),
-            stats: Arc::new(RwLock::new(AlertStats::default())),
+            notification_channels: Arc::new(TokioRwLock::new(notification_channels)),
+            active: AtomicBool::new(false),
         })
     }
 
@@ -160,7 +167,7 @@ impl AlertManager {
     pub async fn start(&self) -> Result<()> {
         info!("Starting alert manager");
 
-        *self.active.write().await = true;
+        self.active.store(true, Ordering::Release);
 
         // Start alert processing task
         self.start_alert_processing().await;
@@ -174,8 +181,14 @@ impl AlertManager {
     /// Stop the alert manager
     pub async fn stop(&self) -> Result<()> {
         info!("Stopping alert manager");
-        *self.active.write().await = false;
+        self.active.store(false, Ordering::Release);
         Ok(())
+    }
+
+    /// Check if alert manager is active
+    #[inline]
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::Acquire)
     }
 
     /// Send an alert
@@ -184,33 +197,33 @@ impl AlertManager {
 
         // Add to pending queue
         {
-            let mut pending = self.pending_alerts.lock().await;
-            pending.push_back(alert.clone());
+            self.pending_alerts.lock().push_back(alert.clone());
         }
 
-        // Update statistics
+        // Update statistics and history in a single lock
         {
-            let mut stats = self.stats.write().await;
-            stats.total_alerts += 1;
-            *stats
+            let mut storage = self.storage.write();
+
+            // Update statistics
+            storage.stats.total_alerts += 1;
+            *storage
+                .stats
                 .alerts_by_severity
                 .entry(format!("{:?}", alert.severity))
                 .or_insert(0) += 1;
-            *stats
+            *storage
+                .stats
                 .alerts_by_source
                 .entry(alert.source.clone())
                 .or_insert(0) += 1;
-            stats.last_alert = Some(alert.timestamp);
-        }
+            storage.stats.last_alert = Some(alert.timestamp);
 
-        // Add to history
-        {
-            let mut history = self.alert_history.write().await;
-            history.push_back(alert);
+            // Add to history
+            storage.history.push_back(alert);
 
             // Keep only recent alerts (last 1000)
-            if history.len() > 1000 {
-                history.pop_front();
+            if storage.history.len() > 1000 {
+                storage.history.pop_front();
             }
         }
 
@@ -221,9 +234,9 @@ impl AlertManager {
     pub async fn process_pending(&self) -> Result<()> {
         let mut alerts_to_process = Vec::new();
 
-        // Get pending alerts
+        // Get pending alerts - using parking_lot Mutex (no await needed)
         {
-            let mut pending = self.pending_alerts.lock().await;
+            let mut pending = self.pending_alerts.lock();
             while let Some(alert) = pending.pop_front() {
                 alerts_to_process.push(alert);
             }
@@ -235,8 +248,7 @@ impl AlertManager {
                 error!("Failed to process alert {}: {}", alert.id, e);
 
                 // Update failed notification count
-                let mut stats = self.stats.write().await;
-                stats.failed_notifications += 1;
+                self.storage.write().stats.failed_notifications += 1;
             }
         }
 
@@ -247,6 +259,7 @@ impl AlertManager {
     async fn process_alert(&self, alert: &Alert) -> Result<()> {
         debug!("Processing alert: {}", alert.id);
 
+        // Using tokio RwLock here - safe to hold across await points
         let channels = self.notification_channels.read().await;
 
         for channel in channels.iter() {
@@ -266,8 +279,7 @@ impl AlertManager {
     pub async fn add_rule(&self, rule: AlertRule) -> Result<()> {
         info!("Adding alert rule: {}", rule.name);
 
-        let mut rules = self.alert_rules.write().await;
-        rules.insert(rule.id.clone(), rule);
+        self.storage.write().rules.insert(rule.id.clone(), rule);
 
         Ok(())
     }
@@ -276,23 +288,22 @@ impl AlertManager {
     pub async fn remove_rule(&self, rule_id: &str) -> Result<()> {
         info!("Removing alert rule: {}", rule_id);
 
-        let mut rules = self.alert_rules.write().await;
-        rules.remove(rule_id);
+        self.storage.write().rules.remove(rule_id);
 
         Ok(())
     }
 
     /// Get alert statistics
     pub async fn get_stats(&self) -> AlertStats {
-        self.stats.read().await.clone()
+        self.storage.read().stats.clone()
     }
 
     /// Get alert history
     pub async fn get_history(&self, limit: Option<usize>) -> Vec<Alert> {
-        let history = self.alert_history.read().await;
+        let storage = self.storage.read();
         let limit = limit.unwrap_or(100);
 
-        history.iter().rev().take(limit).cloned().collect()
+        storage.history.iter().rev().take(limit).cloned().collect()
     }
 
     /// Start alert processing task
@@ -305,7 +316,7 @@ impl AlertManager {
             loop {
                 interval.tick().await;
 
-                if !*alert_manager.active.read().await {
+                if !alert_manager.is_active() {
                     break;
                 }
 
@@ -326,7 +337,7 @@ impl AlertManager {
             loop {
                 interval.tick().await;
 
-                if !*alert_manager.active.read().await {
+                if !alert_manager.is_active() {
                     break;
                 }
 
@@ -341,7 +352,7 @@ impl AlertManager {
     async fn evaluate_rules(&self) -> Result<()> {
         debug!("Evaluating alert rules");
 
-        let rules = self.alert_rules.read().await.clone();
+        let rules = self.storage.read().rules.clone();
 
         for rule in rules.values() {
             if rule.enabled {
@@ -408,12 +419,10 @@ impl Clone for AlertManager {
     fn clone(&self) -> Self {
         Self {
             config: self.config.clone(),
+            storage: self.storage.clone(),
             pending_alerts: self.pending_alerts.clone(),
-            alert_history: self.alert_history.clone(),
-            alert_rules: self.alert_rules.clone(),
             notification_channels: self.notification_channels.clone(),
-            active: self.active.clone(),
-            stats: self.stats.clone(),
+            active: AtomicBool::new(self.active.load(Ordering::Acquire)),
         }
     }
 }

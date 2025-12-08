@@ -18,39 +18,42 @@ use tracing::{info, warn, debug};
 
 /// Modern router using enum-based providers
 pub struct RouterV2 {
-    /// Provider registry
-    registry: Arc<RwLock<ProviderRegistry>>,
     /// Storage layer
     storage: Arc<StorageLayer>,
+    /// Consolidated router data - single lock for registry and model cache
+    router_data: Arc<RwLock<RouterData>>,
+}
+
+/// Consolidated router data - single lock for provider registry and model cache
+struct RouterData {
+    /// Provider registry
+    registry: ProviderRegistry,
     /// Model to provider mapping cache
-    model_cache: Arc<RwLock<HashMap<String, Vec<String>>>>,
+    model_cache: HashMap<String, Vec<String>>,
 }
 
 impl RouterV2 {
     /// Create new router
     pub async fn new(storage: Arc<StorageLayer>) -> Result<Self> {
-        let registry = Arc::new(RwLock::new(ProviderRegistry::new()));
-        let model_cache = Arc::new(RwLock::new(HashMap::new()));
-        
         Ok(Self {
-            registry,
             storage,
-            model_cache,
+            router_data: Arc::new(RwLock::new(RouterData {
+                registry: ProviderRegistry::new(),
+                model_cache: HashMap::new(),
+            })),
         })
     }
-    
+
     /// Register a provider
     pub async fn register_provider(&self, provider: Provider) -> Result<()> {
         let name = provider.name().to_string();
         info!("Registering provider: {}", name);
-        
-        let mut registry = self.registry.write().await;
-        registry.register(provider);
-        
+
+        let mut data = self.router_data.write().await;
+        data.registry.register(provider);
         // Clear model cache when providers change
-        let mut cache = self.model_cache.write().await;
-        cache.clear();
-        
+        data.model_cache.clear();
+
         Ok(())
     }
     
@@ -179,35 +182,33 @@ impl RouterV2 {
     
     /// Select best provider for model
     async fn select_provider_for_model(&self, model: &str) -> Result<Provider> {
-        let registry = self.registry.read().await;
-        
+        let data = self.router_data.read().await;
+
         // Check cache first
-        let cache = self.model_cache.read().await;
-        if let Some(provider_names) = cache.get(model) {
+        if let Some(provider_names) = data.model_cache.get(model) {
             if let Some(name) = provider_names.first() {
-                if let Some(provider) = registry.get(name) {
+                if let Some(provider) = data.registry.get(name) {
                     return Ok(provider.clone());
                 }
             }
         }
-        drop(cache);
-        
+
         // Find providers that support this model
         let mut supporting_providers = Vec::new();
-        for provider_name in registry.list() {
-            if let Some(provider) = registry.get(&provider_name) {
+        for provider_name in data.registry.list() {
+            if let Some(provider) = data.registry.get(&provider_name) {
                 if provider.supports_model(model) {
                     supporting_providers.push(provider.clone());
                 }
             }
         }
-        
+
         if supporting_providers.is_empty() {
             return Err(GatewayError::ModelNotFound(format!(
                 "No provider supports model: {}", model
             )));
         }
-        
+
         // For now, just return the first one
         // TODO: Implement smart selection based on cost, latency, etc.
         Ok(supporting_providers[0].clone())
@@ -215,10 +216,10 @@ impl RouterV2 {
     
     /// Select provider for embeddings
     async fn select_provider_for_embeddings(&self, model: &str) -> Result<Provider> {
-        let registry = self.registry.read().await;
-        
-        for provider_name in registry.list() {
-            if let Some(provider) = registry.get(&provider_name) {
+        let data = self.router_data.read().await;
+
+        for provider_name in data.registry.list() {
+            if let Some(provider) = data.registry.get(&provider_name) {
                 let capabilities = provider.capabilities();
                 if capabilities.contains(&ProviderCapability::Embeddings) {
                     if provider.supports_model(model) {
@@ -227,35 +228,35 @@ impl RouterV2 {
                 }
             }
         }
-        
+
         Err(GatewayError::ProviderNotFound(
             "No provider supports embeddings".into()
         ))
     }
-    
+
     /// Select provider for image generation
     async fn select_provider_for_images(&self, _model: &str) -> Result<Provider> {
-        let registry = self.registry.read().await;
-        
-        for provider_name in registry.list() {
-            if let Some(provider) = registry.get(&provider_name) {
+        let data = self.router_data.read().await;
+
+        for provider_name in data.registry.list() {
+            if let Some(provider) = data.registry.get(&provider_name) {
                 let capabilities = provider.capabilities();
                 if capabilities.contains(&ProviderCapability::ImageGeneration) {
                     return Ok(provider.clone());
                 }
             }
         }
-        
+
         Err(GatewayError::ProviderNotFound(
             "No provider supports image generation".into()
         ))
     }
-    
+
     /// Get provider info
     pub async fn get_provider_info(&self, name: &str) -> Result<ProviderInfo> {
-        let registry = self.registry.read().await;
-        
-        if let Some(provider) = registry.get(name) {
+        let data = self.router_data.read().await;
+
+        if let Some(provider) = data.registry.get(name) {
             Ok(ProviderInfo {
                 name: provider.name().to_string(),
                 provider_type: provider.provider_type(),
@@ -267,14 +268,14 @@ impl RouterV2 {
             )))
         }
     }
-    
+
     /// List all providers
     pub async fn list_providers(&self) -> Vec<ProviderInfo> {
-        let registry = self.registry.read().await;
+        let data = self.router_data.read().await;
         let mut providers = Vec::new();
-        
-        for name in registry.list() {
-            if let Some(provider) = registry.get(&name) {
+
+        for name in data.registry.list() {
+            if let Some(provider) = data.registry.get(&name) {
                 providers.push(ProviderInfo {
                     name: provider.name().to_string(),
                     provider_type: provider.provider_type(),
@@ -282,7 +283,7 @@ impl RouterV2 {
                 });
             }
         }
-        
+
         providers
     }
 }

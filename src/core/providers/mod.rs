@@ -291,7 +291,7 @@ macro_rules! dispatch_provider_async_direct {
 ///
 /// This enum provides zero-cost abstractions and type safety for all providers.
 /// Each variant contains a concrete provider implementation.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Provider {
     OpenAI(openai::OpenAIProvider),
     Anthropic(anthropic::AnthropicProvider),

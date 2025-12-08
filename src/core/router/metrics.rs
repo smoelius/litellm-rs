@@ -1,22 +1,29 @@
 //! Router metrics collection and reporting
 
 use crate::utils::error::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 /// Router metrics collector
 pub struct RouterMetrics {
-    /// Request metrics by provider
-    provider_metrics: Arc<RwLock<HashMap<String, ProviderMetrics>>>,
-    /// Model metrics
-    model_metrics: Arc<RwLock<HashMap<String, ModelMetrics>>>,
-    /// Overall metrics
-    overall_metrics: Arc<RwLock<OverallMetrics>>,
+    /// Consolidated metrics data - single lock for all metrics
+    metrics_data: Arc<RwLock<MetricsData>>,
     /// Start time
     start_time: Instant,
+}
+
+/// Consolidated metrics data - single lock for all router metrics
+#[derive(Debug, Default)]
+struct MetricsData {
+    /// Request metrics by provider
+    provider: HashMap<String, ProviderMetrics>,
+    /// Model metrics
+    model: HashMap<String, ModelMetrics>,
+    /// Overall metrics
+    overall: OverallMetrics,
 }
 
 /// Metrics for a specific provider
@@ -94,14 +101,12 @@ impl RouterMetrics {
         info!("Creating router metrics collector");
 
         Ok(Self {
-            provider_metrics: Arc::new(RwLock::new(HashMap::new())),
-            model_metrics: Arc::new(RwLock::new(HashMap::new())),
-            overall_metrics: Arc::new(RwLock::new(OverallMetrics::default())),
+            metrics_data: Arc::new(RwLock::new(MetricsData::default())),
             start_time: Instant::now(),
         })
     }
 
-    /// Record a request
+    /// Record a request - single lock for all updates
     pub async fn record_request(
         &self,
         provider: &str,
@@ -114,10 +119,11 @@ impl RouterMetrics {
             provider, model, duration, success
         );
 
+        let mut data = self.metrics_data.write();
+
         // Update provider metrics
         {
-            let mut provider_metrics = self.provider_metrics.write().await;
-            let metrics = provider_metrics.entry(provider.to_string()).or_default();
+            let metrics = data.provider.entry(provider.to_string()).or_default();
 
             metrics.total_requests += 1;
             if success {
@@ -130,11 +136,15 @@ impl RouterMetrics {
             metrics.last_request = Some(Instant::now());
 
             // Update min/max response times
-            if metrics.min_response_time.is_none() || duration < metrics.min_response_time.unwrap()
+            if metrics
+                .min_response_time
+                .map_or(true, |min| duration < min)
             {
                 metrics.min_response_time = Some(duration);
             }
-            if metrics.max_response_time.is_none() || duration > metrics.max_response_time.unwrap()
+            if metrics
+                .max_response_time
+                .map_or(true, |max| duration > max)
             {
                 metrics.max_response_time = Some(duration);
             }
@@ -142,8 +152,7 @@ impl RouterMetrics {
 
         // Update model metrics
         {
-            let mut model_metrics = self.model_metrics.write().await;
-            let metrics = model_metrics.entry(model.to_string()).or_default();
+            let metrics = data.model.entry(model.to_string()).or_default();
 
             metrics.total_requests += 1;
             if success {
@@ -163,14 +172,13 @@ impl RouterMetrics {
 
         // Update overall metrics
         {
-            let mut overall_metrics = self.overall_metrics.write().await;
-            overall_metrics.total_requests += 1;
+            data.overall.total_requests += 1;
             if success {
-                overall_metrics.successful_requests += 1;
+                data.overall.successful_requests += 1;
             } else {
-                overall_metrics.failed_requests += 1;
+                data.overall.failed_requests += 1;
             }
-            overall_metrics.total_response_time += duration;
+            data.overall.total_response_time += duration;
         }
     }
 
@@ -181,8 +189,8 @@ impl RouterMetrics {
             provider, error_type
         );
 
-        let mut provider_metrics = self.provider_metrics.write().await;
-        let metrics = provider_metrics.entry(provider.to_string()).or_default();
+        let mut data = self.metrics_data.write();
+        let metrics = data.provider.entry(provider.to_string()).or_default();
         *metrics
             .error_counts
             .entry(error_type.to_string())
@@ -191,32 +199,30 @@ impl RouterMetrics {
 
     /// Get metrics snapshot
     pub async fn get_snapshot(&self) -> Result<RouterMetricsSnapshot> {
-        let provider_metrics = self.provider_metrics.read().await;
-        let model_metrics = self.model_metrics.read().await;
-        let mut overall_metrics = self.overall_metrics.write().await;
+        let mut data = self.metrics_data.write();
 
         // Calculate derived metrics
         let uptime = self.start_time.elapsed();
-        let total_requests = overall_metrics.total_requests;
+        let total_requests = data.overall.total_requests;
 
-        overall_metrics.requests_per_second = if uptime.as_secs() > 0 {
+        data.overall.requests_per_second = if uptime.as_secs() > 0 {
             total_requests as f64 / uptime.as_secs() as f64
         } else {
             0.0
         };
 
-        overall_metrics.avg_response_time = if total_requests > 0 {
-            overall_metrics.total_response_time / total_requests as u32
+        data.overall.avg_response_time = if total_requests > 0 {
+            data.overall.total_response_time / total_requests as u32
         } else {
             Duration::ZERO
         };
 
-        overall_metrics.last_calculation = Instant::now();
+        data.overall.last_calculation = Instant::now();
 
         Ok(RouterMetricsSnapshot {
-            provider_metrics: provider_metrics.clone(),
-            model_metrics: model_metrics.clone(),
-            overall_metrics: overall_metrics.clone(),
+            provider_metrics: data.provider.clone(),
+            model_metrics: data.model.clone(),
+            overall_metrics: data.overall.clone(),
             uptime,
             timestamp: Instant::now(),
         })
@@ -224,20 +230,21 @@ impl RouterMetrics {
 
     /// Get provider metrics
     pub async fn get_provider_metrics(&self, provider: &str) -> Result<Option<ProviderMetrics>> {
-        let provider_metrics = self.provider_metrics.read().await;
-        Ok(provider_metrics.get(provider).cloned())
+        let data = self.metrics_data.read();
+        Ok(data.provider.get(provider).cloned())
     }
 
     /// Get model metrics
     pub async fn get_model_metrics(&self, model: &str) -> Result<Option<ModelMetrics>> {
-        let model_metrics = self.model_metrics.read().await;
-        Ok(model_metrics.get(model).cloned())
+        let data = self.metrics_data.read();
+        Ok(data.model.get(model).cloned())
     }
 
     /// Get top providers by request count
     pub async fn get_top_providers(&self, limit: usize) -> Result<Vec<(String, u64)>> {
-        let provider_metrics = self.provider_metrics.read().await;
-        let mut providers: Vec<(String, u64)> = provider_metrics
+        let data = self.metrics_data.read();
+        let mut providers: Vec<(String, u64)> = data
+            .provider
             .iter()
             .map(|(name, metrics)| (name.clone(), metrics.total_requests))
             .collect();
@@ -250,8 +257,9 @@ impl RouterMetrics {
 
     /// Get top models by request count
     pub async fn get_top_models(&self, limit: usize) -> Result<Vec<(String, u64)>> {
-        let model_metrics = self.model_metrics.read().await;
-        let mut models: Vec<(String, u64)> = model_metrics
+        let data = self.metrics_data.read();
+        let mut models: Vec<(String, u64)> = data
+            .model
             .iter()
             .map(|(name, metrics)| (name.clone(), metrics.total_requests))
             .collect();
@@ -266,14 +274,10 @@ impl RouterMetrics {
     pub async fn reset(&self) -> Result<()> {
         info!("Resetting router metrics");
 
-        let mut provider_metrics = self.provider_metrics.write().await;
-        provider_metrics.clear();
-
-        let mut model_metrics = self.model_metrics.write().await;
-        model_metrics.clear();
-
-        let mut overall_metrics = self.overall_metrics.write().await;
-        *overall_metrics = OverallMetrics::default();
+        let mut data = self.metrics_data.write();
+        data.provider.clear();
+        data.model.clear();
+        data.overall = OverallMetrics::default();
 
         Ok(())
     }

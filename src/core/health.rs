@@ -255,18 +255,22 @@ impl HealthMonitor {
     /// Register a provider for health monitoring
     pub async fn register_provider(&self, provider_id: String) {
         info!("Registering provider for health monitoring: {}", provider_id);
-        
+
         // Initialize provider health
-        {
-            let mut health = self.provider_health.write().unwrap();
+        if let Ok(mut health) = self.provider_health.write() {
             health.insert(provider_id.clone(), ProviderHealth::new(provider_id.clone()));
+        } else {
+            error!("Failed to acquire write lock for provider health");
+            return;
         }
 
         // Initialize circuit breaker
-        {
-            let mut breakers = self.circuit_breakers.write().unwrap();
+        if let Ok(mut breakers) = self.circuit_breakers.write() {
             let breaker_config = crate::utils::error_recovery::CircuitBreakerConfig::default();
             breakers.insert(provider_id.clone(), CircuitBreaker::new(breaker_config));
+        } else {
+            error!("Failed to acquire write lock for circuit breakers");
+            return;
         }
 
         // Start health check task if auto-check is enabled
@@ -324,9 +328,10 @@ impl HealthMonitor {
         });
 
         // Store task handle
-        {
-            let mut tasks = self.check_tasks.write().unwrap();
+        if let Ok(mut tasks) = self.check_tasks.write() {
             tasks.insert(provider_id, task);
+        } else {
+            error!("Failed to acquire write lock for check tasks");
         }
     }
 
@@ -354,23 +359,32 @@ impl HealthMonitor {
 
     /// Get health status for a provider
     pub fn get_provider_health(&self, provider_id: &str) -> Option<ProviderHealth> {
-        self.provider_health.read().unwrap().get(provider_id).cloned()
+        self.provider_health
+            .read()
+            .ok()
+            .and_then(|health| health.get(provider_id).cloned())
     }
 
     /// Get health status for all providers
     pub fn get_all_provider_health(&self) -> HashMap<String, ProviderHealth> {
-        self.provider_health.read().unwrap().clone()
+        self.provider_health
+            .read()
+            .map(|health| health.clone())
+            .unwrap_or_default()
     }
 
     /// Get healthy providers sorted by routing weight
     pub fn get_healthy_providers(&self) -> Vec<(String, f64)> {
-        let health_map = self.provider_health.read().unwrap();
+        let health_map = match self.provider_health.read() {
+            Ok(map) => map,
+            Err(_) => return Vec::new(),
+        };
         let mut providers: Vec<_> = health_map
             .iter()
             .filter(|(_, health)| health.is_available())
             .map(|(id, health)| (id.clone(), health.routing_weight()))
             .collect();
-        
+
         providers.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         providers
     }
@@ -387,18 +401,23 @@ impl HealthMonitor {
 
     /// Get circuit breaker for a provider
     pub fn get_circuit_breaker(&self, provider_id: &str) -> Option<CircuitBreaker> {
-        self.circuit_breakers.read().unwrap().get(provider_id).cloned()
+        self.circuit_breakers
+            .read()
+            .ok()
+            .and_then(|breakers| breakers.get(provider_id).cloned())
     }
 
     /// Shutdown health monitoring for all providers
     pub async fn shutdown(&self) {
         info!("Shutting down health monitoring");
-        
+
         // Cancel all health check tasks
-        let tasks = {
-            let mut task_map = self.check_tasks.write().unwrap();
-            let tasks: Vec<_> = task_map.drain().map(|(_, task)| task).collect();
-            tasks
+        let tasks = match self.check_tasks.write() {
+            Ok(mut task_map) => task_map.drain().map(|(_, task)| task).collect::<Vec<_>>(),
+            Err(_) => {
+                error!("Failed to acquire write lock for check tasks during shutdown");
+                return;
+            }
         };
 
         for task in tasks {

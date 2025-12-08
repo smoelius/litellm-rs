@@ -13,8 +13,8 @@ use actix_cors::Cors;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing::{error, info, instrument};
 
 /// Configuration
@@ -100,7 +100,8 @@ pub struct CacheConfig {
 #[derive(Clone, Debug)]
 pub struct AppState {
     pub config: Arc<GatewayConfig>,
-    pub request_count: Arc<RwLock<u64>>,
+    /// Request count - using AtomicU64 for lock-free access
+    pub request_count: Arc<AtomicU64>,
     pub http_client: reqwest::Client,
 }
 
@@ -170,23 +171,21 @@ pub struct GoogleResponsePart {
 /// Check
 #[instrument(skip(state))]
 async fn health_check(state: web::Data<AppState>) -> HttpResponse {
-    let mut count = state.request_count.write().await;
-    *count += 1;
+    let count = state.request_count.fetch_add(1, Ordering::Relaxed) + 1;
 
     HttpResponse::Ok().json(json!({
         "status": "healthy",
         "service": "Google API Gateway",
         "version": "1.0.0",
         "timestamp": chrono::Utc::now().to_rfc3339(),
-        "requests_served": *count
+        "requests_served": count
     }))
 }
 
 /// Model
 #[instrument(skip(state))]
 async fn list_models(state: web::Data<AppState>) -> HttpResponse {
-    let mut count = state.request_count.write().await;
-    *count += 1;
+    state.request_count.fetch_add(1, Ordering::Relaxed);
 
     HttpResponse::Ok().json(json!({
         "object": "list",
@@ -224,9 +223,7 @@ async fn chat_completions(
         request.model
     );
 
-    let mut count = state.request_count.write().await;
-    *count += 1;
-    drop(count);
+    state.request_count.fetch_add(1, Ordering::Relaxed);
 
     // Check
     let requested_model = &request.model;
@@ -361,7 +358,7 @@ impl ConfigurableGateway {
     pub async fn run(self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let state = AppState {
             config: Arc::new(self.config.clone()),
-            request_count: Arc::new(RwLock::new(0)),
+            request_count: Arc::new(AtomicU64::new(0)),
             http_client: reqwest::Client::new(),
         };
 

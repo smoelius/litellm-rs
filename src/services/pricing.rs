@@ -4,9 +4,10 @@
 //! unified cost calculation for all AI providers
 
 use crate::utils::error::{GatewayError, Result};
+use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
@@ -52,10 +53,8 @@ pub struct ModelInfo {
 /// Pricing service using LiteLLM data format
 #[derive(Debug, Clone)]
 pub struct PricingService {
-    /// Model pricing data (model_name -> ModelInfo)
-    model_data: Arc<RwLock<HashMap<String, ModelInfo>>>,
-    /// Last update time
-    last_updated: Arc<RwLock<SystemTime>>,
+    /// Consolidated pricing data - single lock for model data and timestamp
+    pricing_data: Arc<RwLock<PricingData>>,
     /// HTTP client for fetching updates
     http_client: reqwest::Client,
     /// Pricing data source URL
@@ -64,6 +63,24 @@ pub struct PricingService {
     cache_ttl: Duration,
     /// Event broadcaster for updates
     event_sender: broadcast::Sender<PricingUpdateEvent>,
+}
+
+/// Consolidated pricing data - single lock for all pricing state
+#[derive(Debug)]
+struct PricingData {
+    /// Model pricing data (model_name -> ModelInfo)
+    models: HashMap<String, ModelInfo>,
+    /// Last update time
+    last_updated: SystemTime,
+}
+
+impl Default for PricingData {
+    fn default() -> Self {
+        Self {
+            models: HashMap::new(),
+            last_updated: SystemTime::UNIX_EPOCH,
+        }
+    }
 }
 
 /// Pricing update event
@@ -133,8 +150,10 @@ impl PricingService {
         let (event_sender, _) = broadcast::channel(1000);
 
         let service = Self {
-            model_data: Arc::new(RwLock::new(HashMap::new())),
-            last_updated: Arc::new(RwLock::new(SystemTime::UNIX_EPOCH)),
+            pricing_data: Arc::new(RwLock::new(PricingData {
+                models: HashMap::new(),
+                last_updated: SystemTime::UNIX_EPOCH,
+            })),
             http_client: reqwest::Client::new(),
             pricing_url: pricing_url.unwrap_or_else(|| {
                 "https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json".to_string()
@@ -188,17 +207,12 @@ impl PricingService {
             self.load_from_file().await?
         };
 
-        // Update in-memory data
+        // Update in-memory data and timestamp in single lock
         {
-            let mut model_data = self.model_data.write().unwrap();
-            model_data.clear();
-            model_data.extend(data);
-        }
-
-        // Update timestamp
-        {
-            let mut last_updated = self.last_updated.write().unwrap();
-            *last_updated = SystemTime::now();
+            let mut pricing_data = self.pricing_data.write();
+            pricing_data.models.clear();
+            pricing_data.models.extend(data);
+            pricing_data.last_updated = SystemTime::now();
         }
 
         // Send update event
@@ -257,15 +271,15 @@ impl PricingService {
 
     /// Get model information
     pub fn get_model_info(&self, model: &str) -> Option<ModelInfo> {
-        let model_data = self.model_data.read().unwrap();
-        model_data.get(model).cloned()
+        let data = self.pricing_data.read();
+        data.models.get(model).cloned()
     }
 
     /// Check if pricing data needs refresh
     pub fn needs_refresh(&self) -> bool {
-        let last_updated = self.last_updated.read().unwrap();
+        let data = self.pricing_data.read();
         SystemTime::now()
-            .duration_since(*last_updated)
+            .duration_since(data.last_updated)
             .map(|duration| duration > self.cache_ttl)
             .unwrap_or(true)
     }
@@ -442,8 +456,8 @@ impl PricingService {
 
     /// Get all available models for a provider
     pub fn get_models_by_provider(&self, provider: &str) -> Vec<String> {
-        let model_data = self.model_data.read().unwrap();
-        model_data
+        let data = self.pricing_data.read();
+        data.models
             .iter()
             .filter(|(_, info)| info.litellm_provider == provider)
             .map(|(model, _)| model.clone())
@@ -452,8 +466,9 @@ impl PricingService {
 
     /// Get all available providers
     pub fn get_providers(&self) -> Vec<String> {
-        let model_data = self.model_data.read().unwrap();
-        let mut providers: Vec<String> = model_data
+        let data = self.pricing_data.read();
+        let mut providers: Vec<String> = data
+            .models
             .values()
             .map(|info| info.litellm_provider.clone())
             .collect::<std::collections::HashSet<_>>()
@@ -465,8 +480,10 @@ impl PricingService {
 
     /// Add custom model pricing
     pub fn add_custom_model(&self, model: String, model_info: ModelInfo) {
-        let mut model_data = self.model_data.write().unwrap();
-        model_data.insert(model.clone(), model_info.clone());
+        {
+            let mut data = self.pricing_data.write();
+            data.models.insert(model.clone(), model_info.clone());
+        }
 
         // Send update event
         let _ = self.event_sender.send(PricingUpdateEvent {
@@ -484,13 +501,13 @@ impl PricingService {
 
     /// Get pricing statistics
     pub fn get_statistics(&self) -> PricingStatistics {
-        let model_data = self.model_data.read().unwrap();
-        let total_models = model_data.len();
+        let data = self.pricing_data.read();
+        let total_models = data.models.len();
 
         let mut provider_stats = HashMap::new();
         let mut cost_ranges = HashMap::new();
 
-        for (_, model_info) in model_data.iter() {
+        for (_, model_info) in data.models.iter() {
             let provider = &model_info.litellm_provider;
             *provider_stats.entry(provider.clone()).or_insert(0) += 1;
 
@@ -517,7 +534,7 @@ impl PricingService {
             total_models,
             provider_stats,
             cost_ranges,
-            last_updated: *self.last_updated.read().unwrap(),
+            last_updated: data.last_updated,
         }
     }
 }

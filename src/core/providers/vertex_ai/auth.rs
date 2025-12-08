@@ -97,7 +97,7 @@ impl AccessToken {
 }
 
 /// Vertex AI Authentication handler
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VertexAuth {
     credentials: VertexCredentials,
     token_cache: Arc<RwLock<Option<AccessToken>>>,

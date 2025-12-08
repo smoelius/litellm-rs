@@ -115,7 +115,7 @@ pub trait UnifiedProviderConfig: ProviderConfig + Clone + Send + Sync {
 }
 
 /// Base HTTP client wrapper
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BaseHttpClient {
     client: Client,
     config: BaseProviderConfig,

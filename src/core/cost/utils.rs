@@ -53,7 +53,7 @@ pub fn select_tiered_pricing(pricing: &ModelPricing, usage: &UsageTokens) -> (f6
         thresholds.sort_by(|a, b| {
             extract_threshold(a.0)
                 .partial_cmp(&extract_threshold(b.0))
-                .unwrap()
+                .unwrap_or(std::cmp::Ordering::Equal)
                 .reverse()
         });
 

@@ -10,10 +10,11 @@ use crate::monitoring::{
     SystemResourceMetrics,
 };
 use crate::utils::error::Result;
+use parking_lot::RwLock;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::RwLock;
 use tracing::debug;
 
 /// Metrics collector for gathering and aggregating system metrics
@@ -21,20 +22,23 @@ use tracing::debug;
 pub struct MetricsCollector {
     /// Configuration
     config: Arc<MonitoringConfig>,
-    /// Request metrics storage
-    request_metrics: Arc<RwLock<RequestMetricsStorage>>,
-    /// Provider metrics storage
-    provider_metrics: Arc<RwLock<ProviderMetricsStorage>>,
-    /// System metrics storage
-    system_metrics: Arc<RwLock<SystemMetricsStorage>>,
-    /// Error metrics storage
-    error_metrics: Arc<RwLock<ErrorMetricsStorage>>,
-    /// Performance metrics storage
-    performance_metrics: Arc<RwLock<PerformanceMetricsStorage>>,
+    /// All metrics storage consolidated into a single lock
+    /// This reduces lock contention and simplifies the code
+    storage: Arc<RwLock<MetricsStorage>>,
     /// Collection start time
     start_time: Instant,
-    /// Whether collection is active
-    active: Arc<RwLock<bool>>,
+    /// Whether collection is active - using AtomicBool for lock-free access
+    active: AtomicBool,
+}
+
+/// Consolidated metrics storage - single lock for all metrics
+#[derive(Debug, Default)]
+struct MetricsStorage {
+    request: RequestMetricsStorage,
+    provider: ProviderMetricsStorage,
+    system: SystemMetricsStorage,
+    error: ErrorMetricsStorage,
+    performance: PerformanceMetricsStorage,
 }
 
 /// Storage for request metrics
@@ -95,13 +99,9 @@ impl MetricsCollector {
     pub async fn new(config: &MonitoringConfig) -> Result<Self> {
         Ok(Self {
             config: Arc::new(config.clone()),
-            request_metrics: Arc::new(RwLock::new(RequestMetricsStorage::default())),
-            provider_metrics: Arc::new(RwLock::new(ProviderMetricsStorage::default())),
-            system_metrics: Arc::new(RwLock::new(SystemMetricsStorage::default())),
-            error_metrics: Arc::new(RwLock::new(ErrorMetricsStorage::default())),
-            performance_metrics: Arc::new(RwLock::new(PerformanceMetricsStorage::default())),
+            storage: Arc::new(RwLock::new(MetricsStorage::default())),
             start_time: Instant::now(),
-            active: Arc::new(RwLock::new(false)),
+            active: AtomicBool::new(false),
         })
     }
 
@@ -109,7 +109,7 @@ impl MetricsCollector {
     pub async fn start(&self) -> Result<()> {
         debug!("Starting metrics collection");
 
-        *self.active.write().await = true;
+        self.active.store(true, Ordering::Release);
 
         // Start background collection tasks
         self.start_system_metrics_collection().await;
@@ -121,8 +121,14 @@ impl MetricsCollector {
     /// Stop metrics collection
     pub async fn stop(&self) -> Result<()> {
         debug!("Stopping metrics collection");
-        *self.active.write().await = false;
+        self.active.store(false, Ordering::Release);
         Ok(())
+    }
+
+    /// Check if metrics collection is active
+    #[inline]
+    pub fn is_active(&self) -> bool {
+        self.active.load(Ordering::Acquire)
     }
 
     /// Record a request metric
@@ -135,7 +141,8 @@ impl MetricsCollector {
         _user_id: Option<uuid::Uuid>,
         _api_key_id: Option<uuid::Uuid>,
     ) -> Result<()> {
-        let mut metrics = self.request_metrics.write().await;
+        let mut storage = self.storage.write();
+        let metrics = &mut storage.request;
 
         metrics.total_requests += 1;
         metrics
@@ -161,7 +168,8 @@ impl MetricsCollector {
         response_time: Duration,
         success: bool,
     ) -> Result<()> {
-        let mut metrics = self.provider_metrics.write().await;
+        let mut storage = self.storage.write();
+        let metrics = &mut storage.provider;
 
         metrics.total_requests += 1;
         *metrics
@@ -195,7 +203,8 @@ impl MetricsCollector {
         _error_message: &str,
         _context: Option<serde_json::Value>,
     ) -> Result<()> {
-        let mut metrics = self.error_metrics.write().await;
+        let mut storage = self.storage.write();
+        let metrics = &mut storage.error;
 
         metrics.total_errors += 1;
         *metrics
@@ -217,28 +226,30 @@ impl MetricsCollector {
 
     /// Record cache hit
     pub async fn record_cache_hit(&self) -> Result<()> {
-        let mut metrics = self.performance_metrics.write().await;
-        metrics.cache_hits += 1;
+        self.storage.write().performance.cache_hits += 1;
         Ok(())
     }
 
     /// Record cache miss
     pub async fn record_cache_miss(&self) -> Result<()> {
-        let mut metrics = self.performance_metrics.write().await;
-        metrics.cache_misses += 1;
+        self.storage.write().performance.cache_misses += 1;
         Ok(())
     }
 
     /// Record database query time
     pub async fn record_db_query_time(&self, duration: Duration) -> Result<()> {
-        let mut metrics = self.performance_metrics.write().await;
-        metrics.db_query_times.push(duration.as_millis() as f64);
+        self.storage
+            .write()
+            .performance
+            .db_query_times
+            .push(duration.as_millis() as f64);
         Ok(())
     }
 
     /// Get request metrics
     pub async fn get_request_metrics(&self) -> Result<RequestMetrics> {
-        let metrics = self.request_metrics.read().await;
+        let storage = self.storage.read();
+        let metrics = &storage.request;
         let now = Instant::now();
 
         // Calculate requests per second (last minute)
@@ -291,7 +302,8 @@ impl MetricsCollector {
 
     /// Get provider metrics
     pub async fn get_provider_metrics(&self) -> Result<ProviderMetrics> {
-        let metrics = self.provider_metrics.read().await;
+        let storage = self.storage.read();
+        let metrics = &storage.provider;
 
         // Calculate success rates
         let mut provider_success_rates = HashMap::new();
@@ -329,7 +341,8 @@ impl MetricsCollector {
 
     /// Get system metrics
     pub async fn get_system_metrics(&self) -> Result<SystemResourceMetrics> {
-        let metrics = self.system_metrics.read().await;
+        let storage = self.storage.read();
+        let metrics = &storage.system;
 
         // Calculate averages from samples
         let cpu_usage = calculate_average(&metrics.cpu_samples);
@@ -355,7 +368,8 @@ impl MetricsCollector {
 
     /// Get error metrics
     pub async fn get_error_metrics(&self) -> Result<ErrorMetrics> {
-        let metrics = self.error_metrics.read().await;
+        let storage = self.storage.read();
+        let metrics = &storage.error;
         let now = Instant::now();
 
         // Calculate error rate (errors per second in last minute)
@@ -378,7 +392,8 @@ impl MetricsCollector {
 
     /// Get performance metrics
     pub async fn get_performance_metrics(&self) -> Result<PerformanceMetrics> {
-        let metrics = self.performance_metrics.read().await;
+        let storage = self.storage.read();
+        let metrics = &storage.performance;
 
         // Calculate cache hit/miss rates
         let total_cache_requests = metrics.cache_hits + metrics.cache_misses;
@@ -416,8 +431,15 @@ impl MetricsCollector {
 
     /// Start system metrics collection
     async fn start_system_metrics_collection(&self) {
-        let system_metrics = self.system_metrics.clone();
-        let active = self.active.clone();
+        let storage = self.storage.clone();
+        let active = self.active.load(Ordering::Acquire);
+
+        if !active {
+            return;
+        }
+
+        // Clone Arc for the spawned task
+        let storage_clone = storage.clone();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(10));
@@ -425,42 +447,39 @@ impl MetricsCollector {
             loop {
                 interval.tick().await;
 
-                if !*active.read().await {
-                    break;
-                }
-
                 // Collect system metrics
-                let mut metrics = system_metrics.write().await;
+                {
+                    let mut storage = storage_clone.write();
+                    let metrics = &mut storage.system;
 
-                // TODO: Implement actual system metrics collection
-                // For now, use placeholder values
-                metrics.cpu_samples.push(get_cpu_usage());
-                metrics.memory_samples.push(get_memory_usage());
-                metrics.disk_samples.push(get_disk_usage());
-                metrics.network_in_samples.push(get_network_bytes_in());
-                metrics.network_out_samples.push(get_network_bytes_out());
-                metrics.connection_samples.push(get_active_connections());
+                    // TODO: Implement actual system metrics collection
+                    // For now, use placeholder values
+                    metrics.cpu_samples.push(get_cpu_usage());
+                    metrics.memory_samples.push(get_memory_usage());
+                    metrics.disk_samples.push(get_disk_usage());
+                    metrics.network_in_samples.push(get_network_bytes_in());
+                    metrics.network_out_samples.push(get_network_bytes_out());
+                    metrics.connection_samples.push(get_active_connections());
 
-                // Keep only recent samples (last hour)
-                const MAX_SAMPLES: usize = 360; // 1 hour at 10-second intervals
-                let cpu_len = metrics.cpu_samples.len();
-                if cpu_len > MAX_SAMPLES {
-                    metrics.cpu_samples.drain(0..cpu_len - MAX_SAMPLES);
+                    // Keep only recent samples (last hour)
+                    const MAX_SAMPLES: usize = 360; // 1 hour at 10-second intervals
+                    let cpu_len = metrics.cpu_samples.len();
+                    if cpu_len > MAX_SAMPLES {
+                        metrics.cpu_samples.drain(0..cpu_len - MAX_SAMPLES);
+                    }
+                    let memory_len = metrics.memory_samples.len();
+                    if memory_len > MAX_SAMPLES {
+                        metrics.memory_samples.drain(0..memory_len - MAX_SAMPLES);
+                    }
+                    // ... similar for other metrics
                 }
-                let memory_len = metrics.memory_samples.len();
-                if memory_len > MAX_SAMPLES {
-                    metrics.memory_samples.drain(0..memory_len - MAX_SAMPLES);
-                }
-                // ... similar for other metrics
             }
         });
     }
 
     /// Start cleanup task for old metrics
     async fn start_cleanup_task(&self) {
-        let request_metrics = self.request_metrics.clone();
-        let error_metrics = self.error_metrics.clone();
-        let active = self.active.clone();
+        let storage = self.storage.clone();
 
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300)); // 5 minutes
@@ -468,24 +487,21 @@ impl MetricsCollector {
             loop {
                 interval.tick().await;
 
-                if !*active.read().await {
-                    break;
-                }
-
                 let now = Instant::now();
 
-                // Clean up old request timestamps
+                // Clean up old timestamps in a single lock
                 {
-                    let mut metrics = request_metrics.write().await;
-                    metrics
+                    let mut storage = storage.write();
+
+                    // Clean up old request timestamps
+                    storage
+                        .request
                         .last_minute_requests
                         .retain(|&time| now.duration_since(time) <= Duration::from_secs(300));
-                }
 
-                // Clean up old error timestamps
-                {
-                    let mut metrics = error_metrics.write().await;
-                    metrics
+                    // Clean up old error timestamps
+                    storage
+                        .error
                         .last_minute_errors
                         .retain(|&time| now.duration_since(time) <= Duration::from_secs(300));
                 }
@@ -616,6 +632,6 @@ mod tests {
         };
 
         let collector = MetricsCollector::new(&config).await.unwrap();
-        assert!(!*collector.active.read().await);
+        assert!(!collector.is_active());
     }
 }

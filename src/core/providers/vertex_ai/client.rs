@@ -89,7 +89,7 @@ impl ErrorMapper<VertexAIError> for VertexAIErrorMapper {
 }
 
 /// Vertex AI Provider implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct VertexAIProvider {
     config: VertexAIProviderConfig,
     auth: Arc<VertexAuth>,

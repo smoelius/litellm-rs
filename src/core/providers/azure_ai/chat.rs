@@ -18,7 +18,7 @@ use super::config::{AzureAIConfig, AzureAIEndpointType};
 use crate::core::providers::unified_provider::ProviderError;
 
 /// Azure AI chat handler - complete implementation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AzureAIChatHandler {
     config: AzureAIConfig,
     client: reqwest::Client,

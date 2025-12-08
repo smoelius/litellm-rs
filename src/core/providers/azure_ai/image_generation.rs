@@ -14,7 +14,7 @@ use crate::core::types::{
 };
 
 /// Azure AI image generation handler
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct AzureAIImageHandler {
     config: AzureAIConfig,
     client: reqwest::Client,

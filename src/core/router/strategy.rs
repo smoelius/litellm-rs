@@ -2,10 +2,9 @@
 
 use crate::core::types::common::RequestContext;
 use crate::utils::error::{GatewayError, Result};
+use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use tokio::sync::RwLock;
 use tracing::{debug, info};
 
 /// Routing strategies for provider selection
@@ -44,14 +43,22 @@ pub struct StrategyExecutor {
     strategy: RoutingStrategy,
     /// Round-robin counter
     round_robin_counter: AtomicUsize,
+    /// Consolidated routing data - single lock for all related data
+    /// This reduces lock contention when multiple strategies are used
+    routing_data: RwLock<RoutingData>,
+}
+
+/// Consolidated routing data for all strategies
+#[derive(Debug, Default)]
+struct RoutingData {
     /// Provider weights for weighted strategy
-    weights: Arc<RwLock<HashMap<String, f64>>>,
+    weights: HashMap<String, f64>,
     /// Provider latencies for latency-based routing
-    latencies: Arc<RwLock<HashMap<String, f64>>>,
+    latencies: HashMap<String, f64>,
     /// Provider costs for cost-based routing
-    costs: Arc<RwLock<HashMap<String, f64>>>,
+    costs: HashMap<String, f64>,
     /// Provider priorities
-    priorities: Arc<RwLock<HashMap<String, u32>>>,
+    priorities: HashMap<String, u32>,
 }
 
 impl StrategyExecutor {
@@ -62,10 +69,7 @@ impl StrategyExecutor {
         Ok(Self {
             strategy,
             round_robin_counter: AtomicUsize::new(0),
-            weights: Arc::new(RwLock::new(HashMap::new())),
-            latencies: Arc::new(RwLock::new(HashMap::new())),
-            costs: Arc::new(RwLock::new(HashMap::new())),
-            priorities: Arc::new(RwLock::new(HashMap::new())),
+            routing_data: RwLock::new(RoutingData::default()),
         })
     }
 
@@ -111,13 +115,13 @@ impl StrategyExecutor {
 
     /// Select provider with least latency
     async fn select_least_latency(&self, providers: &[String]) -> Result<String> {
-        let latencies = self.latencies.read().await;
+        let data = self.routing_data.read();
 
         let mut best_provider = &providers[0];
         let mut best_latency = f64::MAX;
 
         for provider in providers {
-            let latency = latencies.get(provider).copied().unwrap_or(f64::MAX);
+            let latency = data.latencies.get(provider).copied().unwrap_or(f64::MAX);
             if latency < best_latency {
                 best_latency = latency;
                 best_provider = provider;
@@ -133,14 +137,14 @@ impl StrategyExecutor {
 
     /// Select provider with least cost
     async fn select_least_cost(&self, providers: &[String], model: &str) -> Result<String> {
-        let costs = self.costs.read().await;
+        let data = self.routing_data.read();
 
         let mut best_provider = &providers[0];
         let mut best_cost = f64::MAX;
 
         for provider in providers {
             let cost_key = format!("{}:{}", provider, model);
-            let cost = costs.get(&cost_key).copied().unwrap_or(f64::MAX);
+            let cost = data.costs.get(&cost_key).copied().unwrap_or(f64::MAX);
             if cost < best_cost {
                 best_cost = cost;
                 best_provider = provider;
@@ -168,15 +172,16 @@ impl StrategyExecutor {
 
     /// Weighted provider selection
     async fn select_weighted(&self, providers: &[String]) -> Result<String> {
-        let weights = self.weights.read().await;
+        let data = self.routing_data.read();
 
         // Calculate total weight
         let total_weight: f64 = providers
             .iter()
-            .map(|p| weights.get(p).copied().unwrap_or(1.0))
+            .map(|p| data.weights.get(p).copied().unwrap_or(1.0))
             .sum();
 
         if total_weight <= 0.0 {
+            drop(data); // Release lock before calling another method
             return self.select_round_robin(providers).await;
         }
 
@@ -187,7 +192,7 @@ impl StrategyExecutor {
 
         // Select provider based on weight
         for provider in providers {
-            let weight = weights.get(provider).copied().unwrap_or(1.0);
+            let weight = data.weights.get(provider).copied().unwrap_or(1.0);
             random -= weight;
             if random <= 0.0 {
                 debug!(
@@ -204,13 +209,13 @@ impl StrategyExecutor {
 
     /// Priority-based provider selection
     async fn select_priority(&self, providers: &[String]) -> Result<String> {
-        let priorities = self.priorities.read().await;
+        let data = self.routing_data.read();
 
         let mut best_provider = &providers[0];
         let mut best_priority = 0u32;
 
         for provider in providers {
-            let priority = priorities.get(provider).copied().unwrap_or(0);
+            let priority = data.priorities.get(provider).copied().unwrap_or(0);
             if priority > best_priority {
                 best_priority = priority;
                 best_provider = provider;
@@ -261,25 +266,28 @@ impl StrategyExecutor {
 
     /// Update provider weight
     pub async fn update_weight(&self, provider: &str, weight: f64) -> Result<()> {
-        let mut weights = self.weights.write().await;
-        weights.insert(provider.to_string(), weight);
+        self.routing_data
+            .write()
+            .weights
+            .insert(provider.to_string(), weight);
         debug!("Updated weight for provider {}: {}", provider, weight);
         Ok(())
     }
 
     /// Update provider latency
     pub async fn update_latency(&self, provider: &str, latency: f64) -> Result<()> {
-        let mut latencies = self.latencies.write().await;
-        latencies.insert(provider.to_string(), latency);
+        self.routing_data
+            .write()
+            .latencies
+            .insert(provider.to_string(), latency);
         debug!("Updated latency for provider {}: {}ms", provider, latency);
         Ok(())
     }
 
     /// Update provider cost
     pub async fn update_cost(&self, provider: &str, model: &str, cost: f64) -> Result<()> {
-        let mut costs = self.costs.write().await;
         let key = format!("{}:{}", provider, model);
-        costs.insert(key, cost);
+        self.routing_data.write().costs.insert(key, cost);
         debug!(
             "Updated cost for provider {} model {}: ${:.4}",
             provider, model, cost
@@ -289,8 +297,10 @@ impl StrategyExecutor {
 
     /// Update provider priority
     pub async fn update_priority(&self, provider: &str, priority: u32) -> Result<()> {
-        let mut priorities = self.priorities.write().await;
-        priorities.insert(provider.to_string(), priority);
+        self.routing_data
+            .write()
+            .priorities
+            .insert(provider.to_string(), priority);
         debug!("Updated priority for provider {}: {}", provider, priority);
         Ok(())
     }
