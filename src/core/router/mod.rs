@@ -262,15 +262,17 @@ impl Router {
             .select_provider(&request.model, &context)
             .await?;
 
-        // Execute request
-        let result = provider
-            .create_embeddings(request.clone(), context.clone())
-            .await?;
+        // Save model name for metrics before moving request
+        let model_name = request.model.clone();
+        let provider_name = provider.name();
+
+        // Execute request - pass owned values, no cloning needed
+        let result = provider.create_embeddings(request, context).await?;
 
         // Record metrics
         let duration = start_time.elapsed();
         self.metrics
-            .record_request(provider.name(), &request.model, duration, true)
+            .record_request(provider_name, &model_name, duration, true)
             .await;
 
         Ok(result)

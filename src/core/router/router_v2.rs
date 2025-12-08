@@ -115,11 +115,10 @@ impl RouterV2 {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse> {
-        let model = request.model.clone();
-        let provider = self.select_provider_for_model(&model).await?;
-        
-        debug!("Routing chat request for model {} to provider {}", model, provider.name());
-        
+        let provider = self.select_provider_for_model(&request.model).await?;
+
+        debug!("Routing chat request for model {} to provider {}", request.model, provider.name());
+
         provider.chat_completion(request, context)
             .await
             .map_err(|e| GatewayError::Provider(format!("{}", e)))
@@ -131,10 +130,9 @@ impl RouterV2 {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<impl futures::Stream<Item = Result<ChatChunk>>> {
-        let model = request.model.clone();
-        let provider = self.select_provider_for_model(&model).await?;
-        
-        debug!("Routing streaming chat for model {} to provider {}", model, provider.name());
+        let provider = self.select_provider_for_model(&request.model).await?;
+
+        debug!("Routing streaming chat for model {} to provider {}", request.model, provider.name());
         
         let stream = provider.chat_completion_stream(request, context)
             .await
@@ -154,11 +152,10 @@ impl RouterV2 {
         request: EmbeddingRequest,
         context: RequestContext,
     ) -> Result<EmbeddingResponse> {
-        let model = request.model.clone();
-        let provider = self.select_provider_for_embeddings(&model).await?;
-        
-        debug!("Routing embeddings for model {} to provider {}", model, provider.name());
-        
+        let provider = self.select_provider_for_embeddings(&request.model).await?;
+
+        debug!("Routing embeddings for model {} to provider {}", request.model, provider.name());
+
         provider.create_embeddings(request, context)
             .await
             .map_err(|e| GatewayError::Provider(format!("{}", e)))
@@ -170,11 +167,12 @@ impl RouterV2 {
         request: ImageGenerationRequest,
         context: RequestContext,
     ) -> Result<ImageGenerationResponse> {
-        let model = request.model.as_ref().unwrap_or(&"dall-e-3".to_string()).clone();
-        let provider = self.select_provider_for_images(&model).await?;
-        
+        let default_model = "dall-e-3".to_string();
+        let model = request.model.as_ref().unwrap_or(&default_model);
+        let provider = self.select_provider_for_images(model).await?;
+
         debug!("Routing image generation to provider {}", provider.name());
-        
+
         provider.create_images(request, context)
             .await
             .map_err(|e| GatewayError::Provider(format!("{}", e)))
