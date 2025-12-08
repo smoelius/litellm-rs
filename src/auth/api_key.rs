@@ -264,9 +264,7 @@ impl ApiKeyHandler {
     /// List API keys for a user
     pub async fn list_user_keys(&self, user_id: Uuid) -> Result<Vec<ApiKey>> {
         debug!("Listing API keys for user: {}", user_id);
-        // TODO: Fix type mismatch - user_id is Uuid but list_api_keys_by_user expects i64
-        let user_id_hash = user_id.as_u128() as i64;
-        self.storage.db().list_api_keys_by_user(user_id_hash).await
+        self.storage.db().list_api_keys_by_user(user_id).await
     }
 
     /// List API keys for a team

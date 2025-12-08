@@ -261,8 +261,13 @@ impl MetricsCollector {
         let requests_per_second = recent_requests as f64 / 60.0;
 
         // Calculate response time percentiles
-        let mut sorted_times = metrics.response_times.clone();
-        sorted_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        // Filter out NaN/Inf values and sort safely
+        let mut sorted_times: Vec<f64> = metrics.response_times
+            .iter()
+            .filter(|&&t| t.is_finite())
+            .copied()
+            .collect();
+        sorted_times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let avg_response_time = if sorted_times.is_empty() {
             0.0
@@ -517,18 +522,21 @@ fn calculate_percentile(sorted_values: &[f64], percentile: f64) -> f64 {
     }
 
     if percentile >= 1.0 {
-        return *sorted_values.last().unwrap();
+        // Safe: we checked is_empty() above
+        return sorted_values.last().copied().unwrap_or(0.0);
     }
 
     let index = percentile * (sorted_values.len() - 1) as f64;
     let lower = index.floor() as usize;
-    let upper = index.ceil() as usize;
+    let upper = (index.ceil() as usize).min(sorted_values.len() - 1);
 
-    if lower == upper {
-        sorted_values[lower]
+    if lower == upper || lower >= sorted_values.len() {
+        sorted_values.get(lower).copied().unwrap_or(0.0)
     } else {
         let weight = index - lower as f64;
-        sorted_values[lower] * (1.0 - weight) + sorted_values[upper] * weight
+        let lower_val = sorted_values.get(lower).copied().unwrap_or(0.0);
+        let upper_val = sorted_values.get(upper).copied().unwrap_or(0.0);
+        lower_val * (1.0 - weight) + upper_val * weight
     }
 }
 

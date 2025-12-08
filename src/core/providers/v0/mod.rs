@@ -146,13 +146,30 @@ pub struct V0Provider {
 
 impl V0Provider {
     /// Create a new V0 provider
-    pub fn new(config: V0Config) -> Self {
+    ///
+    /// # Errors
+    /// Returns error if HTTP client cannot be created
+    pub fn new(config: V0Config) -> Result<Self, crate::core::providers::unified_provider::ProviderError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_seconds))
             .build()
-            .expect("Failed to create HTTP client");
+            .map_err(|e| crate::core::providers::unified_provider::ProviderError::Configuration {
+                provider: "v0",
+                message: format!("Failed to create HTTP client: {}", e),
+            })?;
 
-        Self { config, client }
+        Ok(Self { config, client })
+    }
+
+    /// Create a new V0 provider with default client on error
+    pub fn new_or_default(config: V0Config) -> Self {
+        Self::new(config.clone()).unwrap_or_else(|e| {
+            tracing::error!("Failed to create V0 provider: {}, using default client", e);
+            Self {
+                config,
+                client: reqwest::Client::new(),
+            }
+        })
     }
 
     /// Get API endpoint URL
