@@ -76,7 +76,10 @@ impl RateLimiter {
         }
     }
 
-    /// Check if a request should be allowed
+    /// Check if a request should be allowed (read-only, does not record)
+    ///
+    /// WARNING: Using check() followed by record() has a race condition.
+    /// Use check_and_record() for atomic check-then-record operations.
     pub async fn check(&self, key: &str) -> RateLimitResult {
         if !self.config.enabled {
             return RateLimitResult {
@@ -90,13 +93,40 @@ impl RateLimiter {
         }
 
         match self.config.strategy {
-            RateLimitStrategy::SlidingWindow => self.check_sliding_window(key).await,
-            RateLimitStrategy::TokenBucket => self.check_token_bucket(key).await,
-            RateLimitStrategy::FixedWindow => self.check_fixed_window(key).await,
+            RateLimitStrategy::SlidingWindow => self.check_sliding_window_impl(key, false).await,
+            RateLimitStrategy::TokenBucket => self.check_token_bucket_impl(key, false).await,
+            RateLimitStrategy::FixedWindow => self.check_fixed_window_impl(key, false).await,
+        }
+    }
+
+    /// Atomically check and record a request (prevents TOCTOU race condition)
+    ///
+    /// This is the preferred method for rate limiting as it performs both
+    /// the check and record operations in a single lock acquisition.
+    pub async fn check_and_record(&self, key: &str) -> RateLimitResult {
+        if !self.config.enabled {
+            return RateLimitResult {
+                allowed: true,
+                current_count: 0,
+                limit: self.config.default_rpm,
+                remaining: self.config.default_rpm,
+                reset_after_secs: 0,
+                retry_after_secs: None,
+            };
+        }
+
+        match self.config.strategy {
+            RateLimitStrategy::SlidingWindow => self.check_sliding_window_impl(key, true).await,
+            RateLimitStrategy::TokenBucket => self.check_token_bucket_impl(key, true).await,
+            RateLimitStrategy::FixedWindow => self.check_fixed_window_impl(key, true).await,
         }
     }
 
     /// Record a request (increments counter)
+    ///
+    /// WARNING: This is a separate operation from check() and has a race condition.
+    /// Use check_and_record() for atomic operations.
+    #[deprecated(note = "Use check_and_record() instead to avoid race conditions")]
     pub async fn record(&self, key: &str) {
         if !self.config.enabled {
             return;
@@ -115,8 +145,9 @@ impl RateLimiter {
         }
     }
 
-    /// Sliding window rate limiting
-    async fn check_sliding_window(&self, key: &str) -> RateLimitResult {
+    /// Sliding window rate limiting implementation
+    /// If `record` is true, atomically records the request if allowed
+    async fn check_sliding_window_impl(&self, key: &str, record: bool) -> RateLimitResult {
         let now = Instant::now();
         let window_start = now - self.window;
         let limit = self.config.default_rpm;
@@ -142,6 +173,10 @@ impl RateLimiter {
         let retry_after_secs = if !allowed {
             Some(reset_after_secs.max(1))
         } else {
+            // Atomically record if allowed and record flag is set
+            if record {
+                entry.timestamps.push(now);
+            }
             None
         };
 
@@ -156,14 +191,16 @@ impl RateLimiter {
             allowed,
             current_count,
             limit,
-            remaining,
+            // Adjust remaining if we just recorded
+            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
             reset_after_secs,
             retry_after_secs,
         }
     }
 
-    /// Token bucket rate limiting
-    async fn check_token_bucket(&self, key: &str) -> RateLimitResult {
+    /// Token bucket rate limiting implementation
+    /// If `record` is true, atomically consumes a token if allowed
+    async fn check_token_bucket_impl(&self, key: &str, record: bool) -> RateLimitResult {
         let now = Instant::now();
         let limit = self.config.default_rpm;
         let tokens_per_second = limit as f64 / 60.0;
@@ -197,8 +234,10 @@ impl RateLimiter {
         let retry_after_secs = if !allowed {
             Some(reset_after_secs.max(1))
         } else {
-            // Consume token
-            entry.tokens -= 1.0;
+            // Atomically consume token if allowed and record flag is set
+            if record {
+                entry.tokens -= 1.0;
+            }
             None
         };
 
@@ -206,14 +245,16 @@ impl RateLimiter {
             allowed,
             current_count,
             limit,
-            remaining,
+            // Adjust remaining if we just consumed a token
+            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
             reset_after_secs,
             retry_after_secs,
         }
     }
 
-    /// Fixed window rate limiting
-    async fn check_fixed_window(&self, key: &str) -> RateLimitResult {
+    /// Fixed window rate limiting implementation
+    /// If `record` is true, atomically records the request if allowed
+    async fn check_fixed_window_impl(&self, key: &str, record: bool) -> RateLimitResult {
         let now = Instant::now();
         let limit = self.config.default_rpm;
 
@@ -244,6 +285,10 @@ impl RateLimiter {
         let retry_after_secs = if !allowed {
             Some(reset_after_secs.max(1))
         } else {
+            // Atomically record if allowed and record flag is set
+            if record {
+                entry.timestamps.push(now);
+            }
             None
         };
 
@@ -251,7 +296,8 @@ impl RateLimiter {
             allowed,
             current_count,
             limit,
-            remaining,
+            // Adjust remaining if we just recorded
+            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
             reset_after_secs,
             retry_after_secs,
         }
@@ -346,7 +392,7 @@ mod tests {
         let limiter = RateLimiter::new(test_config(false, 10));
 
         for _ in 0..100 {
-            let result = limiter.check("test-key").await;
+            let result = limiter.check_and_record("test-key").await;
             assert!(result.allowed);
         }
     }
@@ -356,9 +402,8 @@ mod tests {
         let limiter = RateLimiter::new(test_config(true, 10));
 
         for i in 0..10 {
-            let result = limiter.check("test-key").await;
+            let result = limiter.check_and_record("test-key").await;
             assert!(result.allowed, "Request {} should be allowed", i);
-            limiter.record("test-key").await;
         }
     }
 
@@ -366,15 +411,14 @@ mod tests {
     async fn test_sliding_window_blocks_over_limit() {
         let limiter = RateLimiter::new(test_config(true, 5));
 
-        // Fill up the limit
+        // Fill up the limit using atomic check_and_record
         for _ in 0..5 {
-            let result = limiter.check("test-key").await;
+            let result = limiter.check_and_record("test-key").await;
             assert!(result.allowed);
-            limiter.record("test-key").await;
         }
 
         // This should be blocked
-        let result = limiter.check("test-key").await;
+        let result = limiter.check_and_record("test-key").await;
         assert!(!result.allowed);
         assert!(result.retry_after_secs.is_some());
     }
@@ -383,16 +427,16 @@ mod tests {
     async fn test_different_keys_independent() {
         let limiter = RateLimiter::new(test_config(true, 2));
 
-        // Fill up limit for key1
-        limiter.record("key1").await;
-        limiter.record("key1").await;
+        // Fill up limit for key1 using atomic method
+        limiter.check_and_record("key1").await;
+        limiter.check_and_record("key1").await;
 
         // key1 should be blocked
-        let result = limiter.check("key1").await;
+        let result = limiter.check_and_record("key1").await;
         assert!(!result.allowed);
 
         // key2 should still work
-        let result = limiter.check("key2").await;
+        let result = limiter.check_and_record("key2").await;
         assert!(result.allowed);
     }
 
@@ -407,7 +451,7 @@ mod tests {
         let limiter = RateLimiter::new(config);
 
         // Should allow initial requests (bucket starts full)
-        let result = limiter.check("test-key").await;
+        let result = limiter.check_and_record("test-key").await;
         assert!(result.allowed);
     }
 
@@ -422,13 +466,12 @@ mod tests {
         let limiter = RateLimiter::new(config);
 
         for _ in 0..5 {
-            let result = limiter.check("test-key").await;
+            let result = limiter.check_and_record("test-key").await;
             assert!(result.allowed);
-            limiter.record("test-key").await;
         }
 
         // Should be blocked
-        let result = limiter.check("test-key").await;
+        let result = limiter.check_and_record("test-key").await;
         assert!(!result.allowed);
     }
 
@@ -436,17 +479,43 @@ mod tests {
     async fn test_remaining_count() {
         let limiter = RateLimiter::new(test_config(true, 5));
 
+        // First check (no record) should show 5 remaining
         let result = limiter.check("test-key").await;
         assert_eq!(result.remaining, 5);
 
-        limiter.record("test-key").await;
-        let result = limiter.check("test-key").await;
+        // After check_and_record, remaining should be 4
+        let result = limiter.check_and_record("test-key").await;
         assert_eq!(result.remaining, 4);
 
-        limiter.record("test-key").await;
-        limiter.record("test-key").await;
+        // Do two more
+        limiter.check_and_record("test-key").await;
+        limiter.check_and_record("test-key").await;
+
+        // Should have 2 remaining
         let result = limiter.check("test-key").await;
         assert_eq!(result.remaining, 2);
+    }
+
+    #[tokio::test]
+    async fn test_atomic_check_and_record() {
+        let limiter = RateLimiter::new(test_config(true, 3));
+
+        // Use atomic method - should record and decrement in one operation
+        let r1 = limiter.check_and_record("atomic-key").await;
+        assert!(r1.allowed);
+        assert_eq!(r1.remaining, 2); // 3-1=2 after recording
+
+        let r2 = limiter.check_and_record("atomic-key").await;
+        assert!(r2.allowed);
+        assert_eq!(r2.remaining, 1);
+
+        let r3 = limiter.check_and_record("atomic-key").await;
+        assert!(r3.allowed);
+        assert_eq!(r3.remaining, 0);
+
+        // 4th request should be blocked
+        let r4 = limiter.check_and_record("atomic-key").await;
+        assert!(!r4.allowed);
     }
 
     #[tokio::test]
@@ -456,8 +525,9 @@ mod tests {
             Duration::from_millis(50),
         );
 
-        limiter.record("key1").await;
-        limiter.record("key2").await;
+        // Use atomic method
+        limiter.check_and_record("key1").await;
+        limiter.check_and_record("key2").await;
 
         // Wait for window to expire
         tokio::time::sleep(Duration::from_millis(100)).await;

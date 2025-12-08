@@ -306,9 +306,9 @@ where
 
         let fut = self.service.call(req);
         Box::pin(async move {
-            // Check rate limit
+            // Use atomic check_and_record to prevent race conditions
             if let Some(limiter) = limiter {
-                let result = limiter.check(&rate_limit_key).await;
+                let result = limiter.check_and_record(&rate_limit_key).await;
 
                 if !result.allowed {
                     warn!(
@@ -324,10 +324,8 @@ where
                     )));
                 }
 
-                // Record the request
-                limiter.record(&rate_limit_key).await;
-
                 // Process request and add rate limit headers to response
+                // Note: remaining is already adjusted by check_and_record
                 let mut res = fut.await?;
                 let headers = res.headers_mut();
 
@@ -338,7 +336,7 @@ where
                 );
                 headers.insert(
                     actix_web::http::header::HeaderName::from_static("x-ratelimit-remaining"),
-                    HeaderValue::from_str(&result.remaining.saturating_sub(1).to_string())
+                    HeaderValue::from_str(&result.remaining.to_string())
                         .unwrap_or(HeaderValue::from_static("0")),
                 );
                 headers.insert(
