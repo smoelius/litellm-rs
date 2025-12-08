@@ -60,16 +60,17 @@ impl Default for AsyncLoggerConfig {
 /// Async logger for high-performance logging
 #[allow(dead_code)]
 pub struct AsyncLogger {
-    sender: mpsc::UnboundedSender<LogEntry>,
+    sender: mpsc::Sender<LogEntry>,
     config: AsyncLoggerConfig,
     sample_counter: AtomicU64,
 }
 
 #[allow(dead_code)]
 impl AsyncLogger {
-    /// Create a new async logger
+    /// Create a new async logger with bounded channel to prevent memory leaks
     pub fn new(config: AsyncLoggerConfig) -> Self {
-        let (sender, mut receiver) = mpsc::unbounded_channel::<LogEntry>();
+        // Use bounded channel with configured buffer size to prevent OOM
+        let (sender, mut receiver) = mpsc::channel::<LogEntry>(config.buffer_size);
 
         // Spawn background task to process log entries
         tokio::spawn(async move {
@@ -85,6 +86,24 @@ impl AsyncLogger {
         }
     }
 
+    /// Try to send a log entry, handling backpressure
+    fn try_send(&self, entry: LogEntry) -> bool {
+        match self.sender.try_send(entry) {
+            Ok(()) => true,
+            Err(mpsc::error::TrySendError::Full(_)) => {
+                if !self.config.drop_on_overflow {
+                    // Log overflow warning (but don't recurse)
+                    warn!("Async logger buffer full, log entry dropped");
+                }
+                false
+            }
+            Err(mpsc::error::TrySendError::Closed(_)) => {
+                error!("Async logger channel closed");
+                false
+            }
+        }
+    }
+
     /// Log a message with structured fields
     pub fn log_structured(
         &self,
@@ -95,11 +114,16 @@ impl AsyncLogger {
         request_id: Option<String>,
         user_id: Option<Uuid>,
     ) {
-        // Apply sampling if configured
+        // Apply sampling if configured (rate < 1.0)
         if self.config.sample_rate < 1.0 {
+            if self.config.sample_rate <= 0.0 {
+                return; // 0% sampling = drop all
+            }
             let counter = self.sample_counter.fetch_add(1, Ordering::Relaxed);
-            let sample_threshold = (u64::MAX as f64 * self.config.sample_rate) as u64;
-            if !counter.is_multiple_of(u64::MAX / sample_threshold.max(1)) {
+            // Correct sampling: sample every N logs where N = 1/rate
+            // e.g., rate=0.1 means keep 1 in 10, rate=0.5 means keep 1 in 2
+            let sample_interval = (1.0 / self.config.sample_rate) as u64;
+            if counter % sample_interval != 0 {
                 return;
             }
         }
@@ -122,10 +146,8 @@ impl AsyncLogger {
             trace_id: Self::current_trace_id(),
         };
 
-        if self.sender.send(entry).is_err() {
-            // Channel is closed, log synchronously as fallback
-            error!("Async logger channel closed, falling back to sync logging");
-        }
+        // Use try_send with backpressure handling instead of blocking send
+        self.try_send(entry);
     }
 
     /// Log a simple message
@@ -601,6 +623,42 @@ mod tests {
     }
 
     #[test]
+    fn test_log_sampler_edge_cases() {
+        let mut sampler = LogSampler::new();
+
+        // Test 100% sampling
+        sampler.set_sample_rate("full", 1.0);
+        let mut count = 0;
+        for _ in 0..100 {
+            if sampler.should_log("full") {
+                count += 1;
+            }
+        }
+        assert_eq!(count, 100);
+
+        // Test 0% sampling
+        sampler.set_sample_rate("none", 0.0);
+        count = 0;
+        for _ in 0..100 {
+            if sampler.should_log("none") {
+                count += 1;
+            }
+        }
+        assert_eq!(count, 0);
+
+        // Test 10% sampling
+        sampler.set_sample_rate("ten_percent", 0.1);
+        count = 0;
+        for _ in 0..1000 {
+            if sampler.should_log("ten_percent") {
+                count += 1;
+            }
+        }
+        // Should be exactly 100 (every 10th log)
+        assert_eq!(count, 100);
+    }
+
+    #[test]
     fn test_async_logger_config() {
         let config = AsyncLoggerConfig {
             buffer_size: 5000,
@@ -625,5 +683,43 @@ mod tests {
 
         // Give background task time to process
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+    }
+
+    #[tokio::test]
+    async fn test_async_logger_bounded_channel() {
+        // Create logger with small buffer to test backpressure
+        let config = AsyncLoggerConfig {
+            buffer_size: 10,
+            drop_on_overflow: true,
+            sample_rate: 1.0,
+            max_message_length: 100,
+        };
+        let logger = AsyncLogger::new(config);
+
+        // Send more messages than buffer can hold
+        for i in 0..100 {
+            logger.log(Level::INFO, "test", &format!("message {}", i));
+        }
+
+        // Should not panic or hang - messages are dropped when buffer full
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+    }
+
+    #[tokio::test]
+    async fn test_async_logger_sampling() {
+        let config = AsyncLoggerConfig {
+            buffer_size: 1000,
+            drop_on_overflow: false,
+            sample_rate: 0.5, // 50% sampling
+            max_message_length: 100,
+        };
+        let logger = AsyncLogger::new(config);
+
+        // The sampling counter is internal, so we just verify no panic
+        for i in 0..100 {
+            logger.log(Level::INFO, "test", &format!("sampled message {}", i));
+        }
+
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
     }
 }
