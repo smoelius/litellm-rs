@@ -51,8 +51,8 @@ impl StorageLayer {
             // For now, we'll still try to create a Redis pool but ignore errors
             match redis::RedisPool::new(&config.redis).await {
                 Ok(pool) => Arc::new(pool),
-                Err(_) => {
-                    warn!("Redis connection failed, continuing without Redis");
+                Err(e) => {
+                    warn!("Redis connection failed: {}, continuing without Redis", e);
                     // Create a minimal Redis config for fallback
                     let fallback_config = crate::config::models::storage::RedisConfig {
                         url: "redis://localhost:6379".to_string(),
@@ -61,14 +61,16 @@ impl StorageLayer {
                         connection_timeout: 5,
                         cluster: false,
                     };
-                    Arc::new(
-                        redis::RedisPool::new(&fallback_config)
-                            .await
-                            .unwrap_or_else(|_| {
-                                // This should not happen, but if it does, we'll panic for now
-                                panic!("Failed to create fallback Redis pool")
-                            }),
-                    )
+                    match redis::RedisPool::new(&fallback_config).await {
+                        Ok(pool) => Arc::new(pool),
+                        Err(fallback_err) => {
+                            // Return error instead of panicking
+                            return Err(GatewayError::Internal(format!(
+                                "Failed to create Redis pool (primary: {}, fallback: {})",
+                                e, fallback_err
+                            )));
+                        }
+                    }
                 }
             }
         };

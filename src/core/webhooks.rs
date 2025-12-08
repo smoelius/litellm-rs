@@ -175,16 +175,29 @@ pub struct WebhookStats {
 
 impl WebhookManager {
     /// Create a new webhook manager
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
-            .expect("Failed to create HTTP client");
+            .map_err(|e| GatewayError::Network(format!("Failed to create HTTP client: {}", e)))?;
 
-        Self {
+        Ok(Self {
             client,
             data: Arc::new(RwLock::new(WebhookData::default())),
-        }
+        })
+    }
+
+    /// Create a new webhook manager with default settings, panics on failure
+    /// Use `new()` for fallible construction
+    pub fn new_or_default() -> Self {
+        Self::new().unwrap_or_else(|e| {
+            tracing::error!("Failed to create WebhookManager: {}, using minimal client", e);
+            // Create a minimal client as fallback
+            Self {
+                client: Client::new(),
+                data: Arc::new(RwLock::new(WebhookData::default())),
+            }
+        })
     }
 
     /// Register a webhook
@@ -504,7 +517,7 @@ impl Clone for WebhookManager {
 
 impl Default for WebhookManager {
     fn default() -> Self {
-        Self::new()
+        Self::new_or_default()
     }
 }
 
@@ -600,14 +613,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_webhook_manager_creation() {
-        let manager = WebhookManager::new();
+        let manager = WebhookManager::new().unwrap();
         let webhooks = manager.list_webhooks().await;
         assert!(webhooks.is_empty());
     }
 
     #[tokio::test]
     async fn test_webhook_registration() {
-        let manager = WebhookManager::new();
+        let manager = WebhookManager::new().unwrap();
 
         let config = WebhookConfig {
             url: "https://example.com/webhook".to_string(),

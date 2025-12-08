@@ -100,9 +100,24 @@ impl ConfigBuilder {
     }
 
     /// Build the configuration or panic with a descriptive message
+    ///
+    /// # Panics
+    /// This method will panic if the configuration validation fails.
+    /// Use `build()` for fallible construction.
     pub fn build_or_panic(self) -> Config {
         self.build().unwrap_or_else(|e| {
             panic!("Failed to build configuration: {}", e);
+        })
+    }
+
+    /// Build the configuration, returning defaults on validation failure
+    ///
+    /// This is useful when you need a guaranteed Config but want to avoid panics.
+    /// Validation errors are logged as warnings.
+    pub fn build_or_default(self) -> Config {
+        self.build().unwrap_or_else(|e| {
+            tracing::warn!("Configuration validation failed: {}, using defaults", e);
+            Config::default()
         })
     }
 }
@@ -114,8 +129,12 @@ impl Default for ConfigBuilder {
 }
 
 impl Builder<Config> for ConfigBuilder {
+    /// Build the configuration, returning defaults on validation failure
+    ///
+    /// Note: This trait requires a non-fallible return type.
+    /// For fallible construction, use `ConfigBuilder::build()` directly.
     fn build(self) -> Config {
-        self.build().expect("Configuration validation failed")
+        self.build_or_default()
     }
 }
 

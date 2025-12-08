@@ -221,31 +221,36 @@ impl HttpServer {
     }
 
     /// Graceful shutdown signal handler
+    #[allow(dead_code)]
     async fn shutdown_signal() {
         let ctrl_c = async {
-            tokio::signal::ctrl_c()
-                .await
-                .expect("Failed to install Ctrl+C handler");
+            match tokio::signal::ctrl_c().await {
+                Ok(()) => info!("Received Ctrl+C signal, shutting down gracefully"),
+                Err(e) => warn!("Failed to install Ctrl+C handler: {}", e),
+            }
         };
 
         #[cfg(unix)]
         let terminate = async {
-            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
-                .expect("Failed to install signal handler")
-                .recv()
-                .await;
+            match tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()) {
+                Ok(mut signal) => {
+                    signal.recv().await;
+                    info!("Received terminate signal, shutting down gracefully");
+                }
+                Err(e) => {
+                    warn!("Failed to install SIGTERM handler: {}", e);
+                    // Wait indefinitely if signal handler fails
+                    std::future::pending::<()>().await;
+                }
+            }
         };
 
         #[cfg(not(unix))]
         let terminate = std::future::pending::<()>();
 
         tokio::select! {
-            _ = ctrl_c => {
-                info!("Received Ctrl+C signal, shutting down gracefully");
-            },
-            _ = terminate => {
-                info!("Received terminate signal, shutting down gracefully");
-            },
+            _ = ctrl_c => {},
+            _ = terminate => {},
         }
     }
 
