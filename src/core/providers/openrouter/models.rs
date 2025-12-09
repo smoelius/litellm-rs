@@ -36,10 +36,13 @@ pub struct OpenRouterModelRegistry {
 }
 
 impl OpenRouterModelRegistry {
+    /// Expected number of OpenRouter models for capacity hint
+    const EXPECTED_MODEL_COUNT: usize = 12;
+
     /// Create a new model registry
     pub fn new() -> Self {
         let mut registry = Self {
-            models: HashMap::new(),
+            models: HashMap::with_capacity(Self::EXPECTED_MODEL_COUNT),
         };
 
         registry.register_default_models();

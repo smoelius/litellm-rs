@@ -153,7 +153,8 @@ pub fn create_openrouter_headers(
     http_referer: Option<&str>,
     x_title: Option<&str>,
 ) -> HashMap<String, String> {
-    let mut headers = HashMap::new();
+    // Pre-allocate capacity for known headers: Authorization, Content-Type, User-Agent + optional
+    let mut headers = HashMap::with_capacity(5);
 
     // Authorization header
     headers.insert("Authorization".to_string(), format!("Bearer {}", api_key));

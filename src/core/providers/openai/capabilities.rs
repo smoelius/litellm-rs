@@ -68,9 +68,10 @@ impl OpenAICapabilities {
         use super::models::get_openai_registry;
 
         let registry = get_openai_registry();
-        let mut matrix = HashMap::new();
+        let models = registry.get_all_models();
+        let mut matrix = HashMap::with_capacity(models.len());
 
-        for model_info in registry.get_all_models() {
+        for model_info in models {
             if let Some(spec) = registry.get_model_spec(&model_info.id) {
                 matrix.insert(model_info.id.clone(), spec.features.clone());
             }

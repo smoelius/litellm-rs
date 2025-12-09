@@ -125,10 +125,13 @@ pub struct GeminiModelRegistry {
 }
 
 impl GeminiModelRegistry {
+    /// Expected number of Gemini models for capacity hint
+    const EXPECTED_MODEL_COUNT: usize = 12;
+
     /// Create
     pub fn new() -> Self {
         let mut registry = Self {
-            models: HashMap::new(),
+            models: HashMap::with_capacity(Self::EXPECTED_MODEL_COUNT),
         };
         registry.initialize_models();
         registry

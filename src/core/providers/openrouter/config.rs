@@ -155,7 +155,8 @@ impl OpenRouterConfig {
 
     /// Get request headers for OpenRouter API
     pub fn get_headers(&self) -> HashMap<String, String> {
-        let mut headers = HashMap::new();
+        // Pre-allocate capacity for known headers
+        let mut headers = HashMap::with_capacity(4);
 
         headers.insert(
             "Authorization".to_string(),
