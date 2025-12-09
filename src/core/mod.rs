@@ -12,6 +12,7 @@ pub mod completion; // Core completion API
 pub mod cost; // Unified cost calculation system
 // pub mod function_calling; // Temporarily disabled
 pub mod models;
+pub mod observability; // Advanced observability and monitoring
 pub mod providers;
 pub mod rate_limiter; // Rate limiting system
 pub mod router;

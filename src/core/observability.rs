@@ -6,10 +6,11 @@ use crate::utils::error::{GatewayError, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, warn};
 
 /// Metrics collector and exporter
 pub struct MetricsCollector {
@@ -23,13 +24,128 @@ pub struct MetricsCollector {
     custom_metrics: Arc<RwLock<HashMap<String, MetricValue>>>,
 }
 
+/// Maximum number of samples to keep in histogram (prevents unbounded memory growth)
+const HISTOGRAM_MAX_SAMPLES: usize = 1000;
+
+/// Bounded histogram that maintains a rolling window of samples
+#[derive(Debug, Clone)]
+pub struct BoundedHistogram {
+    /// Rolling window of duration samples
+    samples: VecDeque<f64>,
+    /// Maximum number of samples to retain
+    max_samples: usize,
+    /// Running sum for efficient mean calculation
+    sum: f64,
+    /// Total count of all samples ever recorded (for accurate counting)
+    total_count: u64,
+}
+
+impl BoundedHistogram {
+    /// Create a new bounded histogram with specified capacity
+    pub fn new(max_samples: usize) -> Self {
+        Self {
+            samples: VecDeque::with_capacity(max_samples),
+            max_samples,
+            sum: 0.0,
+            total_count: 0,
+        }
+    }
+
+    /// Record a new duration sample
+    pub fn record(&mut self, value: f64) {
+        self.total_count += 1;
+        self.sum += value;
+
+        // If at capacity, remove oldest sample from sum
+        if self.samples.len() >= self.max_samples {
+            if let Some(oldest) = self.samples.pop_front() {
+                self.sum -= oldest;
+            }
+        }
+
+        self.samples.push_back(value);
+    }
+
+    /// Get the mean of current samples
+    pub fn mean(&self) -> f64 {
+        if self.samples.is_empty() {
+            0.0
+        } else {
+            self.sum / self.samples.len() as f64
+        }
+    }
+
+    /// Get percentile value (0-100)
+    pub fn percentile(&self, p: f64) -> f64 {
+        if self.samples.is_empty() {
+            return 0.0;
+        }
+
+        let mut sorted: Vec<f64> = self.samples.iter().copied().collect();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+        // Use linear interpolation for more accurate percentiles
+        let n = sorted.len();
+        if n == 1 {
+            return sorted[0];
+        }
+
+        // Calculate position using the standard percentile formula
+        let pos = (p / 100.0) * (n - 1) as f64;
+        let lower = pos.floor() as usize;
+        let upper = pos.ceil() as usize;
+
+        if lower == upper {
+            sorted[lower]
+        } else {
+            // Linear interpolation between lower and upper
+            let frac = pos - lower as f64;
+            sorted[lower] * (1.0 - frac) + sorted[upper] * frac
+        }
+    }
+
+    /// Get the total count of samples ever recorded
+    pub fn count(&self) -> u64 {
+        self.total_count
+    }
+
+    /// Get current number of samples in the window
+    pub fn window_size(&self) -> usize {
+        self.samples.len()
+    }
+
+    /// Get min value in current window
+    pub fn min(&self) -> f64 {
+        self.samples
+            .iter()
+            .copied()
+            .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0)
+    }
+
+    /// Get max value in current window
+    pub fn max(&self) -> f64 {
+        self.samples
+            .iter()
+            .copied()
+            .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .unwrap_or(0.0)
+    }
+}
+
+impl Default for BoundedHistogram {
+    fn default() -> Self {
+        Self::new(HISTOGRAM_MAX_SAMPLES)
+    }
+}
+
 /// Prometheus metrics structure
 #[derive(Debug, Default)]
 pub struct PrometheusMetrics {
     /// Request counters
     pub request_total: HashMap<String, u64>,
-    /// Request duration histograms
-    pub request_duration: HashMap<String, Vec<f64>>,
+    /// Request duration histograms (bounded to prevent memory leaks)
+    pub request_duration: HashMap<String, BoundedHistogram>,
     /// Error counters
     pub error_total: HashMap<String, u64>,
     /// Token usage counters
@@ -400,10 +516,12 @@ impl MetricsCollector {
         let key = format!("{}:{}", provider, model);
         *metrics.request_total.entry(key.clone()).or_insert(0) += 1;
         
-        // Duration histogram
-        metrics.request_duration.entry(key.clone())
-            .or_insert_with(Vec::new)
-            .push(duration.as_secs_f64());
+        // Duration histogram (bounded to prevent memory leaks)
+        metrics
+            .request_duration
+            .entry(key.clone())
+            .or_insert_with(BoundedHistogram::default)
+            .record(duration.as_secs_f64());
         
         // Error counter
         if !success {
@@ -615,23 +733,95 @@ impl Clone for LogAggregator {
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_bounded_histogram_basic() {
+        let mut histogram = BoundedHistogram::new(5);
+
+        // Record some values
+        histogram.record(1.0);
+        histogram.record(2.0);
+        histogram.record(3.0);
+
+        assert_eq!(histogram.count(), 3);
+        assert_eq!(histogram.window_size(), 3);
+        assert!((histogram.mean() - 2.0).abs() < 0.001);
+        assert!((histogram.min() - 1.0).abs() < 0.001);
+        assert!((histogram.max() - 3.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_bounded_histogram_rolling_window() {
+        let mut histogram = BoundedHistogram::new(3);
+
+        // Fill the histogram
+        histogram.record(1.0);
+        histogram.record(2.0);
+        histogram.record(3.0);
+
+        assert_eq!(histogram.window_size(), 3);
+        assert!((histogram.mean() - 2.0).abs() < 0.001);
+
+        // Add more values - oldest should be evicted
+        histogram.record(4.0);
+        histogram.record(5.0);
+
+        // Window should still be 3, but now contains [3.0, 4.0, 5.0]
+        assert_eq!(histogram.window_size(), 3);
+        assert_eq!(histogram.count(), 5); // Total count should be 5
+        assert!((histogram.mean() - 4.0).abs() < 0.001); // (3+4+5)/3 = 4
+        assert!((histogram.min() - 3.0).abs() < 0.001);
+        assert!((histogram.max() - 5.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_bounded_histogram_percentile() {
+        let mut histogram = BoundedHistogram::new(100);
+
+        // Record values 1-100
+        for i in 1..=100 {
+            histogram.record(i as f64);
+        }
+
+        // Test percentiles
+        assert!((histogram.percentile(50.0) - 50.0).abs() < 1.0);
+        assert!((histogram.percentile(90.0) - 90.0).abs() < 1.0);
+        assert!((histogram.percentile(99.0) - 99.0).abs() < 1.0);
+    }
+
+    #[test]
+    fn test_bounded_histogram_prevents_memory_leak() {
+        let mut histogram = BoundedHistogram::new(100);
+
+        // Record many more values than capacity
+        for i in 0..10000 {
+            histogram.record(i as f64);
+        }
+
+        // Window size should be capped at 100
+        assert_eq!(histogram.window_size(), 100);
+        // But total count should reflect all recordings
+        assert_eq!(histogram.count(), 10000);
+    }
+
     #[tokio::test]
     async fn test_metrics_collection() {
         let collector = MetricsCollector::new();
-        
-        collector.record_request(
-            "openai",
-            "gpt-4",
-            Duration::from_millis(500),
-            Some(TokenUsage {
-                prompt_tokens: 100,
-                completion_tokens: 50,
-                total_tokens: 150,
-            }),
-            Some(0.01),
-            true,
-        ).await;
-        
+
+        collector
+            .record_request(
+                "openai",
+                "gpt-4",
+                Duration::from_millis(500),
+                Some(TokenUsage {
+                    prompt_tokens: 100,
+                    completion_tokens: 50,
+                    total_tokens: 150,
+                }),
+                Some(0.01),
+                true,
+            )
+            .await;
+
         let prometheus_output = collector.export_prometheus().await;
         assert!(prometheus_output.contains("litellm_requests_total"));
         assert!(prometheus_output.contains("provider=\"openai\""));
@@ -639,9 +829,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_metrics_histogram_bounded() {
+        let collector = MetricsCollector::new();
+
+        // Record many requests to test histogram bounding
+        for i in 0..2000 {
+            collector
+                .record_request(
+                    "openai",
+                    "gpt-4",
+                    Duration::from_millis(i),
+                    None,
+                    None,
+                    true,
+                )
+                .await;
+        }
+
+        // Verify histogram is bounded
+        let metrics = collector.prometheus_metrics.read().await;
+        let histogram = metrics.request_duration.get("openai:gpt-4").unwrap();
+
+        // Window should be capped at HISTOGRAM_MAX_SAMPLES
+        assert!(histogram.window_size() <= HISTOGRAM_MAX_SAMPLES);
+        // But count should reflect all recordings
+        assert_eq!(histogram.count(), 2000);
+    }
+
+    #[tokio::test]
     async fn test_log_aggregation() {
         let aggregator = LogAggregator::new();
-        
+
         let entry = LogEntry {
             timestamp: Utc::now(),
             level: LogLevel::Info,
@@ -656,9 +874,9 @@ mod tests {
             error: None,
             fields: HashMap::new(),
         };
-        
+
         aggregator.log(entry).await;
-        
+
         let buffer = aggregator.buffer.read().await;
         assert_eq!(buffer.len(), 1);
         assert_eq!(buffer[0].message, "Test log entry");
