@@ -95,20 +95,24 @@ pub enum OpenAIModelFamily {
     GPT4O,
     GPT4OMini,
     GPT35,
-    GPT5,      // GPT-5 models (2025)
-    O1,        // O1 reasoning models
-    O1Pro,     // O1 Pro reasoning models
-    O3,        // O3 reasoning models (2025)
-    O3Mini,    // O3 Mini reasoning models
-    O4Mini,    // O4 Mini reasoning models (2025)
+    GPT5,          // GPT-5 models (2025)
+    GPT5Mini,      // GPT-5 Mini models (2025)
+    GPT5Nano,      // GPT-5 Nano models (2025)
+    GPT51,         // GPT-5.1 models (Nov 2025)
+    GPT51Thinking, // GPT-5.1 Thinking mode (Nov 2025)
+    O1,            // O1 reasoning models
+    O1Pro,         // O1 Pro reasoning models
+    O3,            // O3 reasoning models (2025)
+    O3Mini,        // O3 Mini reasoning models
+    O4Mini,        // O4 Mini reasoning models (2025)
     DALLE2,
     DALLE3,
     Whisper,
     TTS,
     Embedding,
     Moderation,
-    GPT4OAudio, // GPT-4O with audio capabilities
-    Realtime,   // Realtime API models
+    GPT4OAudio,    // GPT-4O with audio capabilities
+    Realtime,      // Realtime API models
 }
 
 /// Model-specific configuration
@@ -302,9 +306,21 @@ impl OpenAIModelRegistry {
             OpenAIModelFamily::GPT4
         } else if model_id.starts_with("gpt-3.5") {
             OpenAIModelFamily::GPT35
+        }
+        // GPT-5 series (check specific variants first)
+        else if model_id.starts_with("gpt-5.1-thinking") || model_id.contains("5.1-thinking") {
+            OpenAIModelFamily::GPT51Thinking
+        } else if model_id.starts_with("gpt-5.1") || model_id.contains("gpt-5.1") {
+            OpenAIModelFamily::GPT51
+        } else if model_id.starts_with("gpt-5-nano") {
+            OpenAIModelFamily::GPT5Nano
+        } else if model_id.starts_with("gpt-5-mini") {
+            OpenAIModelFamily::GPT5Mini
         } else if model_id.starts_with("gpt-5") {
             OpenAIModelFamily::GPT5
-        } else if model_id.starts_with("o4-mini") {
+        }
+        // O-series reasoning models
+        else if model_id.starts_with("o4-mini") {
             OpenAIModelFamily::O4Mini
         } else if model_id.starts_with("o3-mini") {
             OpenAIModelFamily::O3Mini
@@ -556,6 +572,75 @@ impl OpenAIModelRegistry {
                 0.0011,
                 0.0044,
             ),
+            // ==================== GPT-5 Series (2025) ====================
+            // GPT-5 (August 2025)
+            (
+                "gpt-5",
+                "GPT-5",
+                OpenAIModelFamily::GPT5,
+                272000,
+                Some(128000),
+                0.00125,  // $1.25/1M input
+                0.010,    // $10/1M output
+            ),
+            (
+                "gpt-5-2025-08-01",
+                "GPT-5 (Aug 2025)",
+                OpenAIModelFamily::GPT5,
+                272000,
+                Some(128000),
+                0.00125,
+                0.010,
+            ),
+            // GPT-5 Mini
+            (
+                "gpt-5-mini",
+                "GPT-5 Mini",
+                OpenAIModelFamily::GPT5Mini,
+                272000,
+                Some(64000),
+                0.00025,  // $0.25/1M input
+                0.002,    // $2/1M output
+            ),
+            // GPT-5 Nano
+            (
+                "gpt-5-nano",
+                "GPT-5 Nano",
+                OpenAIModelFamily::GPT5Nano,
+                128000,
+                Some(32000),
+                0.00005,  // $0.05/1M input
+                0.0004,   // $0.40/1M output
+            ),
+            // GPT-5.1 (November 2025)
+            (
+                "gpt-5.1",
+                "GPT-5.1",
+                OpenAIModelFamily::GPT51,
+                272000,
+                Some(128000),
+                0.00125,  // $1.25/1M input
+                0.010,    // $10/1M output
+            ),
+            (
+                "gpt-5.1-2025-11-01",
+                "GPT-5.1 (Nov 2025)",
+                OpenAIModelFamily::GPT51,
+                272000,
+                Some(128000),
+                0.00125,
+                0.010,
+            ),
+            // GPT-5.1 Thinking (Reasoning mode)
+            (
+                "gpt-5.1-thinking",
+                "GPT-5.1 Thinking",
+                OpenAIModelFamily::GPT51Thinking,
+                400000,
+                Some(196000),
+                0.00250,  // $2.50/1M input (thinking mode)
+                0.020,    // $20/1M output (thinking mode)
+            ),
             // ==================== GPT-4 Legacy Models ====================
             (
                 "gpt-4",
@@ -696,6 +781,11 @@ impl OpenAIModelRegistry {
                         | OpenAIModelFamily::GPT4O
                         | OpenAIModelFamily::GPT4OMini
                         | OpenAIModelFamily::GPT35
+                        | OpenAIModelFamily::GPT5
+                        | OpenAIModelFamily::GPT5Mini
+                        | OpenAIModelFamily::GPT5Nano
+                        | OpenAIModelFamily::GPT51
+                        | OpenAIModelFamily::GPT51Thinking
                         | OpenAIModelFamily::O1
                         | OpenAIModelFamily::O1Pro
                         | OpenAIModelFamily::O3
@@ -708,6 +798,10 @@ impl OpenAIModelRegistry {
                     OpenAIModelFamily::GPT4O
                         | OpenAIModelFamily::GPT4OMini
                         | OpenAIModelFamily::GPT4OAudio
+                        | OpenAIModelFamily::GPT5
+                        | OpenAIModelFamily::GPT5Mini
+                        | OpenAIModelFamily::GPT51
+                        | OpenAIModelFamily::GPT51Thinking
                         | OpenAIModelFamily::O1
                         | OpenAIModelFamily::O1Pro
                         | OpenAIModelFamily::O3

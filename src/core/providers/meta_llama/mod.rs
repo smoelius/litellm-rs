@@ -88,13 +88,20 @@ impl Default for LlamaProviderConfig {
             max_retries: Some(3),
             headers: None,
             supported_models: vec![
-                "llama3.1-8b".to_string(),
-                "llama3.1-70b".to_string(),
-                "llama3.1-405b".to_string(),
+                // LLaMA 4 series (2025 - Latest)
+                "llama4-scout".to_string(),
+                "llama4-maverick".to_string(),
+                // LLaMA 3.3 series
+                "llama3.3-70b".to_string(),
+                // LLaMA 3.2 series
                 "llama3.2-1b".to_string(),
                 "llama3.2-3b".to_string(),
                 "llama3.2-11b-vision".to_string(),
                 "llama3.2-90b-vision".to_string(),
+                // LLaMA 3.1 series
+                "llama3.1-8b".to_string(),
+                "llama3.1-70b".to_string(),
+                "llama3.1-405b".to_string(),
             ],
             metadata: HashMap::new(),
             cost_calculator: None,
@@ -124,6 +131,72 @@ impl LlamaProvider {
             .unwrap_or_else(|| StubCostCalculator::new("meta_llama".to_string()));
 
         let models = vec![
+            // ==================== LLaMA 4 Series (2025 - Latest) ====================
+            ModelInfo {
+                id: "llama4-scout".to_string(),
+                name: "Llama 4 Scout".to_string(),
+                provider: "meta".to_string(),
+                max_context_length: 10_000_000, // 10M tokens (industry-leading)
+                max_output_length: Some(128000),
+                supports_streaming: true,
+                supports_tools: true,
+                supports_multimodal: true, // Native multimodal
+                input_cost_per_1k_tokens: Some(0.00008),  // $0.08/1M input
+                output_cost_per_1k_tokens: Some(0.0003),  // $0.30/1M output
+                currency: "USD".to_string(),
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
+                created_at: None,
+                updated_at: None,
+                metadata: HashMap::new(),
+            },
+            ModelInfo {
+                id: "llama4-maverick".to_string(),
+                name: "Llama 4 Maverick".to_string(),
+                provider: "meta".to_string(),
+                max_context_length: 1_000_000, // 1M tokens
+                max_output_length: Some(128000),
+                supports_streaming: true,
+                supports_tools: true,
+                supports_multimodal: true,
+                input_cost_per_1k_tokens: Some(0.00020),  // $0.20/1M input
+                output_cost_per_1k_tokens: Some(0.0006),  // $0.60/1M output
+                currency: "USD".to_string(),
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
+                created_at: None,
+                updated_at: None,
+                metadata: HashMap::new(),
+            },
+            // ==================== LLaMA 3.3 Series ====================
+            ModelInfo {
+                id: "llama3.3-70b".to_string(),
+                name: "Llama 3.3 70B".to_string(),
+                provider: "meta".to_string(),
+                max_context_length: 128000,
+                max_output_length: Some(32000),
+                supports_streaming: true,
+                supports_tools: true,
+                supports_multimodal: false,
+                input_cost_per_1k_tokens: Some(0.0006),
+                output_cost_per_1k_tokens: Some(0.0006),
+                currency: "USD".to_string(),
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
+                created_at: None,
+                updated_at: None,
+                metadata: HashMap::new(),
+            },
+            // ==================== LLaMA 3.1 Series ====================
             ModelInfo {
                 id: "llama3.1-405b".to_string(),
                 name: "Llama 3.1 405B".to_string(),
@@ -136,7 +209,11 @@ impl LlamaProvider {
                 input_cost_per_1k_tokens: Some(0.002),
                 output_cost_per_1k_tokens: Some(0.002),
                 currency: "USD".to_string(),
-                capabilities: vec![],
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
                 created_at: None,
                 updated_at: None,
                 metadata: HashMap::new(),
@@ -153,7 +230,11 @@ impl LlamaProvider {
                 input_cost_per_1k_tokens: Some(0.001),
                 output_cost_per_1k_tokens: Some(0.001),
                 currency: "USD".to_string(),
-                capabilities: vec![],
+                capabilities: vec![
+                    ProviderCapability::ChatCompletion,
+                    ProviderCapability::ChatCompletionStream,
+                    ProviderCapability::ToolCalling,
+                ],
                 created_at: None,
                 updated_at: None,
                 metadata: HashMap::new(),
@@ -481,8 +562,14 @@ mod tests {
         };
         let provider = LlamaProvider::new(config).unwrap();
 
+        // LLaMA 4 series (2025)
+        assert!(provider.is_model_supported("llama4-scout"));
+        assert!(provider.is_model_supported("llama4-maverick"));
+        // LLaMA 3.x series
+        assert!(provider.is_model_supported("llama3.3-70b"));
         assert!(provider.is_model_supported("llama3.1-8b"));
         assert!(provider.is_model_supported("llama3.2-11b-vision"));
+        // Non-supported models
         assert!(!provider.is_model_supported("gpt-4"));
     }
 
