@@ -63,10 +63,76 @@ impl FallbackConfig {
     }
 }
 
+/// Deployment information for tag/group-based routing
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DeploymentInfo {
+    /// Tags for this deployment (e.g., ["fast", "high-quality", "cost-effective"])
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Model group this deployment belongs to (e.g., "gpt-4-group")
+    #[serde(default)]
+    pub model_group: Option<String>,
+    /// Priority within the group (lower = higher priority)
+    #[serde(default)]
+    pub priority: u32,
+    /// Custom metadata for this deployment
+    #[serde(default)]
+    pub metadata: HashMap<String, serde_json::Value>,
+}
+
+impl DeploymentInfo {
+    /// Create new deployment info
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Add a tag
+    pub fn with_tag(mut self, tag: impl Into<String>) -> Self {
+        self.tags.push(tag.into());
+        self
+    }
+
+    /// Add multiple tags
+    pub fn with_tags(mut self, tags: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.tags.extend(tags.into_iter().map(|t| t.into()));
+        self
+    }
+
+    /// Set model group
+    pub fn with_group(mut self, group: impl Into<String>) -> Self {
+        self.model_group = Some(group.into());
+        self
+    }
+
+    /// Set priority
+    pub fn with_priority(mut self, priority: u32) -> Self {
+        self.priority = priority;
+        self
+    }
+
+    /// Add metadata
+    pub fn with_metadata(mut self, key: impl Into<String>, value: serde_json::Value) -> Self {
+        self.metadata.insert(key.into(), value);
+        self
+    }
+
+    /// Check if deployment has all specified tags
+    pub fn has_all_tags(&self, required_tags: &[String]) -> bool {
+        required_tags.iter().all(|tag| self.tags.contains(tag))
+    }
+
+    /// Check if deployment has any of the specified tags
+    pub fn has_any_tag(&self, tags: &[String]) -> bool {
+        tags.iter().any(|tag| self.tags.contains(tag))
+    }
+}
+
 /// Load balancer for intelligent provider selection
 pub struct LoadBalancer {
     /// Available providers - DashMap provides interior mutability, no need for Arc wrapper
     providers: DashMap<String, Provider>,
+    /// Deployment information for each provider (tags, groups, etc.)
+    deployments: DashMap<String, DeploymentInfo>,
     /// Strategy executor
     strategy: Arc<StrategyExecutor>,
     /// Health checker
@@ -86,6 +152,7 @@ impl LoadBalancer {
 
         Ok(Self {
             providers: DashMap::new(),
+            deployments: DashMap::new(),
             strategy: strategy_executor,
             health_checker: None,
             model_support_cache: DashMap::new(),
@@ -107,6 +174,7 @@ impl LoadBalancer {
 
         Ok(Self {
             providers: DashMap::new(),
+            deployments: DashMap::new(),
             strategy: strategy_executor,
             health_checker: None,
             model_support_cache: DashMap::new(),
@@ -213,6 +281,11 @@ impl LoadBalancer {
         // Add provider to the map
         self.providers.insert(name.to_string(), provider);
 
+        // Create default deployment info if not already present
+        self.deployments
+            .entry(name.to_string())
+            .or_insert_with(DeploymentInfo::default);
+
         // Clear model support cache since we have a new provider
         self.model_support_cache.clear();
 
@@ -220,10 +293,43 @@ impl LoadBalancer {
         Ok(())
     }
 
+    /// Add a provider with deployment info (tags, groups, etc.)
+    pub async fn add_provider_with_deployment(
+        &self,
+        name: &str,
+        provider: Provider,
+        deployment_info: DeploymentInfo,
+    ) -> Result<()> {
+        // Add provider to the map
+        self.providers.insert(name.to_string(), provider);
+        self.deployments.insert(name.to_string(), deployment_info.clone());
+
+        // Clear model support cache since we have a new provider
+        self.model_support_cache.clear();
+
+        info!(
+            "Added provider {} with tags {:?}, group {:?}",
+            name, deployment_info.tags, deployment_info.model_group
+        );
+        Ok(())
+    }
+
+    /// Update deployment info for an existing provider
+    pub fn update_deployment_info(&self, name: &str, deployment_info: DeploymentInfo) {
+        self.deployments.insert(name.to_string(), deployment_info);
+        debug!("Updated deployment info for provider {}", name);
+    }
+
+    /// Get deployment info for a provider
+    pub fn get_deployment_info(&self, name: &str) -> Option<DeploymentInfo> {
+        self.deployments.get(name).map(|entry| entry.value().clone())
+    }
+
     /// Remove a provider from the load balancer
     pub async fn remove_provider(&self, name: &str) -> Result<()> {
-        // Remove provider from the map
+        // Remove provider and deployment info from the maps
         self.providers.remove(name);
+        self.deployments.remove(name);
 
         // Selectively invalidate cache entries that might include this provider
         self.model_support_cache.retain(|_, providers| {
@@ -252,6 +358,220 @@ impl LoadBalancer {
     /// Update provider priority for priority-based routing
     pub async fn update_provider_priority(&self, provider: &str, priority: u32) -> Result<()> {
         self.strategy.update_priority(provider, priority).await
+    }
+
+    /// Select a provider with tag filtering
+    ///
+    /// Filters providers by tags before applying the routing strategy.
+    /// If `require_all_tags` is true, providers must have ALL specified tags.
+    /// If false, providers with ANY of the tags will be included.
+    pub async fn select_provider_with_tags(
+        &self,
+        model: &str,
+        tags: &[String],
+        require_all_tags: bool,
+        context: &RequestContext,
+    ) -> Result<Provider> {
+        // Get providers that support the model
+        let supporting_providers = self.get_supporting_providers(model).await?;
+
+        if supporting_providers.is_empty() {
+            return Err(GatewayError::NoProvidersForModel(model.to_string()));
+        }
+
+        // Filter by tags
+        let tagged_providers: Vec<String> = supporting_providers
+            .into_iter()
+            .filter(|name| {
+                self.deployments
+                    .get(name)
+                    .map(|info| {
+                        if require_all_tags {
+                            info.has_all_tags(tags)
+                        } else {
+                            info.has_any_tag(tags)
+                        }
+                    })
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        if tagged_providers.is_empty() {
+            return Err(GatewayError::NoProvidersForModel(format!(
+                "{} with tags {:?}",
+                model, tags
+            )));
+        }
+
+        // Filter by health status if health checker is available
+        let healthy_providers = if let Some(health_checker) = &self.health_checker {
+            let healthy_list = health_checker.get_healthy_providers().await?;
+            tagged_providers
+                .into_iter()
+                .filter(|p| healthy_list.contains(p))
+                .collect()
+        } else {
+            tagged_providers
+        };
+
+        if healthy_providers.is_empty() {
+            return Err(GatewayError::NoHealthyProviders(
+                "No healthy providers with matching tags available".to_string(),
+            ));
+        }
+
+        // Use strategy to select provider
+        let selected_name = self
+            .strategy
+            .select_provider(&healthy_providers, model, context)
+            .await?;
+
+        // Get the selected provider and clone it
+        if let Some(provider_ref) = self.providers.get(&selected_name) {
+            debug!(
+                "Selected provider {} for model {} with tags {:?}",
+                selected_name, model, tags
+            );
+            Ok(provider_ref.value().clone())
+        } else {
+            Err(GatewayError::ProviderNotFound(format!(
+                "Provider {} not found in load balancer",
+                selected_name
+            )))
+        }
+    }
+
+    /// Select a provider by model group
+    ///
+    /// Filters providers by model group before applying the routing strategy.
+    pub async fn select_provider_by_group(
+        &self,
+        model: &str,
+        group: &str,
+        context: &RequestContext,
+    ) -> Result<Provider> {
+        // Get providers that support the model
+        let supporting_providers = self.get_supporting_providers(model).await?;
+
+        if supporting_providers.is_empty() {
+            return Err(GatewayError::NoProvidersForModel(model.to_string()));
+        }
+
+        // Filter by model group and collect with priority for sorting
+        let mut grouped_providers: Vec<(String, u32)> = supporting_providers
+            .into_iter()
+            .filter_map(|name| {
+                self.deployments.get(&name).and_then(|info| {
+                    if info.model_group.as_deref() == Some(group) {
+                        Some((name, info.priority))
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect();
+
+        if grouped_providers.is_empty() {
+            return Err(GatewayError::NoProvidersForModel(format!(
+                "{} in group {}",
+                model, group
+            )));
+        }
+
+        // Sort by priority (lower priority number = higher priority)
+        grouped_providers.sort_by_key(|(_, priority)| *priority);
+
+        // Extract just the names for strategy selection
+        let provider_names: Vec<String> = grouped_providers.into_iter().map(|(name, _)| name).collect();
+
+        // Filter by health status if health checker is available
+        let healthy_providers = if let Some(health_checker) = &self.health_checker {
+            let healthy_list = health_checker.get_healthy_providers().await?;
+            provider_names
+                .into_iter()
+                .filter(|p| healthy_list.contains(p))
+                .collect()
+        } else {
+            provider_names
+        };
+
+        if healthy_providers.is_empty() {
+            return Err(GatewayError::NoHealthyProviders(
+                "No healthy providers in group available".to_string(),
+            ));
+        }
+
+        // Use strategy to select provider
+        let selected_name = self
+            .strategy
+            .select_provider(&healthy_providers, model, context)
+            .await?;
+
+        // Get the selected provider and clone it
+        if let Some(provider_ref) = self.providers.get(&selected_name) {
+            debug!(
+                "Selected provider {} for model {} in group {}",
+                selected_name, model, group
+            );
+            Ok(provider_ref.value().clone())
+        } else {
+            Err(GatewayError::ProviderNotFound(format!(
+                "Provider {} not found in load balancer",
+                selected_name
+            )))
+        }
+    }
+
+    /// Get all providers with a specific tag
+    pub fn get_providers_by_tag(&self, tag: &str) -> Vec<String> {
+        self.deployments
+            .iter()
+            .filter_map(|entry| {
+                if entry.value().tags.contains(&tag.to_string()) {
+                    Some(entry.key().clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Get all providers in a specific model group
+    pub fn get_providers_by_group(&self, group: &str) -> Vec<String> {
+        self.deployments
+            .iter()
+            .filter_map(|entry| {
+                if entry.value().model_group.as_deref() == Some(group) {
+                    Some(entry.key().clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Get all unique tags across all deployments
+    pub fn get_all_tags(&self) -> Vec<String> {
+        let mut tags: Vec<String> = self
+            .deployments
+            .iter()
+            .flat_map(|entry| entry.value().tags.clone())
+            .collect();
+        tags.sort();
+        tags.dedup();
+        tags
+    }
+
+    /// Get all unique model groups
+    pub fn get_all_groups(&self) -> Vec<String> {
+        let mut groups: Vec<String> = self
+            .deployments
+            .iter()
+            .filter_map(|entry| entry.value().model_group.clone())
+            .collect();
+        groups.sort();
+        groups.dedup();
+        groups
     }
 
     /// Get load balancer statistics
@@ -568,5 +888,184 @@ mod tests {
         let error = ProviderError::timeout("openai", "Request timeout");
         let fallbacks = lb.select_fallback_models(&error, "gpt-4");
         assert_eq!(fallbacks, None);
+    }
+
+    // Tag/Group routing tests
+
+    #[test]
+    fn test_deployment_info_builder() {
+        let info = DeploymentInfo::new()
+            .with_tag("fast")
+            .with_tag("high-quality")
+            .with_group("gpt-4-group")
+            .with_priority(1);
+
+        assert_eq!(info.tags, vec!["fast", "high-quality"]);
+        assert_eq!(info.model_group, Some("gpt-4-group".to_string()));
+        assert_eq!(info.priority, 1);
+    }
+
+    #[test]
+    fn test_deployment_info_with_tags() {
+        let info = DeploymentInfo::new()
+            .with_tags(["fast", "cheap", "reliable"]);
+
+        assert_eq!(info.tags.len(), 3);
+        assert!(info.tags.contains(&"fast".to_string()));
+        assert!(info.tags.contains(&"cheap".to_string()));
+        assert!(info.tags.contains(&"reliable".to_string()));
+    }
+
+    #[test]
+    fn test_deployment_info_has_all_tags() {
+        let info = DeploymentInfo::new()
+            .with_tags(["fast", "cheap", "reliable"]);
+
+        // Should match when all tags present
+        assert!(info.has_all_tags(&["fast".to_string(), "cheap".to_string()]));
+
+        // Should not match when a tag is missing
+        assert!(!info.has_all_tags(&["fast".to_string(), "expensive".to_string()]));
+
+        // Empty tags should always match
+        assert!(info.has_all_tags(&[]));
+    }
+
+    #[test]
+    fn test_deployment_info_has_any_tag() {
+        let info = DeploymentInfo::new()
+            .with_tags(["fast", "cheap"]);
+
+        // Should match when any tag present
+        assert!(info.has_any_tag(&["fast".to_string(), "expensive".to_string()]));
+
+        // Should not match when no tags present
+        assert!(!info.has_any_tag(&["expensive".to_string(), "slow".to_string()]));
+
+        // Empty tags should not match
+        assert!(!info.has_any_tag(&[]));
+    }
+
+    #[tokio::test]
+    async fn test_load_balancer_with_deployment_info() {
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+
+        let deployment = DeploymentInfo::new()
+            .with_tag("fast")
+            .with_group("test-group");
+
+        // Use update_deployment_info since we don't have a real Provider
+        lb.deployments.insert("test_provider".to_string(), deployment);
+
+        let info = lb.get_deployment_info("test_provider");
+        assert!(info.is_some());
+
+        let info = info.unwrap();
+        assert!(info.tags.contains(&"fast".to_string()));
+        assert_eq!(info.model_group, Some("test-group".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_get_providers_by_tag() {
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+
+        // Add deployment info directly
+        lb.deployments.insert(
+            "provider_a".to_string(),
+            DeploymentInfo::new().with_tags(["fast", "cheap"]),
+        );
+        lb.deployments.insert(
+            "provider_b".to_string(),
+            DeploymentInfo::new().with_tags(["fast", "quality"]),
+        );
+        lb.deployments.insert(
+            "provider_c".to_string(),
+            DeploymentInfo::new().with_tag("quality"),
+        );
+
+        let fast_providers = lb.get_providers_by_tag("fast");
+        assert_eq!(fast_providers.len(), 2);
+        assert!(fast_providers.contains(&"provider_a".to_string()));
+        assert!(fast_providers.contains(&"provider_b".to_string()));
+
+        let quality_providers = lb.get_providers_by_tag("quality");
+        assert_eq!(quality_providers.len(), 2);
+        assert!(quality_providers.contains(&"provider_b".to_string()));
+        assert!(quality_providers.contains(&"provider_c".to_string()));
+
+        let cheap_providers = lb.get_providers_by_tag("cheap");
+        assert_eq!(cheap_providers.len(), 1);
+        assert!(cheap_providers.contains(&"provider_a".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_get_providers_by_group() {
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+
+        lb.deployments.insert(
+            "provider_a".to_string(),
+            DeploymentInfo::new().with_group("gpt-4-group"),
+        );
+        lb.deployments.insert(
+            "provider_b".to_string(),
+            DeploymentInfo::new().with_group("gpt-4-group"),
+        );
+        lb.deployments.insert(
+            "provider_c".to_string(),
+            DeploymentInfo::new().with_group("claude-group"),
+        );
+
+        let gpt4_providers = lb.get_providers_by_group("gpt-4-group");
+        assert_eq!(gpt4_providers.len(), 2);
+        assert!(gpt4_providers.contains(&"provider_a".to_string()));
+        assert!(gpt4_providers.contains(&"provider_b".to_string()));
+
+        let claude_providers = lb.get_providers_by_group("claude-group");
+        assert_eq!(claude_providers.len(), 1);
+        assert!(claude_providers.contains(&"provider_c".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_get_all_tags() {
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+
+        lb.deployments.insert(
+            "provider_a".to_string(),
+            DeploymentInfo::new().with_tags(["fast", "cheap"]),
+        );
+        lb.deployments.insert(
+            "provider_b".to_string(),
+            DeploymentInfo::new().with_tags(["fast", "quality"]),
+        );
+
+        let all_tags = lb.get_all_tags();
+        assert_eq!(all_tags.len(), 3); // cheap, fast, quality (sorted, deduplicated)
+        assert_eq!(all_tags, vec!["cheap", "fast", "quality"]);
+    }
+
+    #[tokio::test]
+    async fn test_get_all_groups() {
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+
+        lb.deployments.insert(
+            "provider_a".to_string(),
+            DeploymentInfo::new().with_group("gpt-4-group"),
+        );
+        lb.deployments.insert(
+            "provider_b".to_string(),
+            DeploymentInfo::new().with_group("gpt-4-group"),
+        );
+        lb.deployments.insert(
+            "provider_c".to_string(),
+            DeploymentInfo::new().with_group("claude-group"),
+        );
+        lb.deployments.insert(
+            "provider_d".to_string(),
+            DeploymentInfo::new(), // No group
+        );
+
+        let all_groups = lb.get_all_groups();
+        assert_eq!(all_groups.len(), 2); // claude-group, gpt-4-group (sorted, deduplicated)
+        assert_eq!(all_groups, vec!["claude-group", "gpt-4-group"]);
     }
 }
