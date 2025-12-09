@@ -73,14 +73,13 @@ impl AzureResponseTransformation {
     }
 
     /// Transform chat completion response
+    /// Takes ownership to avoid unnecessary cloning
     pub fn transform_chat_response(
         &self,
-        response: serde_json::Value,
+        mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        let mut transformed = response.clone();
-
         // Normalize choice structure
-        if let Some(choices) = transformed
+        if let Some(choices) = response
             .get_mut("choices")
             .and_then(|c| c.as_array_mut())
         {
@@ -90,30 +89,29 @@ impl AzureResponseTransformation {
         }
 
         // Handle usage information
-        if let Some(usage) = transformed.get_mut("usage") {
+        if let Some(usage) = response.get_mut("usage") {
             self.transform_usage_object(usage)?;
         }
 
         // Apply field mappings
-        self.apply_field_mappings(&mut transformed)?;
+        self.apply_field_mappings(&mut response)?;
 
         // Handle content filters based on config
         if !self.config.include_content_filters {
-            self.remove_content_filters(&mut transformed);
+            self.remove_content_filters(&mut response);
         }
 
-        Ok(transformed)
+        Ok(response)
     }
 
     /// Transform completion response
+    /// Takes ownership to avoid unnecessary cloning
     pub fn transform_completion_response(
         &self,
-        response: serde_json::Value,
+        mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        let mut transformed = response.clone();
-
         // Similar transformations as chat but for completion format
-        if let Some(choices) = transformed
+        if let Some(choices) = response
             .get_mut("choices")
             .and_then(|c| c.as_array_mut())
         {
@@ -122,32 +120,31 @@ impl AzureResponseTransformation {
             }
         }
 
-        self.apply_field_mappings(&mut transformed)?;
+        self.apply_field_mappings(&mut response)?;
 
         if !self.config.include_content_filters {
-            self.remove_content_filters(&mut transformed);
+            self.remove_content_filters(&mut response);
         }
 
-        Ok(transformed)
+        Ok(response)
     }
 
     /// Transform embedding response
+    /// Takes ownership to avoid unnecessary cloning
     pub fn transform_embedding_response(
         &self,
-        response: serde_json::Value,
+        mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        let mut transformed = response.clone();
-
         // Embeddings typically don't need much transformation
         // but we can apply field mappings and filter handling
 
-        self.apply_field_mappings(&mut transformed)?;
+        self.apply_field_mappings(&mut response)?;
 
         if !self.config.include_content_filters {
-            self.remove_content_filters(&mut transformed);
+            self.remove_content_filters(&mut response);
         }
 
-        Ok(transformed)
+        Ok(response)
     }
 
     // Private transformation methods

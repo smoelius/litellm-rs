@@ -78,19 +78,18 @@ impl OSeriesResponseTransformation {
     }
 
     /// Transform O-series response for compatibility
+    /// Takes ownership to avoid unnecessary cloning
     pub fn transform_response(
         &self,
-        response: serde_json::Value,
+        mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
-        let mut transformed = response.clone();
-
         // Handle reasoning tokens in usage
-        if let Some(usage) = transformed.get_mut("usage") {
+        if let Some(usage) = response.get_mut("usage") {
             self.transform_usage_with_reasoning(usage)?;
         }
 
         // Handle choices with reasoning content
-        if let Some(choices) = transformed
+        if let Some(choices) = response
             .get_mut("choices")
             .and_then(|c| c.as_array_mut())
         {
@@ -99,7 +98,7 @@ impl OSeriesResponseTransformation {
             }
         }
 
-        Ok(transformed)
+        Ok(response)
     }
 
     fn transform_usage_with_reasoning(&self, usage: &mut serde_json::Value) -> Result<(), String> {
