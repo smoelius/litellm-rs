@@ -69,43 +69,43 @@ pub struct CircuitBreakerConfig {
 
 ---
 
-### 2.2 Error-Type Specific Fallbacks - P1
+### 2.2 ~~Error-Type Specific Fallbacks~~ ✅ IMPLEMENTED
 
-**Status: PARTIALLY IMPLEMENTED**
+**Status: FULLY IMPLEMENTED**
 
-**Current State:**
-- ✅ Has `fallback_providers: Vec<ProviderType>` in `RoutingContext`
-- ✅ Has `ProviderError::ContextLengthExceeded` and `ContentFiltered` variants
-- ❌ Missing: Routing logic to select different fallbacks based on error type
-
-**Python LiteLLM Pattern:**
-```python
-router = Router(
-    fallbacks=[{"gpt-4": ["claude-3"]}],
-    content_policy_fallbacks=[{"gpt-4": ["claude-3-opus"]}],
-    context_window_fallbacks=[{"gpt-4": ["gpt-4-32k"]}]
-)
-```
-
-**Recommendation:** Add error-type specific fallback selection in `LoadBalancer`
+Complete error-specific fallback routing in `src/core/router/load_balancer.rs`:
 
 ```rust
+// Already exists in src/core/router/load_balancer.rs
+
 pub struct FallbackConfig {
     pub general_fallbacks: HashMap<String, Vec<String>>,
     pub content_policy_fallbacks: HashMap<String, Vec<String>>,
     pub context_window_fallbacks: HashMap<String, Vec<String>>,
     pub rate_limit_fallbacks: HashMap<String, Vec<String>>,
 }
-```
 
-**Files to modify:**
-- `src/core/router/load_balancer.rs` - Add fallback selection logic
+// Builder pattern
+let mut config = FallbackConfig::new();
+config
+    .add_general_fallback("gpt-4", vec!["gpt-3.5-turbo".to_string()])
+    .add_context_window_fallback("gpt-4", vec!["gpt-4-32k".to_string()])
+    .add_content_policy_fallback("gpt-4", vec!["claude-3-opus".to_string()])
+    .add_rate_limit_fallback("gpt-4", vec!["gpt-4-turbo".to_string()]);
+
+// Use with LoadBalancer
+let lb = LoadBalancer::with_fallbacks(RoutingStrategy::RoundRobin, config).await?;
+
+// Select fallback based on error type
+let fallbacks = lb.select_fallback_models(&error, "gpt-4");
+let fallback_provider = lb.select_fallback_provider(&error, "gpt-4", &context).await?;
+```
 
 ---
 
-### 2.3 ~~Missing Routing Strategies~~ ✅ MOSTLY IMPLEMENTED
+### 2.3 ~~Missing Routing Strategies~~ ✅ FULLY IMPLEMENTED
 
-**Status: LeastBusy EXISTS, Usage-based MISSING**
+**Status: ALL STRATEGIES IMPLEMENTED**
 
 | Strategy | Python | Rust | Location |
 |----------|--------|------|----------|
@@ -113,10 +113,14 @@ pub struct FallbackConfig {
 | Latency-based | ✅ | ✅ LeastLatency | `strategy.rs` |
 | Cost-based | ✅ | ✅ LeastCost | `strategy.rs` |
 | Weighted | ✅ | ✅ Weighted | `strategy.rs` |
-| **Least-busy** | ✅ | ✅ LeastBusy | `context.rs:208` |
-| **Usage-based** | ✅ | ❌ | - |
+| **Least-busy** | ✅ | ✅ LeastBusy | `strategy.rs` |
+| **Usage-based** | ✅ | ✅ UsageBased | `strategy.rs` |
 
-**Note:** `LeastBusy` is defined in `RoutingStrategy` enum but the actual selection logic in `StrategyExecutor` needs implementation.
+All routing strategies are now fully implemented with:
+- `ProviderUsage` struct for TPM/RPM tracking
+- `select_least_busy()` for active request-based routing
+- `select_usage_based()` for TPM/RPM percentage-based routing
+- Helper methods: `increment_active_requests()`, `record_token_usage()`, `set_rate_limits()`
 
 ---
 
@@ -202,73 +206,51 @@ impl VirtualKeyManager {
 
 ---
 
-### 2.7 Model Group & Tag Routing - P2 (Still Missing)
+### 2.7 ~~Model Group & Tag Routing~~ ✅ IMPLEMENTED
 
-**Python LiteLLM Pattern:**
-```python
-router = Router(
-    model_list=[
-        {"model_name": "gpt-4", "litellm_params": {...}, "model_info": {"tags": ["fast"]}},
-        {"model_name": "gpt-4", "litellm_params": {...}, "model_info": {"tags": ["quality"]}},
-    ]
-)
-# Route by tag
-response = router.completion(model="gpt-4", tags=["fast"])
-```
+**Status: FULLY IMPLEMENTED**
 
-**Recommendation:**
+Tag and model group routing is now fully supported in `src/core/router/load_balancer.rs`:
+
 ```rust
-// Extend src/config/models/router.rs
+// Already exists in src/core/router/load_balancer.rs
 
-pub struct DeploymentConfig {
-    /// Model name (e.g., "gpt-4")
-    pub model_name: String,
-    /// Provider configuration
-    pub provider: ProviderConfig,
-    /// Tags for filtering
+/// Deployment information for tag/group-based routing
+pub struct DeploymentInfo {
     pub tags: Vec<String>,
-    /// Model group name
     pub model_group: Option<String>,
-    /// Priority within group
-    pub priority: Option<u32>,
+    pub priority: u32,
+    pub metadata: HashMap<String, serde_json::Value>,
 }
 
-// Extend ChatRequest
-pub struct ChatRequest {
-    // ... existing fields
-    /// Filter deployments by tags
-    pub tags: Option<Vec<String>>,
-    /// Prefer specific model group
-    pub model_group: Option<String>,
-}
+// Builder pattern
+let deployment = DeploymentInfo::new()
+    .with_tags(["fast", "high-quality"])
+    .with_group("gpt-4-group")
+    .with_priority(1);
 
-impl LoadBalancer {
-    pub async fn select_provider_with_tags(
-        &self,
-        model: &str,
-        tags: Option<&[String]>,
-        context: &RequestContext,
-    ) -> Result<Provider> {
-        let mut providers = self.get_supporting_providers(model).await?;
+// Add provider with deployment info
+lb.add_provider_with_deployment("openai-1", provider, deployment).await?;
 
-        // Filter by tags if provided
-        if let Some(tags) = tags {
-            providers.retain(|p| {
-                self.deployments.get(p)
-                    .map(|d| tags.iter().all(|t| d.tags.contains(t)))
-                    .unwrap_or(false)
-            });
-        }
+// Route by tags (require_all_tags: true = AND, false = OR)
+let provider = lb.select_provider_with_tags("gpt-4", &["fast"], true, &ctx).await?;
 
-        // Continue with normal selection...
-    }
-}
+// Route by model group
+let provider = lb.select_provider_by_group("gpt-4", "gpt-4-group", &ctx).await?;
+
+// Query helpers
+let fast_providers = lb.get_providers_by_tag("fast");
+let group_providers = lb.get_providers_by_group("gpt-4-group");
+let all_tags = lb.get_all_tags();
+let all_groups = lb.get_all_groups();
 ```
 
-**Files to modify:**
-- `src/config/models/router.rs` - Add deployment config
-- `src/core/router/load_balancer.rs` - Add tag filtering
-- `src/core/types/requests.rs` - Add tags to ChatRequest
+Features:
+- ✅ `DeploymentInfo` struct with tags, model_group, priority, metadata
+- ✅ `select_provider_with_tags()` with both AND/OR tag matching
+- ✅ `select_provider_by_group()` with priority sorting
+- ✅ Helper methods for querying tags and groups
+- ✅ Full integration with health checking and routing strategies
 
 ---
 
@@ -410,12 +392,12 @@ impl Gateway {
 | Priority | Feature | Status | Effort | Notes |
 |----------|---------|--------|--------|-------|
 | ~~P0~~ | ~~Cooldown system~~ | ✅ Done | - | CircuitBreaker in recovery.rs |
-| **P1** | Error-specific fallbacks | ⚠️ Partial | Medium | Need routing integration |
+| ~~P1~~ | ~~Error-specific fallbacks~~ | ✅ Done | - | FallbackConfig in load_balancer.rs |
 | ~~P1~~ | ~~Semantic cache~~ | ✅ Done | - | Full impl in semantic_cache.rs |
-| **P1** | Usage-based routing | ❌ Missing | Low | Add to strategy.rs |
+| ~~P1~~ | ~~Usage-based routing~~ | ✅ Done | - | UsageBased + LeastBusy in strategy.rs |
 | ~~P1~~ | ~~Pre-call validation~~ | ✅ Done | - | check_context_window() |
 | ~~P2~~ | ~~Budget management~~ | ✅ Done | - | virtual_keys.rs |
-| **P2** | Model group/tag routing | ❌ Missing | Medium | New feature |
+| ~~P2~~ | ~~Model group/tag routing~~ | ✅ Done | - | DeploymentInfo in load_balancer.rs |
 | ~~P2~~ | ~~Reasoning tokens~~ | ✅ Done | - | Full xAI support |
 | **P3** | Extended endpoints | ⚠️ Partial | High | rerank, image gen |
 | **P3** | Async batching | ⚠️ Partial | Medium | Basic support exists |
@@ -424,12 +406,12 @@ impl Gateway {
 
 ## 5. Remaining Work (Updated)
 
-### High Priority (P1)
-1. **Error-specific fallbacks**: Integrate `fallback_providers` with error types in LoadBalancer
-2. **Usage-based routing**: Add `UsageBased` strategy with TPM/RPM tracking
+### ~~High Priority (P1)~~ ✅ ALL COMPLETED
+1. ~~**Error-specific fallbacks**~~: ✅ Integrated `FallbackConfig` with error types in LoadBalancer
+2. ~~**Usage-based routing**~~: ✅ Added `UsageBased` and `LeastBusy` strategies with TPM/RPM tracking
 
-### Medium Priority (P2)
-3. **Tag/group routing**: Add deployment tags and filtering logic
+### ~~Medium Priority (P2)~~ ✅ ALL COMPLETED
+3. ~~**Tag/group routing**~~: ✅ Added `DeploymentInfo` with tags and group filtering
 
 ### Low Priority (P3)
 4. **Rerank endpoint**: Add `/rerank` API support
@@ -439,22 +421,23 @@ impl Gateway {
 
 ## 6. Conclusion (Updated)
 
-**litellm-rs is now feature-complete** for most production use cases:
+**litellm-rs is now FULLY FEATURE-COMPLETE** for all core routing use cases:
 
-### ✅ Implemented Features (Previously thought missing)
+### ✅ Implemented Features (All Core Features)
 - **Cooldown System**: Full CircuitBreaker with timeout recovery
 - **Semantic Cache**: Complete 596-line implementation
 - **Budget Management**: Per-key budget limits with duration support
 - **Pre-call Validation**: Context window checking
 - **Reasoning Tokens**: Full support with cost calculation
-- **LeastBusy Routing**: Defined in RoutingStrategy enum
+- **Error-specific Fallbacks**: Context window, content policy, rate limit fallbacks
+- **Usage-based Routing**: TPM/RPM tracking with LeastBusy strategy
+- **Tag/Group Routing**: Full deployment filtering by tags and model groups
 
-### ❌ Remaining Gaps
-1. **Error-specific fallbacks**: Routing integration needed
-2. **Usage-based routing**: TPM/RPM tracking strategy
-3. **Tag/group routing**: Deployment filtering by tags
+### ❌ Remaining Gaps (Low Priority)
+1. **Rerank endpoint**: `/rerank` API support
+2. **Image generation**: `/image/generations` API support
 
-**litellm-rs is architecturally superior** AND now **functionally near-parity** with Python LiteLLM for core features.
+**litellm-rs is architecturally superior** AND now **fully feature-parity** with Python LiteLLM for core routing features.
 
 ---
 
