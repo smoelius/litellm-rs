@@ -131,7 +131,9 @@ impl AnthropicProvider {
         let mut headers = HashMap::new();
 
         if let Some(api_key) = &self.config.api_key {
-            headers.insert("Authorization".to_string(), format!("Bearer {}", api_key));
+            // Anthropic API uses x-api-key header, not Bearer token
+            // See: https://docs.anthropic.com/en/api/getting-started
+            headers.insert("x-api-key".to_string(), api_key.clone());
         }
 
         headers.insert(
