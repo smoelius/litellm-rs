@@ -619,7 +619,9 @@ mod tests {
         let client = AnthropicClient::new(config).unwrap();
         let headers = client.build_headers();
 
-        assert!(headers.contains_key("authorization"));
+        // Anthropic uses x-api-key header instead of Authorization
+        assert!(headers.contains_key("x-api-key"));
+        assert!(headers.contains_key("anthropic-version"));
         assert!(headers.contains_key("content-type"));
         assert!(headers.contains_key("user-agent"));
     }
