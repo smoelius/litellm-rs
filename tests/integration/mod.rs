@@ -1,0 +1,8 @@
+//! Integration tests for litellm-rs
+//!
+//! These tests verify the interaction between multiple components
+//! and test real system behavior without mocking.
+
+pub mod database_tests;
+pub mod provider_tests;
+pub mod router_tests;

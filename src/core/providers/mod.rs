@@ -457,6 +457,13 @@ impl Provider {
                 let mapped = stream.map(|result| result);
                 Ok(Box::pin(mapped))
             }
+            Provider::Groq(p) => {
+                let stream = LLMProvider::chat_completion_stream(p, request, context)
+                    .await
+                    .map_err(UnifiedProviderError::from)?;
+                let mapped = stream.map(|result| result.map_err(UnifiedProviderError::from));
+                Ok(Box::pin(mapped))
+            }
             _ => Err(UnifiedProviderError::not_implemented(
                 "unknown",
                 format!("Streaming not implemented for {}", self.name()),

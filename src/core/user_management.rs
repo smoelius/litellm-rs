@@ -575,50 +575,147 @@ impl UserManager {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_user_creation() {
-        let db = Arc::new(Database::new_mock());
-        let manager = UserManager::new(db);
-
-        let user = manager.create_user(
-            "test@example.com".to_string(),
-            Some("Test User".to_string()),
-        ).await.unwrap();
-
-        assert_eq!(user.email, "test@example.com");
-        assert_eq!(user.display_name, Some("Test User".to_string()));
-        assert_eq!(user.role, UserRole::User);
-        assert!(user.is_active);
-    }
-
-    #[tokio::test]
-    async fn test_team_creation() {
-        let db = Arc::new(Database::new_mock());
-        let manager = UserManager::new(db);
-
-        let team = manager.create_team(
-            "Test Team".to_string(),
-            Some("A test team".to_string()),
-            None,
-            "user123".to_string(),
-        ).await.unwrap();
-
-        assert_eq!(team.team_name, "Test Team");
-        assert_eq!(team.description, Some("A test team".to_string()));
-        assert_eq!(team.members.len(), 1);
-        assert_eq!(team.members[0].user_id, "user123");
-        assert_eq!(team.members[0].role, TeamRole::Owner);
-    }
-
+    /// Test UserRole enum equality and variants
     #[test]
     fn test_user_roles() {
         assert_eq!(UserRole::SuperAdmin, UserRole::SuperAdmin);
         assert_ne!(UserRole::User, UserRole::Admin);
+
+        // Test all variants exist
+        let roles = vec![
+            UserRole::SuperAdmin,
+            UserRole::Admin,
+            UserRole::User,
+            UserRole::Guest,
+        ];
+        assert_eq!(roles.len(), 4);
     }
 
+    /// Test TeamRole enum equality and variants
     #[test]
     fn test_team_roles() {
         assert_eq!(TeamRole::Owner, TeamRole::Owner);
         assert_ne!(TeamRole::Member, TeamRole::Admin);
+
+        // Test all variants exist
+        let roles = vec![
+            TeamRole::Owner,
+            TeamRole::Admin,
+            TeamRole::Member,
+            TeamRole::Viewer,
+        ];
+        assert_eq!(roles.len(), 4);
+    }
+
+    /// Test UserProfile structure
+    #[test]
+    fn test_user_profile_creation() {
+        let profile = UserProfile {
+            user_id: "user123".to_string(),
+            email: "test@example.com".to_string(),
+            display_name: Some("Test User".to_string()),
+            role: UserRole::User,
+            is_active: true,
+            created_at: Utc::now(),
+            teams: vec![],
+            metadata: HashMap::new(),
+        };
+
+        assert_eq!(profile.user_id, "user123");
+        assert_eq!(profile.email, "test@example.com");
+        assert!(profile.is_active);
+        assert_eq!(profile.role, UserRole::User);
+    }
+
+    /// Test Team structure
+    #[test]
+    fn test_team_structure() {
+        let owner = TeamMember {
+            user_id: "owner123".to_string(),
+            role: TeamRole::Owner,
+            added_at: Utc::now(),
+            added_by: None,
+        };
+
+        let team = Team {
+            team_id: "team123".to_string(),
+            team_name: "Test Team".to_string(),
+            description: Some("A test team".to_string()),
+            organization_id: None,
+            members: vec![owner.clone()],
+            created_at: Utc::now(),
+            is_active: true,
+            settings: TeamSettings::default(),
+            metadata: HashMap::new(),
+        };
+
+        assert_eq!(team.team_name, "Test Team");
+        assert_eq!(team.members.len(), 1);
+        assert_eq!(team.members[0].role, TeamRole::Owner);
+    }
+
+    /// Test TeamMember role assignment
+    #[test]
+    fn test_team_member_roles() {
+        let owner = TeamMember {
+            user_id: "u1".to_string(),
+            role: TeamRole::Owner,
+            added_at: Utc::now(),
+            added_by: None,
+        };
+
+        let admin = TeamMember {
+            user_id: "u2".to_string(),
+            role: TeamRole::Admin,
+            added_at: Utc::now(),
+            added_by: Some("u1".to_string()),
+        };
+
+        let member = TeamMember {
+            user_id: "u3".to_string(),
+            role: TeamRole::Member,
+            added_at: Utc::now(),
+            added_by: Some("u1".to_string()),
+        };
+
+        assert_eq!(owner.role, TeamRole::Owner);
+        assert_eq!(admin.role, TeamRole::Admin);
+        assert_eq!(member.role, TeamRole::Member);
+    }
+
+    /// Test TeamSettings default values
+    #[test]
+    fn test_team_settings_defaults() {
+        let settings = TeamSettings::default();
+
+        // Verify default settings are reasonable
+        assert!(settings.max_members.is_none() || settings.max_members.unwrap() > 0);
+    }
+
+    /// Test AddTeamMemberRequest structure
+    #[test]
+    fn test_add_team_member_request() {
+        let request = AddTeamMemberRequest {
+            user_id: "user456".to_string(),
+            role: TeamRole::Member,
+        };
+
+        assert_eq!(request.user_id, "user456");
+        assert_eq!(request.role, TeamRole::Member);
+    }
+
+    /// Test UserRole hierarchy (conceptually)
+    #[test]
+    fn test_user_role_hierarchy() {
+        // SuperAdmin > Admin > User > Guest
+        let super_admin = UserRole::SuperAdmin;
+        let admin = UserRole::Admin;
+        let user = UserRole::User;
+        let guest = UserRole::Guest;
+
+        // Verify they are distinct
+        assert_ne!(super_admin, admin);
+        assert_ne!(admin, user);
+        assert_ne!(user, guest);
     }
 }

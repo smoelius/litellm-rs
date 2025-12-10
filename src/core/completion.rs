@@ -5,8 +5,10 @@
 //! to call 100+ LLM APIs using OpenAI format.
 
 use async_trait::async_trait;
+use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 // Import core types from our unified type system
@@ -16,6 +18,8 @@ use crate::core::types::{
 
 // Import provider system
 use crate::core::providers::{Provider, ProviderRegistry, ProviderType};
+use crate::core::streaming::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
+use crate::core::traits::LLMProvider;
 use crate::utils::error::{GatewayError, Result};
 use tracing::debug;
 
@@ -43,12 +47,14 @@ pub async fn acompletion(
 
 /// Streaming completion function
 pub async fn completion_stream(
-    _model: &str,
-    _messages: Vec<Message>,
-    _options: Option<CompletionOptions>,
+    model: &str,
+    messages: Vec<Message>,
+    options: Option<CompletionOptions>,
 ) -> Result<CompletionStream> {
-    // TODO: Implement streaming
-    todo!("Streaming completion not yet implemented")
+    let router = get_global_router().await;
+    router
+        .complete_stream(model, messages, options.unwrap_or_default())
+        .await
 }
 
 /// Unified message format (OpenAI compatible) - just re-export the core type
@@ -334,6 +340,20 @@ impl DefaultRouter {
 
             if let Ok(deepseek_provider) = DeepSeekProvider::new(config) {
                 provider_registry.register(Provider::DeepSeek(deepseek_provider));
+            }
+        }
+
+        // Add Groq provider if API key is available
+        if let Ok(api_key) = std::env::var("GROQ_API_KEY") {
+            use crate::core::providers::groq::{GroqConfig, GroqProvider};
+
+            let config = GroqConfig {
+                api_key: Some(api_key),
+                ..Default::default()
+            };
+
+            if let Ok(groq_provider) = GroqProvider::new(config).await {
+                provider_registry.register(Provider::Groq(groq_provider));
             }
         }
 
@@ -796,6 +816,9 @@ impl Router for DefaultRouter {
         })
         .or_else(|| {
             Self::select_provider_by_name(&providers, "azure_ai", model, "azure_ai/", &chat_request)
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "groq", model, "groq/", &chat_request)
         });
 
         // Handle special cases that don't follow the standard pattern
@@ -833,12 +856,103 @@ impl Router for DefaultRouter {
 
     async fn complete_stream(
         &self,
-        _model: &str,
-        _messages: Vec<Message>,
-        _options: CompletionOptions,
+        model: &str,
+        messages: Vec<Message>,
+        options: CompletionOptions,
     ) -> Result<CompletionStream> {
-        // TODO: Implement streaming
-        todo!("Streaming not yet implemented")
+        // Convert to internal types
+        let chat_messages = convert_messages_to_chat_messages(messages);
+        let mut chat_request =
+            convert_to_chat_completion_request(model, chat_messages, options.clone())?;
+        chat_request.stream = true;
+
+        // Create request context
+        let context = RequestContext::new();
+
+        // Find provider (reuse the same logic as complete)
+        let providers = self.provider_registry.all();
+
+        // Check if model explicitly specifies a provider
+        let selected_provider = Self::select_provider_by_name(
+            &providers,
+            "openrouter",
+            model,
+            "openrouter/",
+            &chat_request,
+        )
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "deepseek", model, "deepseek/", &chat_request)
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(
+                &providers,
+                "anthropic",
+                model,
+                "anthropic/",
+                &chat_request,
+            )
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "azure_ai", model, "azure_ai/", &chat_request)
+        })
+        .or_else(|| {
+            Self::select_provider_by_name(&providers, "groq", model, "groq/", &chat_request)
+        });
+
+        // Get the provider and execute streaming
+        if let Some((provider, request)) = selected_provider {
+            let stream = provider
+                .chat_completion_stream(request, context)
+                .await
+                .map_err(|e| GatewayError::internal(format!("Streaming error: {}", e)))?;
+
+            // Convert ChatChunk stream to ChatCompletionChunk stream
+            let converted_stream = stream.map(|result| {
+                result
+                    .map(|chunk| convert_chat_chunk_to_completion_chunk(chunk))
+                    .map_err(|e| GatewayError::internal(format!("Stream chunk error: {}", e)))
+            });
+
+            return Ok(Box::new(Box::pin(converted_stream)));
+        }
+
+        Err(GatewayError::internal(
+            "No suitable provider found for streaming",
+        ))
+    }
+}
+
+/// Convert ChatChunk (from provider) to ChatCompletionChunk (for API)
+fn convert_chat_chunk_to_completion_chunk(
+    chunk: crate::core::types::ChatChunk,
+) -> ChatCompletionChunk {
+    ChatCompletionChunk {
+        id: chunk.id,
+        object: chunk.object,
+        created: chunk.created as u64,
+        model: chunk.model,
+        system_fingerprint: chunk.system_fingerprint,
+        choices: chunk
+            .choices
+            .into_iter()
+            .map(|c| ChatCompletionChunkChoice {
+                index: c.index,
+                delta: ChatCompletionDelta {
+                    role: c.delta.role,
+                    content: c.delta.content,
+                    tool_calls: None, // Simplified for now
+                },
+                finish_reason: c.finish_reason.map(|fr| format!("{:?}", fr).to_lowercase()),
+                logprobs: None,
+            })
+            .collect(),
+        usage: chunk.usage.map(|u| crate::core::models::openai::Usage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        }),
     }
 }
 

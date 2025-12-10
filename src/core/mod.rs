@@ -22,7 +22,13 @@ pub mod semantic_cache;
 pub mod streaming;
 pub mod traits;
 pub mod types;
-// pub mod virtual_keys; // TODO: Enable when database methods are implemented
+// User and team management - disabled until database methods are implemented
+// These modules require the following database methods to be implemented:
+// - virtual_keys: store_virtual_key, get_virtual_key, update_virtual_key, etc.
+// - user_management: get_user, create_user, get_team, create_team, etc.
+// TODO: Implement database methods and enable these modules
+// pub mod user_management;
+// pub mod virtual_keys;
 pub mod webhooks;
 
 // Re-export commonly used types
