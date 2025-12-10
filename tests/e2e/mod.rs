@@ -10,3 +10,4 @@
 
 pub mod audio;
 pub mod chat_completion;
+pub mod deepseek;
