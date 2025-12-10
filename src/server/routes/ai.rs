@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+use crate::core::audio::{AudioService, SpeechRequest, TranscriptionRequest, TranslationRequest};
 use crate::core::models::openai::{
     ChatCompletionRequest, CompletionRequest, EmbeddingRequest, ImageGenerationRequest,
     ModelListResponse,
@@ -12,8 +13,10 @@ use crate::core::models::{ApiKey, RequestContext, User};
 use crate::server::AppState;
 use crate::server::routes::{ApiResponse, errors};
 use crate::utils::data::validation::RequestValidator;
+use actix_multipart::Multipart;
 use actix_web::http::header::HeaderMap;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
+use futures::StreamExt;
 
 use serde::Deserialize;
 use tracing::{debug, error, info, warn};
@@ -24,12 +27,19 @@ use uuid::Uuid;
 struct AudioSpeechRequest {
     /// Text to convert to speech
     pub input: String,
+    /// Model to use
+    #[serde(default = "default_tts_model")]
+    pub model: String,
     /// Voice to use for speech generation
     pub voice: String,
     /// Audio format (mp3, opus, aac, flac)
     pub response_format: Option<String>,
     /// Speed of speech (0.25 to 4.0)
     pub speed: Option<f32>,
+}
+
+fn default_tts_model() -> String {
+    "tts-1".to_string()
 }
 
 /// Configure AI API routes
@@ -222,14 +232,17 @@ async fn get_model(
 }
 
 /// Audio transcriptions endpoint
+///
+/// OpenAI-compatible audio transcription API (Whisper).
+/// Accepts multipart/form-data with audio file.
 async fn audio_transcriptions(
-    _state: web::Data<AppState>,
+    state: web::Data<AppState>,
     req: HttpRequest,
-    _payload: web::Payload,
+    mut payload: Multipart,
 ) -> ActixResult<HttpResponse> {
     info!("Audio transcriptions request");
 
-    // Get request context (user, API key, etc.)
+    // Get request context (validates auth)
     let _context = match get_request_context(&req) {
         Ok(ctx) => ctx,
         Err(_) => {
@@ -238,26 +251,132 @@ async fn audio_transcriptions(
         }
     };
 
-    // For now, return a placeholder response indicating the feature is in development
-    let response = serde_json::json!({
-        "text": "Audio transcription feature is in development. This endpoint will support OpenAI-compatible audio transcription APIs.",
-        "language": "en",
-        "duration": 0.0,
-        "segments": []
-    });
+    // Parse multipart form data
+    let mut file_data: Option<Vec<u8>> = None;
+    let mut filename = String::from("audio.mp3");
+    let mut model = String::from("whisper-large-v3-turbo");
+    let mut language: Option<String> = None;
+    let mut prompt: Option<String> = None;
+    let mut response_format: Option<String> = None;
+    let mut temperature: Option<f32> = None;
 
-    Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
+    while let Some(item) = payload.next().await {
+        let mut field = match item {
+            Ok(f) => f,
+            Err(e) => {
+                error!("Error reading multipart field: {}", e);
+                return Ok(HttpResponse::BadRequest()
+                    .json(ApiResponse::<()>::error(format!("Invalid multipart data: {}", e))));
+            }
+        };
+
+        let field_name = match field.name() {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
+
+        match field_name.as_str() {
+            "file" => {
+                // Get filename from content disposition
+                if let Some(cd) = field.content_disposition() {
+                    if let Some(fname) = cd.get_filename() {
+                        filename = fname.to_string();
+                    }
+                }
+
+                // Read file data
+                let mut data = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    match chunk {
+                        Ok(bytes) => data.extend_from_slice(&bytes),
+                        Err(e) => {
+                            error!("Error reading file chunk: {}", e);
+                            return Ok(HttpResponse::BadRequest()
+                                .json(ApiResponse::<()>::error("Error reading file".to_string())));
+                        }
+                    }
+                }
+                file_data = Some(data);
+            }
+            "model" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    model = String::from_utf8_lossy(&bytes).to_string();
+                }
+            }
+            "language" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    language = Some(String::from_utf8_lossy(&bytes).to_string());
+                }
+            }
+            "prompt" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    prompt = Some(String::from_utf8_lossy(&bytes).to_string());
+                }
+            }
+            "response_format" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    response_format = Some(String::from_utf8_lossy(&bytes).to_string());
+                }
+            }
+            "temperature" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    if let Ok(temp) = String::from_utf8_lossy(&bytes).parse::<f32>() {
+                        temperature = Some(temp);
+                    }
+                }
+            }
+            _ => {
+                // Skip unknown fields
+                while field.next().await.is_some() {}
+            }
+        }
+    }
+
+    // Validate file was provided
+    let file = match file_data {
+        Some(data) if !data.is_empty() => data,
+        _ => {
+            return Ok(HttpResponse::BadRequest()
+                .json(ApiResponse::<()>::error("No audio file provided".to_string())));
+        }
+    };
+
+    // Create transcription request
+    let transcription_request = TranscriptionRequest {
+        file,
+        filename,
+        model,
+        language,
+        prompt,
+        response_format,
+        temperature,
+        timestamp_granularities: None,
+    };
+
+    // Create audio service and process request
+    let audio_service = AudioService::new(state.router.clone());
+
+    match audio_service.transcribe(transcription_request).await {
+        Ok(response) => Ok(HttpResponse::Ok().json(response)),
+        Err(e) => {
+            error!("Transcription error: {}", e);
+            Ok(errors::gateway_error_to_response(e))
+        }
+    }
 }
 
 /// Audio translations endpoint
+///
+/// OpenAI-compatible audio translation API.
+/// Translates audio to English text.
 async fn audio_translations(
-    _state: web::Data<AppState>,
+    state: web::Data<AppState>,
     req: HttpRequest,
-    _payload: web::Payload,
+    mut payload: Multipart,
 ) -> ActixResult<HttpResponse> {
     info!("Audio translations request");
 
-    // Get request context (user, API key, etc.)
+    // Get request context (validates auth)
     let _context = match get_request_context(&req) {
         Ok(ctx) => ctx,
         Err(_) => {
@@ -266,29 +385,116 @@ async fn audio_translations(
         }
     };
 
-    // For now, return a placeholder response indicating the feature is in development
-    let response = serde_json::json!({
-        "text": "Audio translation feature is in development. This endpoint will support OpenAI-compatible audio translation APIs.",
-        "language": "en",
-        "duration": 0.0,
-        "segments": []
-    });
+    // Parse multipart form data (similar to transcriptions)
+    let mut file_data: Option<Vec<u8>> = None;
+    let mut filename = String::from("audio.mp3");
+    let mut model = String::from("whisper-large-v3-turbo");
+    let mut prompt: Option<String> = None;
+    let mut response_format: Option<String> = None;
+    let mut temperature: Option<f32> = None;
 
-    Ok(HttpResponse::Ok().json(ApiResponse::success(response)))
+    while let Some(item) = payload.next().await {
+        let mut field = match item {
+            Ok(f) => f,
+            Err(e) => {
+                error!("Error reading multipart field: {}", e);
+                return Ok(HttpResponse::BadRequest()
+                    .json(ApiResponse::<()>::error(format!("Invalid multipart data: {}", e))));
+            }
+        };
+
+        let field_name = match field.name() {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
+
+        match field_name.as_str() {
+            "file" => {
+                if let Some(cd) = field.content_disposition() {
+                    if let Some(fname) = cd.get_filename() {
+                        filename = fname.to_string();
+                    }
+                }
+                let mut data = Vec::new();
+                while let Some(chunk) = field.next().await {
+                    if let Ok(bytes) = chunk {
+                        data.extend_from_slice(&bytes);
+                    }
+                }
+                file_data = Some(data);
+            }
+            "model" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    model = String::from_utf8_lossy(&bytes).to_string();
+                }
+            }
+            "prompt" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    prompt = Some(String::from_utf8_lossy(&bytes).to_string());
+                }
+            }
+            "response_format" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    response_format = Some(String::from_utf8_lossy(&bytes).to_string());
+                }
+            }
+            "temperature" => {
+                if let Some(Ok(bytes)) = field.next().await {
+                    if let Ok(temp) = String::from_utf8_lossy(&bytes).parse::<f32>() {
+                        temperature = Some(temp);
+                    }
+                }
+            }
+            _ => {
+                while field.next().await.is_some() {}
+            }
+        }
+    }
+
+    let file = match file_data {
+        Some(data) if !data.is_empty() => data,
+        _ => {
+            return Ok(HttpResponse::BadRequest()
+                .json(ApiResponse::<()>::error("No audio file provided".to_string())));
+        }
+    };
+
+    let translation_request = TranslationRequest {
+        file,
+        filename,
+        model,
+        prompt,
+        response_format,
+        temperature,
+    };
+
+    let audio_service = AudioService::new(state.router.clone());
+
+    match audio_service.translate(translation_request).await {
+        Ok(response) => Ok(HttpResponse::Ok().json(response)),
+        Err(e) => {
+            error!("Translation error: {}", e);
+            Ok(errors::gateway_error_to_response(e))
+        }
+    }
 }
 
 /// Audio speech endpoint
+///
+/// OpenAI-compatible text-to-speech API.
 async fn audio_speech(
-    _state: web::Data<AppState>,
+    state: web::Data<AppState>,
     req: HttpRequest,
     request: web::Json<AudioSpeechRequest>,
 ) -> ActixResult<HttpResponse> {
     info!(
-        "Audio speech request for text: {}",
-        &request.input[..50.min(request.input.len())]
+        "Audio speech request: model={}, voice={}, text_len={}",
+        request.model,
+        request.voice,
+        request.input.len()
     );
 
-    // Get request context (user, API key, etc.)
+    // Get request context (validates auth)
     let _context = match get_request_context(&req) {
         Ok(ctx) => ctx,
         Err(_) => {
@@ -297,13 +503,27 @@ async fn audio_speech(
         }
     };
 
-    // For now, return a placeholder audio response
-    // In a real implementation, this would generate actual audio using TTS providers
-    let audio_data = vec![0u8; 1024]; // Placeholder audio data
+    let speech_request = SpeechRequest {
+        input: request.input.clone(),
+        model: request.model.clone(),
+        voice: request.voice.clone(),
+        response_format: request.response_format.clone(),
+        speed: request.speed,
+    };
 
-    Ok(HttpResponse::Ok()
-        .content_type("audio/mpeg")
-        .body(audio_data))
+    let audio_service = AudioService::new(state.router.clone());
+
+    match audio_service.speech(speech_request).await {
+        Ok(response) => {
+            Ok(HttpResponse::Ok()
+                .content_type(response.content_type)
+                .body(response.audio))
+        }
+        Err(e) => {
+            error!("Speech generation error: {}", e);
+            Ok(errors::gateway_error_to_response(e))
+        }
+    }
 }
 
 /// Get request context from headers and middleware extensions

@@ -8,4 +8,5 @@
 //! - GROQ_API_KEY: For Groq tests
 //! - ANTHROPIC_API_KEY: For Anthropic tests
 
+pub mod audio;
 pub mod chat_completion;

@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 pub mod analytics;
+pub mod audio; // Audio API (transcription, translation, speech)
 // pub mod base_provider;  // Removed: unused dead code
 pub mod batch;
 pub mod cache_manager;
