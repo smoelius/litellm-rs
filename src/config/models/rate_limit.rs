@@ -50,19 +50,14 @@ impl RateLimitConfig {
 }
 
 /// Rate limiting strategy
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RateLimitStrategy {
     /// Token bucket algorithm
+    #[default]
     TokenBucket,
     /// Fixed window
     FixedWindow,
     /// Sliding window
     SlidingWindow,
-}
-
-impl Default for RateLimitStrategy {
-    fn default() -> Self {
-        Self::TokenBucket
-    }
 }

@@ -101,13 +101,14 @@ pub fn parse_embedding_model(model: &str) -> VertexEmbeddingModel {
 }
 
 /// Task types for embedding generation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub enum TaskType {
     /// For retrieval queries
     #[serde(rename = "RETRIEVAL_QUERY")]
     RetrievalQuery,
     /// For retrieval documents
     #[serde(rename = "RETRIEVAL_DOCUMENT")]
+    #[default]
     RetrievalDocument,
     /// For semantic similarity
     #[serde(rename = "SEMANTIC_SIMILARITY")]
@@ -124,12 +125,6 @@ pub enum TaskType {
     /// For fact verification
     #[serde(rename = "FACT_VERIFICATION")]
     FactVerification,
-}
-
-impl Default for TaskType {
-    fn default() -> Self {
-        Self::RetrievalDocument
-    }
 }
 
 /// Embedding instance for Vertex AI

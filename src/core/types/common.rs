@@ -217,7 +217,7 @@ impl Default for ModelInfo {
 }
 
 /// Health status
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HealthStatus {
     /// Healthy
@@ -225,15 +225,10 @@ pub enum HealthStatus {
     /// Unhealthy
     Unhealthy,
     /// Unknown status
+    #[default]
     Unknown,
     /// Degraded service
     Degraded,
-}
-
-impl Default for HealthStatus {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// Check
@@ -369,18 +364,13 @@ impl std::fmt::Display for CacheKey {
 }
 
 /// API version
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ApiVersion {
     /// v1 version
+    #[default]
     V1,
     /// v2 version (future extension)
     V2,
-}
-
-impl Default for ApiVersion {
-    fn default() -> Self {
-        Self::V1
-    }
 }
 
 impl std::fmt::Display for ApiVersion {
@@ -478,19 +468,14 @@ pub struct SortOrder {
 }
 
 /// Sort direction
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SortDirection {
     /// Ascending
+    #[default]
     Asc,
     /// Descending
     Desc,
-}
-
-impl Default for SortDirection {
-    fn default() -> Self {
-        Self::Asc
-    }
 }
 
 /// Filter criteria

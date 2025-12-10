@@ -249,10 +249,11 @@ pub struct TagSelector {
 }
 
 /// Tag operator
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TagOperator {
     /// Equals
+    #[default]
     Eq,
     /// Not equals
     Ne,
@@ -264,12 +265,6 @@ pub enum TagOperator {
     Exists,
     /// Not exists
     NotExists,
-}
-
-impl Default for TagOperator {
-    fn default() -> Self {
-        Self::Eq
-    }
 }
 
 /// Configuration

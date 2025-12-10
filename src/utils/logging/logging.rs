@@ -123,7 +123,7 @@ impl AsyncLogger {
             // Correct sampling: sample every N logs where N = 1/rate
             // e.g., rate=0.1 means keep 1 in 10, rate=0.5 means keep 1 in 2
             let sample_interval = (1.0 / self.config.sample_rate) as u64;
-            if counter % sample_interval != 0 {
+            if !counter.is_multiple_of(sample_interval) {
                 return;
             }
         }

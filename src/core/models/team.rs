@@ -67,21 +67,16 @@ pub struct TeamSettings {
 }
 
 /// Team visibility
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TeamVisibility {
     /// Public team
     Public,
     /// Private team
+    #[default]
     Private,
     /// Internal team
     Internal,
-}
-
-impl Default for TeamVisibility {
-    fn default() -> Self {
-        Self::Private
-    }
 }
 
 /// API access settings

@@ -966,7 +966,7 @@ mod tests {
 
     #[test]
     fn test_rerank_result_ordering() {
-        let mut results = vec![
+        let mut results = [
             RerankResult {
                 index: 0,
                 relevance_score: 0.5,

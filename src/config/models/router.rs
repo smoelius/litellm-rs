@@ -29,10 +29,11 @@ impl RouterConfig {
 }
 
 /// Routing strategy configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum RoutingStrategyConfig {
     /// Round-robin routing
+    #[default]
     RoundRobin,
     /// Least latency routing
     LeastLatency,
@@ -60,12 +61,6 @@ pub enum RoutingStrategyConfig {
         /// Custom logic identifier
         logic: String,
     },
-}
-
-impl Default for RoutingStrategyConfig {
-    fn default() -> Self {
-        Self::RoundRobin
-    }
 }
 
 /// Circuit breaker configuration

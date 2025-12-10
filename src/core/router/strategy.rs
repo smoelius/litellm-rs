@@ -8,9 +8,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tracing::{debug, info};
 
 /// Routing strategies for provider selection
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum RoutingStrategy {
     /// Round-robin selection
+    #[default]
     RoundRobin,
     /// Least latency first
     LeastLatency,
@@ -33,12 +34,6 @@ pub enum RoutingStrategy {
     LeastBusy,
     /// Custom strategy with user-defined logic
     Custom(String),
-}
-
-impl Default for RoutingStrategy {
-    fn default() -> Self {
-        Self::RoundRobin
-    }
 }
 
 /// Strategy executor for provider selection
