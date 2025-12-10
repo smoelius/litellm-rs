@@ -65,7 +65,6 @@
 //! ```
 
 #![allow(missing_docs)]
-#![allow(missing_doc_code_examples)]
 #![warn(clippy::all)]
 #![allow(clippy::module_inception)]
 

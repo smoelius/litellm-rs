@@ -2,6 +2,7 @@
 
 use super::*;
 use super::{default_connection_timeout, default_redis_max_connections};
+use super::file_storage::VectorDbConfig;
 use serde::{Deserialize, Serialize};
 
 /// Storage configuration
@@ -11,6 +12,9 @@ pub struct StorageConfig {
     pub database: DatabaseConfig,
     /// Redis configuration
     pub redis: RedisConfig,
+    /// Vector database configuration (optional)
+    #[serde(default)]
+    pub vector_db: Option<VectorDbConfig>,
 }
 
 #[allow(dead_code)]
@@ -19,6 +23,9 @@ impl StorageConfig {
     pub fn merge(mut self, other: Self) -> Self {
         self.database = self.database.merge(other.database);
         self.redis = self.redis.merge(other.redis);
+        if other.vector_db.is_some() {
+            self.vector_db = other.vector_db;
+        }
         self
     }
 }

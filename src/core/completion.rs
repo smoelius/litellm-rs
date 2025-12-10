@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use futures::stream::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
 // Import core types from our unified type system
@@ -19,7 +18,6 @@ use crate::core::types::{
 // Import provider system
 use crate::core::providers::{Provider, ProviderRegistry, ProviderType};
 use crate::core::streaming::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
-use crate::core::traits::LLMProvider;
 use crate::utils::error::{GatewayError, Result};
 use tracing::debug;
 
@@ -909,7 +907,7 @@ impl Router for DefaultRouter {
             // Convert ChatChunk stream to ChatCompletionChunk stream
             let converted_stream = stream.map(|result| {
                 result
-                    .map(|chunk| convert_chat_chunk_to_completion_chunk(chunk))
+                    .map(convert_chat_chunk_to_completion_chunk)
                     .map_err(|e| GatewayError::internal(format!("Stream chunk error: {}", e)))
             });
 

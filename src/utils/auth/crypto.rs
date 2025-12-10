@@ -504,7 +504,7 @@ mod tests {
         let key = b"test_key_for_short_data_check!!";
 
         // Data too short (less than nonce + auth tag)
-        let short_data = general_purpose::STANDARD.encode(&[0u8; 10]);
+        let short_data = general_purpose::STANDARD.encode([0u8; 10]);
         let result = decrypt_data(key, &short_data);
         assert!(result.is_err());
     }

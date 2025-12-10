@@ -22,7 +22,8 @@ static SSN_PATTERN: Lazy<Regex> = Lazy::new(|| {
         .unwrap_or_else(|e| {
             tracing::error!("Failed to compile SSN regex: {}", e);
             // Return a pattern that never matches as fallback
-            Regex::new(r"(?!x)x").unwrap()
+            // [^\s\S] matches "neither whitespace nor non-whitespace" = empty set
+            Regex::new(r"[^\s\S]").unwrap()
         })
 });
 
@@ -31,7 +32,7 @@ static EMAIL_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
         .unwrap_or_else(|e| {
             tracing::error!("Failed to compile email regex: {}", e);
-            Regex::new(r"(?!x)x").unwrap()
+            Regex::new(r"[^\s\S]").unwrap()
         })
 });
 
@@ -40,7 +41,7 @@ static PHONE_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\b\d{3}-\d{3}-\d{4}\b")
         .unwrap_or_else(|e| {
             tracing::error!("Failed to compile phone regex: {}", e);
-            Regex::new(r"(?!x)x").unwrap()
+            Regex::new(r"[^\s\S]").unwrap()
         })
 });
 
@@ -49,7 +50,7 @@ static CREDIT_CARD_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b")
         .unwrap_or_else(|e| {
             tracing::error!("Failed to compile credit card regex: {}", e);
-            Regex::new(r"(?!x)x").unwrap()
+            Regex::new(r"[^\s\S]").unwrap()
         })
 });
 

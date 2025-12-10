@@ -284,7 +284,7 @@ impl LoadBalancer {
         // Create default deployment info if not already present
         self.deployments
             .entry(name.to_string())
-            .or_insert_with(DeploymentInfo::default);
+            .or_default();
 
         // Clear model support cache since we have a new provider
         self.model_support_cache.clear();

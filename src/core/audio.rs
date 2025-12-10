@@ -400,9 +400,8 @@ fn parse_model_string(model: &str) -> (&str, &str) {
         // Default provider based on model name
         if model.starts_with("whisper") {
             ("groq", model) // Default Whisper to Groq (faster)
-        } else if model.starts_with("tts") {
-            ("openai", model)
         } else {
+            // Default to OpenAI for TTS and other models
             ("openai", model)
         }
     }

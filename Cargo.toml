@@ -99,6 +99,7 @@ tracing-actix-web = "0.7"
 opentelemetry = { version = "0.21", optional = true }
 opentelemetry-jaeger = { version = "0.20", optional = true }
 prometheus = { version = "0.14", optional = true }
+sysinfo = { version = "0.32", optional = true }
 
 # Middleware and utilities
 governor = "0.6"
@@ -169,7 +170,7 @@ redis = ["dep:redis"]
 s3 = ["dep:object_store", "dep:aws-sdk-s3", "dep:aws-config"]
 
 # Monitoring and observability
-metrics = ["dep:prometheus"]
+metrics = ["dep:prometheus", "dep:sysinfo"]
 tracing = ["dep:opentelemetry", "dep:opentelemetry-jaeger"]
 
 # Advanced features

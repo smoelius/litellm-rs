@@ -107,13 +107,15 @@ impl CircuitBreaker {
 
     /// Check if the circuit breaker allows execution
     async fn can_execute(&self) -> bool {
-        let mut state = self.state.lock().unwrap();
+        // Use unwrap_or_else to handle poisoned mutex gracefully
+        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
         match *state {
             CircuitState::Closed => true,
             CircuitState::Open => {
                 // Check if timeout has passed
-                if let Some(last_failure) = *self.last_failure_time.lock().unwrap() {
+                if let Some(last_failure) = *self.last_failure_time.lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner()) {
                     if last_failure.elapsed() >= self.config.timeout {
                         debug!("Circuit breaker transitioning from Open to HalfOpen");
                         *state = CircuitState::HalfOpen;
@@ -134,7 +136,7 @@ impl CircuitBreaker {
     async fn on_success(&self) {
         let success_count = self.success_count.fetch_add(1, Ordering::Relaxed) + 1;
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         if *state == CircuitState::HalfOpen && success_count >= self.config.success_threshold {
             debug!("Circuit breaker transitioning from HalfOpen to Closed");
             *state = CircuitState::Closed;
@@ -148,13 +150,13 @@ impl CircuitBreaker {
         let failure_count = self.failure_count.fetch_add(1, Ordering::Relaxed) + 1;
         let request_count = self.request_count.load(Ordering::Relaxed);
 
-        *self.last_failure_time.lock().unwrap() = Some(Instant::now());
+        *self.last_failure_time.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
 
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
 
         // Update window if needed
         {
-            let mut window_start = self.window_start.lock().unwrap();
+            let mut window_start = self.window_start.lock().unwrap_or_else(|p| p.into_inner());
             if window_start.elapsed() >= self.config.window_size {
                 *window_start = Instant::now();
                 self.failure_count.store(1, Ordering::Relaxed);
@@ -184,7 +186,7 @@ impl CircuitBreaker {
 
     /// Get current circuit breaker state
     pub fn state(&self) -> CircuitState {
-        self.state.lock().unwrap().clone()
+        self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone()
     }
 
     /// Get current metrics
@@ -199,13 +201,13 @@ impl CircuitBreaker {
 
     /// Reset the circuit breaker
     pub fn reset(&self) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
         *state = CircuitState::Closed;
         self.failure_count.store(0, Ordering::Relaxed);
         self.success_count.store(0, Ordering::Relaxed);
         self.request_count.store(0, Ordering::Relaxed);
-        *self.last_failure_time.lock().unwrap() = None;
-        *self.window_start.lock().unwrap() = Instant::now();
+        *self.last_failure_time.lock().unwrap_or_else(|p| p.into_inner()) = None;
+        *self.window_start.lock().unwrap_or_else(|p| p.into_inner()) = Instant::now();
         debug!("Circuit breaker reset");
     }
 }

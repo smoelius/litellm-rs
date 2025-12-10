@@ -80,8 +80,20 @@ impl StorageLayer {
         let default_file_config = crate::config::models::file_storage::FileStorageConfig::default();
         let files = Arc::new(files::FileStorage::new(&default_file_config).await?);
 
-        // Initialize vector database (optional, using default config for now)
-        let vector = None; // TODO: Add vector_db config to StorageConfig
+        // Initialize vector database (optional)
+        let vector = if let Some(ref vector_config) = config.vector_db {
+            debug!("Initializing vector database");
+            match vector::VectorStoreBackend::new(vector_config).await {
+                Ok(v) => Some(Arc::new(v)),
+                Err(e) => {
+                    warn!("Vector database initialization failed: {}, continuing without vector DB", e);
+                    None
+                }
+            }
+        } else {
+            debug!("Vector database not configured, skipping");
+            None
+        };
 
         info!("Storage layer initialized successfully");
 
@@ -385,6 +397,7 @@ mod tests {
                 connection_timeout: 5,
                 cluster: false,
             },
+            vector_db: None,
         };
 
         // This test would require actual database connections

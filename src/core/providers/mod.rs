@@ -589,28 +589,138 @@ pub async fn create_provider(
 
 // Provider factory functions
 impl Provider {
-    /// Create provider from configuration
+    /// Create provider from configuration (sync version - deprecated)
     ///
-    /// This method will be implemented once all providers are migrated to LLMProvider trait
+    /// Use `from_config_async` for async initialization
+    #[deprecated(note = "Use from_config_async instead")]
     pub fn from_config(
-        provider_type: ProviderType,
+        _provider_type: ProviderType,
         _config: serde_json::Value,
+    ) -> Result<Self, ProviderError> {
+        Err(ProviderError::not_implemented(
+            "sync",
+            "Use from_config_async for provider creation",
+        ))
+    }
+
+    /// Create provider from configuration asynchronously
+    ///
+    /// This is the preferred method for creating providers from configuration.
+    /// It supports all provider types and handles async initialization properly.
+    pub async fn from_config_async(
+        provider_type: ProviderType,
+        config: serde_json::Value,
     ) -> Result<Self, ProviderError> {
         match provider_type {
             ProviderType::OpenAI => {
-                // TODO: Implement once OpenAI config types are available
-                Err(ProviderError::not_implemented("openai", "factory creation"))
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("openai", "api_key is required"))?;
+                let provider = openai::OpenAIProvider::with_api_key(api_key)
+                    .await
+                    .map_err(|e| ProviderError::initialization("openai", e.to_string()))?;
+                Ok(Provider::OpenAI(provider))
             }
             ProviderType::Anthropic => {
-                // TODO: Implement once Anthropic config types are available
-                Err(ProviderError::not_implemented(
-                    "anthropic",
-                    "factory creation",
-                ))
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("anthropic", "api_key is required"))?;
+                let provider = anthropic::AnthropicProvider::new(
+                    anthropic::AnthropicConfig::default().with_api_key(api_key),
+                )?;
+                Ok(Provider::Anthropic(provider))
+            }
+            ProviderType::Groq => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("groq", "api_key is required"))?;
+                let provider = groq::GroqProvider::with_api_key(api_key)
+                    .await
+                    .map_err(|e| ProviderError::initialization("groq", e.to_string()))?;
+                Ok(Provider::Groq(provider))
+            }
+            ProviderType::XAI => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("xai", "api_key is required"))?;
+                let provider = xai::XAIProvider::with_api_key(api_key)
+                    .await
+                    .map_err(|e| ProviderError::initialization("xai", e.to_string()))?;
+                Ok(Provider::XAI(provider))
+            }
+            ProviderType::OpenRouter => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("openrouter", "api_key is required"))?;
+                let or_config = openrouter::OpenRouterConfig::new(api_key);
+                let provider = openrouter::OpenRouterProvider::new(or_config)?;
+                Ok(Provider::OpenRouter(provider))
+            }
+            ProviderType::Mistral => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("mistral", "api_key is required"))?;
+                let mistral_config = mistral::MistralConfig {
+                    api_key: api_key.to_string(),
+                    ..Default::default()
+                };
+                let provider = mistral::MistralProvider::new(mistral_config)
+                    .await
+                    .map_err(|e| ProviderError::initialization("mistral", e.to_string()))?;
+                Ok(Provider::Mistral(provider))
+            }
+            ProviderType::DeepSeek => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("deepseek", "api_key is required"))?;
+                let mut ds_config = deepseek::DeepSeekConfig::new("deepseek");
+                ds_config.base.api_key = Some(api_key.to_string());
+                let provider = deepseek::DeepSeekProvider::new(ds_config)?;
+                Ok(Provider::DeepSeek(provider))
+            }
+            ProviderType::Moonshot => {
+                let api_key = config
+                    .get("api_key")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("moonshot", "api_key is required"))?;
+                let moonshot_config = moonshot::MoonshotConfig {
+                    api_key: api_key.to_string(),
+                    ..Default::default()
+                };
+                let provider = moonshot::MoonshotProvider::new(moonshot_config)
+                    .await
+                    .map_err(|e| ProviderError::initialization("moonshot", e.to_string()))?;
+                Ok(Provider::Moonshot(provider))
+            }
+            ProviderType::Cloudflare => {
+                let account_id = config
+                    .get("account_id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("cloudflare", "account_id is required"))?;
+                let api_token = config
+                    .get("api_token")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ProviderError::configuration("cloudflare", "api_token is required"))?;
+                let cf_config = cloudflare::CloudflareConfig {
+                    account_id: Some(account_id.to_string()),
+                    api_token: Some(api_token.to_string()),
+                    ..Default::default()
+                };
+                let provider = cloudflare::CloudflareProvider::new(cf_config)
+                    .await
+                    .map_err(|e| ProviderError::initialization("cloudflare", e.to_string()))?;
+                Ok(Provider::Cloudflare(provider))
             }
             _ => Err(ProviderError::not_implemented(
                 "unknown",
-                format!("Factory for {:?} not implemented", provider_type),
+                format!("Factory for {:?} not yet implemented", provider_type),
             )),
         }
     }

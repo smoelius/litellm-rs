@@ -5,6 +5,7 @@
 #![allow(dead_code)]
 
 use crate::config::MonitoringConfig;
+use std::collections::VecDeque;
 use crate::monitoring::{
     ErrorMetrics, LatencyPercentiles, PerformanceMetrics, ProviderMetrics, RequestMetrics,
     SystemResourceMetrics,
@@ -16,6 +17,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::debug;
+
+#[cfg(feature = "metrics")]
+use once_cell::sync::Lazy;
+#[cfg(feature = "metrics")]
+use sysinfo::{Disks, Networks, System};
 
 /// Metrics collector for gathering and aggregating system metrics
 #[derive(Debug)]
@@ -41,14 +47,19 @@ struct MetricsStorage {
     performance: PerformanceMetricsStorage,
 }
 
+/// Maximum number of samples to retain for time-series metrics
+const MAX_METRIC_SAMPLES: usize = 10_000;
+/// Maximum number of recent requests/errors to track (for rate calculations)
+const MAX_RECENT_EVENTS: usize = 1_000;
+
 /// Storage for request metrics
 #[derive(Debug, Default)]
 struct RequestMetricsStorage {
     total_requests: u64,
-    response_times: Vec<f64>,
+    response_times: VecDeque<f64>,
     status_codes: HashMap<u16, u64>,
     endpoints: HashMap<String, u64>,
-    last_minute_requests: Vec<Instant>,
+    last_minute_requests: VecDeque<Instant>,
 }
 
 /// Storage for provider metrics
@@ -56,7 +67,7 @@ struct RequestMetricsStorage {
 struct ProviderMetricsStorage {
     total_requests: u64,
     provider_requests: HashMap<String, u64>,
-    provider_response_times: HashMap<String, Vec<f64>>,
+    provider_response_times: HashMap<String, VecDeque<f64>>,
     provider_errors: HashMap<String, u64>,
     token_usage: HashMap<String, u64>,
     costs: HashMap<String, f64>,
@@ -65,12 +76,12 @@ struct ProviderMetricsStorage {
 /// Storage for system metrics
 #[derive(Debug, Default)]
 struct SystemMetricsStorage {
-    cpu_samples: Vec<f64>,
-    memory_samples: Vec<u64>,
-    disk_samples: Vec<u64>,
-    network_in_samples: Vec<u64>,
-    network_out_samples: Vec<u64>,
-    connection_samples: Vec<u32>,
+    cpu_samples: VecDeque<f64>,
+    memory_samples: VecDeque<u64>,
+    disk_samples: VecDeque<u64>,
+    network_in_samples: VecDeque<u64>,
+    network_out_samples: VecDeque<u64>,
+    connection_samples: VecDeque<u32>,
 }
 
 /// Storage for error metrics
@@ -81,7 +92,7 @@ struct ErrorMetricsStorage {
     error_endpoints: HashMap<String, u64>,
     critical_errors: u64,
     warnings: u64,
-    last_minute_errors: Vec<Instant>,
+    last_minute_errors: VecDeque<Instant>,
 }
 
 /// Storage for performance metrics
@@ -89,9 +100,25 @@ struct ErrorMetricsStorage {
 struct PerformanceMetricsStorage {
     cache_hits: u64,
     cache_misses: u64,
-    db_query_times: Vec<f64>,
-    queue_depths: Vec<u32>,
-    throughput_samples: Vec<f64>,
+    db_query_times: VecDeque<f64>,
+    queue_depths: VecDeque<u32>,
+    throughput_samples: VecDeque<f64>,
+}
+
+/// Helper trait for bounded VecDeque operations
+trait BoundedPush<T> {
+    fn push_bounded(&mut self, value: T, max_size: usize);
+}
+
+impl<T> BoundedPush<T> for VecDeque<T> {
+    /// Push a value while maintaining a maximum size (O(1) amortized)
+    #[inline]
+    fn push_bounded(&mut self, value: T, max_size: usize) {
+        if self.len() >= max_size {
+            self.pop_front();
+        }
+        self.push_back(value);
+    }
 }
 
 impl MetricsCollector {
@@ -147,13 +174,13 @@ impl MetricsCollector {
         metrics.total_requests += 1;
         metrics
             .response_times
-            .push(response_time.as_millis() as f64);
+            .push_bounded(response_time.as_millis() as f64, MAX_METRIC_SAMPLES);
         *metrics.status_codes.entry(status_code).or_insert(0) += 1;
 
         let endpoint_key = format!("{} {}", method, path);
         *metrics.endpoints.entry(endpoint_key).or_insert(0) += 1;
 
-        metrics.last_minute_requests.push(Instant::now());
+        metrics.last_minute_requests.push_bounded(Instant::now(), MAX_RECENT_EVENTS);
 
         Ok(())
     }
@@ -180,8 +207,8 @@ impl MetricsCollector {
         metrics
             .provider_response_times
             .entry(provider.to_string())
-            .or_insert_with(Vec::new)
-            .push(response_time.as_millis() as f64);
+            .or_default()
+            .push_bounded(response_time.as_millis() as f64, MAX_METRIC_SAMPLES);
 
         if !success {
             *metrics
@@ -219,7 +246,7 @@ impl MetricsCollector {
             metrics.warnings += 1;
         }
 
-        metrics.last_minute_errors.push(Instant::now());
+        metrics.last_minute_errors.push_bounded(Instant::now(), MAX_RECENT_EVENTS);
 
         Ok(())
     }
@@ -242,7 +269,7 @@ impl MetricsCollector {
             .write()
             .performance
             .db_query_times
-            .push(duration.as_millis() as f64);
+            .push_bounded(duration.as_millis() as f64, MAX_METRIC_SAMPLES);
         Ok(())
     }
 
@@ -459,24 +486,14 @@ impl MetricsCollector {
 
                     // TODO: Implement actual system metrics collection
                     // For now, use placeholder values
-                    metrics.cpu_samples.push(get_cpu_usage());
-                    metrics.memory_samples.push(get_memory_usage());
-                    metrics.disk_samples.push(get_disk_usage());
-                    metrics.network_in_samples.push(get_network_bytes_in());
-                    metrics.network_out_samples.push(get_network_bytes_out());
-                    metrics.connection_samples.push(get_active_connections());
-
-                    // Keep only recent samples (last hour)
-                    const MAX_SAMPLES: usize = 360; // 1 hour at 10-second intervals
-                    let cpu_len = metrics.cpu_samples.len();
-                    if cpu_len > MAX_SAMPLES {
-                        metrics.cpu_samples.drain(0..cpu_len - MAX_SAMPLES);
-                    }
-                    let memory_len = metrics.memory_samples.len();
-                    if memory_len > MAX_SAMPLES {
-                        metrics.memory_samples.drain(0..memory_len - MAX_SAMPLES);
-                    }
-                    // ... similar for other metrics
+                    // Using push_bounded for automatic size limiting (1 hour at 10-second intervals = 360 samples)
+                    const SYSTEM_MAX_SAMPLES: usize = 360;
+                    metrics.cpu_samples.push_bounded(get_cpu_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics.memory_samples.push_bounded(get_memory_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics.disk_samples.push_bounded(get_disk_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics.network_in_samples.push_bounded(get_network_bytes_in(), SYSTEM_MAX_SAMPLES);
+                    metrics.network_out_samples.push_bounded(get_network_bytes_out(), SYSTEM_MAX_SAMPLES);
+                    metrics.connection_samples.push_bounded(get_active_connections(), SYSTEM_MAX_SAMPLES);
                 }
             }
         });
@@ -540,8 +557,8 @@ fn calculate_percentile(sorted_values: &[f64], percentile: f64) -> f64 {
     }
 }
 
-/// Calculate average of f64 values
-fn calculate_average(values: &[f64]) -> f64 {
+/// Calculate average of f64 values from any iterable
+fn calculate_average(values: &VecDeque<f64>) -> f64 {
     if values.is_empty() {
         0.0
     } else {
@@ -549,8 +566,8 @@ fn calculate_average(values: &[f64]) -> f64 {
     }
 }
 
-/// Calculate average of u64 values
-fn calculate_average_u64(values: &[u64]) -> u64 {
+/// Calculate average of u64 values from any iterable
+fn calculate_average_u64(values: &VecDeque<u64>) -> u64 {
     if values.is_empty() {
         0
     } else {
@@ -558,8 +575,8 @@ fn calculate_average_u64(values: &[u64]) -> u64 {
     }
 }
 
-/// Calculate average of u32 values
-fn calculate_average_u32(values: &[u32]) -> u32 {
+/// Calculate average of u32 values from any iterable
+fn calculate_average_u32(values: &VecDeque<u32>) -> u32 {
     if values.is_empty() {
         0
     } else {
@@ -567,32 +584,82 @@ fn calculate_average_u32(values: &[u32]) -> u32 {
     }
 }
 
-// Placeholder functions for system metrics collection
-// In a real implementation, these would use proper system monitoring libraries
+// System metrics collection using sysinfo crate
+// These functions provide real system monitoring when the metrics feature is enabled
 
+#[cfg(feature = "metrics")]
+static SYSTEM: Lazy<parking_lot::Mutex<System>> = Lazy::new(|| {
+    parking_lot::Mutex::new(System::new_all())
+});
+
+#[cfg(feature = "metrics")]
+static NETWORKS: Lazy<parking_lot::Mutex<Networks>> = Lazy::new(|| {
+    parking_lot::Mutex::new(Networks::new_with_refreshed_list())
+});
+
+#[cfg(feature = "metrics")]
+static DISKS: Lazy<parking_lot::Mutex<Disks>> = Lazy::new(|| {
+    parking_lot::Mutex::new(Disks::new_with_refreshed_list())
+});
+
+#[cfg(feature = "metrics")]
 fn get_cpu_usage() -> f64 {
-    // Placeholder implementation
-    rand::random::<f64>() * 100.0
+    let mut sys = SYSTEM.lock();
+    sys.refresh_cpu_usage();
+    sys.global_cpu_usage() as f64
 }
 
+#[cfg(not(feature = "metrics"))]
+fn get_cpu_usage() -> f64 {
+    0.0
+}
+
+#[cfg(feature = "metrics")]
 fn get_memory_usage() -> u64 {
-    // Placeholder implementation
-    1024 * 1024 * 512 // 512MB
+    let mut sys = SYSTEM.lock();
+    sys.refresh_memory();
+    sys.used_memory()
 }
 
+#[cfg(not(feature = "metrics"))]
+fn get_memory_usage() -> u64 {
+    0
+}
+
+#[cfg(feature = "metrics")]
 fn get_disk_usage() -> u64 {
-    // Placeholder implementation
-    1024 * 1024 * 1024 * 10 // 10GB
+    let mut disks = DISKS.lock();
+    disks.refresh_list();
+    disks.iter().map(|d| d.total_space() - d.available_space()).sum()
 }
 
+#[cfg(not(feature = "metrics"))]
+fn get_disk_usage() -> u64 {
+    0
+}
+
+#[cfg(feature = "metrics")]
 fn get_network_bytes_in() -> u64 {
-    // Placeholder implementation
-    1024 * 1024 // 1MB
+    let mut networks = NETWORKS.lock();
+    networks.refresh();
+    networks.values().map(|data| data.total_received()).sum()
 }
 
+#[cfg(not(feature = "metrics"))]
+fn get_network_bytes_in() -> u64 {
+    0
+}
+
+#[cfg(feature = "metrics")]
 fn get_network_bytes_out() -> u64 {
-    // Placeholder implementation
-    1024 * 512 // 512KB
+    let mut networks = NETWORKS.lock();
+    networks.refresh();
+    networks.values().map(|data| data.total_transmitted()).sum()
+}
+
+#[cfg(not(feature = "metrics"))]
+fn get_network_bytes_out() -> u64 {
+    0
 }
 
 fn get_active_connections() -> u32 {
@@ -615,9 +682,9 @@ mod tests {
 
     #[test]
     fn test_calculate_average() {
-        let values = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let values: VecDeque<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0].into();
         assert_eq!(calculate_average(&values), 3.0);
-        assert_eq!(calculate_average(&[]), 0.0);
+        assert_eq!(calculate_average(&VecDeque::new()), 0.0);
     }
 
     #[tokio::test]

@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 /// Metrics collector and exporter
 pub struct MetricsCollector {
@@ -465,6 +465,12 @@ pub enum TraceExporter {
     },
 }
 
+impl Default for MetricsCollector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetricsCollector {
     /// Create a new metrics collector
     pub fn new() -> Self {
@@ -611,14 +617,20 @@ impl MetricsCollector {
 
     /// Send metrics to DataDog
     pub async fn send_to_datadog(&self) -> Result<()> {
-        if let Some(client) = &self.datadog_client {
-            let metrics = self.prometheus_metrics.read().await;
-            
+        if let Some(_client) = &self.datadog_client {
+            let _metrics = self.prometheus_metrics.read().await;
+
             // Convert metrics to DataDog format and send
             // Implementation would depend on DataDog API format
             debug!("Sending metrics to DataDog");
         }
         Ok(())
+    }
+}
+
+impl Default for LogAggregator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -674,15 +686,15 @@ impl LogAggregator {
         entries: &[LogEntry],
     ) -> Result<()> {
         match destination {
-            LogDestination::Elasticsearch { url, index, auth } => {
+            LogDestination::Elasticsearch { url: _, index: _, auth: _ } => {
                 // Send to Elasticsearch
                 debug!("Sending {} logs to Elasticsearch", entries.len());
             }
-            LogDestination::Splunk { url, token, index } => {
+            LogDestination::Splunk { url: _, token: _, index: _ } => {
                 // Send to Splunk
                 debug!("Sending {} logs to Splunk", entries.len());
             }
-            LogDestination::DatadogLogs { api_key, site } => {
+            LogDestination::DatadogLogs { api_key: _, site: _ } => {
                 // Send to Datadog Logs
                 debug!("Sending {} logs to Datadog", entries.len());
             }

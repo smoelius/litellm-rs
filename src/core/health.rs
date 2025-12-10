@@ -6,7 +6,7 @@
 use crate::utils::error::{GatewayError, Result};
 use crate::utils::error_recovery::CircuitBreaker;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tokio::time::interval;
@@ -107,8 +107,8 @@ pub struct ProviderHealth {
     pub status: HealthStatus,
     /// Last health check result
     pub last_check: Option<HealthCheckResult>,
-    /// Health check history (last N checks)
-    pub history: Vec<HealthCheckResult>,
+    /// Health check history (last N checks) - uses VecDeque for O(1) pop_front
+    pub history: VecDeque<HealthCheckResult>,
     /// Average response time over recent checks
     pub avg_response_time_ms: f64,
     /// Success rate over recent checks
@@ -128,7 +128,7 @@ impl ProviderHealth {
             provider_id,
             status: HealthStatus::Healthy,
             last_check: None,
-            history: Vec::new(),
+            history: VecDeque::new(),
             avg_response_time_ms: 0.0,
             success_rate: 100.0,
             consecutive_failures: 0,
@@ -151,9 +151,9 @@ impl ProviderHealth {
         }
 
         // Add to history (keep last 50 results)
-        self.history.push(result.clone());
+        self.history.push_back(result.clone());
         if self.history.len() > 50 {
-            self.history.remove(0);
+            self.history.pop_front();
         }
 
         // Update last check
@@ -237,7 +237,8 @@ impl Default for HealthMonitorConfig {
 pub struct HealthMonitor {
     config: HealthMonitorConfig,
     provider_health: Arc<RwLock<HashMap<String, ProviderHealth>>>,
-    circuit_breakers: Arc<RwLock<HashMap<String, CircuitBreaker>>>,
+    /// Circuit breakers stored as Arc for shared access without Clone
+    circuit_breakers: Arc<RwLock<HashMap<String, Arc<CircuitBreaker>>>>,
     check_tasks: Arc<RwLock<HashMap<String, tokio::task::JoinHandle<()>>>>,
 }
 
@@ -264,10 +265,10 @@ impl HealthMonitor {
             return;
         }
 
-        // Initialize circuit breaker
+        // Initialize circuit breaker (wrapped in Arc for shared access)
         if let Ok(mut breakers) = self.circuit_breakers.write() {
             let breaker_config = crate::utils::error_recovery::CircuitBreakerConfig::default();
-            breakers.insert(provider_id.clone(), CircuitBreaker::new(breaker_config));
+            breakers.insert(provider_id.clone(), Arc::new(CircuitBreaker::new(breaker_config)));
         } else {
             error!("Failed to acquire write lock for circuit breakers");
             return;
@@ -400,7 +401,7 @@ impl HealthMonitor {
     }
 
     /// Get circuit breaker for a provider
-    pub fn get_circuit_breaker(&self, provider_id: &str) -> Option<CircuitBreaker> {
+    pub fn get_circuit_breaker(&self, provider_id: &str) -> Option<Arc<CircuitBreaker>> {
         self.circuit_breakers
             .read()
             .ok()

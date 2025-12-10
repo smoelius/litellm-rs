@@ -943,51 +943,34 @@ impl AsyncBatchExecutor {
 
                 async move {
                     let start = std::time::Instant::now();
-                    let mut retries = 0u32;
-                    let mut last_error = None;
+                    let retries = 0u32;
 
-                    loop {
-                        let result = tokio::time::timeout(cfg.timeout, op(item))
-                            .await
-                            .map_err(|_| {
-                                GatewayError::Timeout(format!(
-                                    "Request {} timed out after {:?}",
-                                    index, cfg.timeout
-                                ))
-                            })
-                            .and_then(|r| r);
+                    let result = tokio::time::timeout(cfg.timeout, op(item))
+                        .await
+                        .map_err(|_| {
+                            GatewayError::Timeout(format!(
+                                "Request {} timed out after {:?}",
+                                index, cfg.timeout
+                            ))
+                        })
+                        .and_then(|r| r);
 
-                        match result {
-                            Ok(value) => {
-                                return AsyncBatchItemResult {
-                                    index,
-                                    result: Ok(value),
-                                    duration: start.elapsed(),
-                                    retries,
-                                };
-                            }
-                            Err(e) => {
-                                let batch_err = AsyncBatchError::from(e);
-                                if batch_err.retryable && retries < cfg.max_retries {
-                                    retries += 1;
-                                    tokio::time::sleep(cfg.retry_delay).await;
-                                    last_error = Some(batch_err);
-                                    // Can't retry because item is consumed
-                                    // In a real implementation, we'd clone the item
-                                    return AsyncBatchItemResult {
-                                        index,
-                                        result: Err(last_error.unwrap()),
-                                        duration: start.elapsed(),
-                                        retries,
-                                    };
-                                } else {
-                                    return AsyncBatchItemResult {
-                                        index,
-                                        result: Err(batch_err),
-                                        duration: start.elapsed(),
-                                        retries,
-                                    };
-                                }
+                    match result {
+                        Ok(value) => AsyncBatchItemResult {
+                            index,
+                            result: Ok(value),
+                            duration: start.elapsed(),
+                            retries,
+                        },
+                        Err(e) => {
+                            let batch_err = AsyncBatchError::from(e);
+                            // Note: Can't retry because item is consumed
+                            // In a real implementation, we'd clone the item
+                            AsyncBatchItemResult {
+                                index,
+                                result: Err(batch_err),
+                                duration: start.elapsed(),
+                                retries,
                             }
                         }
                     }

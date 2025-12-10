@@ -18,7 +18,7 @@ use actix_web::{
 use serde_json::json;
 use std::sync::Arc;
 
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 /// HTTP server state shared across handlers
 ///
@@ -82,26 +82,45 @@ impl HttpServer {
             crate::auth::AuthSystem::new(&config.gateway.auth, Arc::new(storage.clone())).await?;
 
         // Create router using ProviderRegistry
-        let router = crate::core::providers::ProviderRegistry::new();
+        let mut router = crate::core::providers::ProviderRegistry::new();
 
-        // TODO: Initialize providers from config
-        // if config.gateway.providers.is_empty() {
-        //     // Create default OpenAI provider if no providers configured
-        //     let default_config = crate::config::ProviderConfig::default();
-        //     let provider = crate::core::providers::Provider::from_config(
-        //         crate::core::providers::ProviderType::OpenAI,
-        //         serde_json::to_value(default_config)?
-        //     )?;
-        //     router.register(provider);
-        // } else {
-        //     for config in &config.gateway.providers {
-        //         let provider = crate::core::providers::Provider::from_config(
-        //             config.provider_type.as_str().into(),
-        //             config.settings.clone()
-        //         )?;
-        //         router.register(provider);
-        //     }
-        // }
+        // Initialize providers from config
+        if !config.gateway.providers.is_empty() {
+            for provider_config in &config.gateway.providers {
+                let provider_type: crate::core::providers::ProviderType =
+                    provider_config.provider_type.as_str().into();
+
+                // Build config JSON from provider settings
+                let mut settings = provider_config.settings.clone();
+                // Add api_key from the config if not in settings
+                if !settings.contains_key("api_key") && !provider_config.api_key.is_empty() {
+                    settings.insert(
+                        "api_key".to_string(),
+                        serde_json::Value::String(provider_config.api_key.clone()),
+                    );
+                }
+
+                match crate::core::providers::Provider::from_config_async(
+                    provider_type.clone(),
+                    serde_json::Value::Object(settings.into_iter().collect()),
+                )
+                .await
+                {
+                    Ok(provider) => {
+                        router.register(provider);
+                        info!("Registered provider: {}", provider_config.name);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "Failed to initialize provider {}: {}",
+                            provider_config.name, e
+                        );
+                    }
+                }
+            }
+        } else {
+            debug!("No providers configured, gateway will route based on model prefix");
+        }
 
         // Create unified pricing service
         let pricing = Arc::new(PricingService::new(Some(

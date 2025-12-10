@@ -481,8 +481,11 @@ impl WebhookManager {
     /// Get delivery history
     pub async fn get_delivery_history(&self, limit: Option<usize>) -> Vec<WebhookDelivery> {
         let data = self.data.read().await;
-        let limit = limit.unwrap_or(100);
-        data.delivery_queue.iter().rev().take(limit).cloned().collect()
+        let limit = limit.unwrap_or(100).min(data.delivery_queue.len());
+        // Pre-allocate with exact capacity and collect from reverse iterator
+        let mut result = Vec::with_capacity(limit);
+        result.extend(data.delivery_queue.iter().rev().take(limit).cloned());
+        result
     }
 
     /// Start background delivery processor

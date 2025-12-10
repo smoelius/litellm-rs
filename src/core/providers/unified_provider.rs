@@ -413,6 +413,14 @@ impl ProviderError {
         }
     }
 
+    /// Create initialization error (provider failed to start)
+    pub fn initialization(provider: &'static str, message: impl Into<String>) -> Self {
+        Self::Network {
+            provider,
+            message: format!("Initialization failed: {}", message.into()),
+        }
+    }
+
     // Enhanced factory methods for new error variants
 
     /// Create context length exceeded error with structured data

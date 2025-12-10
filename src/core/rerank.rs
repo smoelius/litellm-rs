@@ -36,7 +36,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 /// Rerank request
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -461,8 +461,7 @@ impl RerankCache {
 
         // Evict if at capacity
         if entries.len() >= self.max_size {
-            // Remove oldest entries
-            let now = Instant::now();
+            // Remove oldest entries (expired ones first)
             entries.retain(|_, entry| entry.created_at.elapsed() < entry.ttl);
 
             // If still at capacity, remove random entry
@@ -547,7 +546,7 @@ impl RerankProvider for CohereRerankProvider {
     async fn rerank(&self, request: RerankRequest) -> Result<RerankResponse> {
         // Extract model name (remove provider prefix)
         let model = if request.model.contains('/') {
-            request.model.split('/').last().unwrap_or(&request.model)
+            request.model.split('/').next_back().unwrap_or(&request.model)
         } else {
             &request.model
         };
@@ -646,7 +645,7 @@ impl RerankProvider for CohereRerankProvider {
     }
 
     fn supports_model(&self, model: &str) -> bool {
-        let model_name = model.split('/').last().unwrap_or(model);
+        let model_name = model.split('/').next_back().unwrap_or(model);
         matches!(
             model_name,
             "rerank-english-v3.0"
@@ -691,7 +690,7 @@ impl JinaRerankProvider {
 impl RerankProvider for JinaRerankProvider {
     async fn rerank(&self, request: RerankRequest) -> Result<RerankResponse> {
         let model = if request.model.contains('/') {
-            request.model.split('/').last().unwrap_or(&request.model)
+            request.model.split('/').next_back().unwrap_or(&request.model)
         } else {
             &request.model
         };
@@ -778,7 +777,7 @@ impl RerankProvider for JinaRerankProvider {
     }
 
     fn supports_model(&self, model: &str) -> bool {
-        let model_name = model.split('/').last().unwrap_or(model);
+        let model_name = model.split('/').next_back().unwrap_or(model);
         matches!(
             model_name,
             "jina-reranker-v2-base-multilingual"

@@ -2,6 +2,23 @@
 //!
 //! This module provides enhanced Redis connectivity with improved performance
 //! through connection pooling, batch operations, and intelligent caching.
+//!
+//! # Usage
+//!
+//! ```ignore
+//! use litellm_rs::storage::redis_optimized::{OptimizedRedisPool, PoolConfig};
+//!
+//! let config = RedisConfig { url: "redis://localhost:6379".to_string(), ..Default::default() };
+//! let pool = OptimizedRedisPool::new(&config, PoolConfig::default()).await?;
+//!
+//! // Batch operations
+//! pool.batch_set(&[("key1".into(), "value1".into())], Some(3600)).await?;
+//! let values = pool.batch_get(&["key1".into()]).await?;
+//!
+//! // Get pool statistics
+//! let stats = pool.get_stats().await;
+//! println!("Active connections: {}", stats.active_connections);
+//! ```
 
 use crate::config::RedisConfig;
 use crate::utils::error::{GatewayError, Result};
@@ -12,42 +29,35 @@ use std::time::{Duration, Instant};
 use tokio::sync::{RwLock, Semaphore};
 use tracing::{debug, info, warn};
 
-/// Connection pool statistics
+/// Connection pool statistics for monitoring Redis performance
 #[derive(Debug, Clone, Default)]
 pub struct PoolStats {
-    /// Total number of connections
+    /// Total number of connections in the pool
     pub total_connections: usize,
-    /// Number of active connections
+    /// Number of actively used connections
     pub active_connections: usize,
-    /// Number of idle connections
-    #[allow(dead_code)] // Reserved for future pool monitoring
+    /// Number of idle connections waiting to be used
     pub idle_connections: usize,
-    /// Total number of requests
+    /// Total number of requests processed
     pub total_requests: u64,
     /// Number of failed requests
-    #[allow(dead_code)] // Reserved for future pool monitoring
     pub failed_requests: u64,
     /// Average response time in milliseconds
-    #[allow(dead_code)] // Reserved for future pool monitoring
     pub average_response_time_ms: f64,
 }
 
-/// Connection pool configuration
+/// Connection pool configuration for tuning Redis performance
 #[derive(Debug, Clone)]
 pub struct PoolConfig {
     /// Maximum number of connections in the pool
-    #[allow(dead_code)] // Reserved for future pool configuration
     pub max_connections: usize,
     /// Minimum number of connections to maintain
-    #[allow(dead_code)] // Reserved for future pool configuration
     pub min_connections: usize,
     /// Connection timeout in seconds
-    #[allow(dead_code)] // Reserved for future pool configuration
     pub connection_timeout: Duration,
     /// Maximum idle time before connection is closed
     pub max_idle_time: Duration,
-    /// Health check interval
-    #[allow(dead_code)] // Reserved for future pool configuration
+    /// Health check interval for background monitoring
     pub health_check_interval: Duration,
 }
 
@@ -63,25 +73,24 @@ impl Default for PoolConfig {
     }
 }
 
-/// Connection wrapper with metadata
+/// Connection wrapper with metadata for pool management
 #[derive(Debug)]
-#[allow(dead_code)] // Reserved for future connection pooling
 struct PooledConnection {
-    #[allow(dead_code)] // Reserved for future connection operations
+    /// The actual Redis connection
     connection: MultiplexedConnection,
-    #[allow(dead_code)] // Reserved for future connection lifecycle management
+    /// When this connection was created (for connection age tracking)
+    #[allow(dead_code)]
     created_at: Instant,
-    #[allow(dead_code)] // Reserved for future connection tracking
+    /// When this connection was last used
     last_used: Instant,
-    #[allow(dead_code)] // Reserved for future connection statistics
+    /// Number of requests processed by this connection
     request_count: u64,
-    #[allow(dead_code)] // Reserved for future connection health monitoring
+    /// Whether the connection is healthy
     is_healthy: bool,
 }
 
-#[allow(dead_code)] // Reserved for future connection pooling
 impl PooledConnection {
-    #[allow(dead_code)] // Reserved for future connection creation
+    /// Create a new pooled connection wrapper
     fn new(connection: MultiplexedConnection) -> Self {
         let now = Instant::now();
         Self {
@@ -93,41 +102,50 @@ impl PooledConnection {
         }
     }
 
-    #[allow(dead_code)] // Reserved for future connection tracking
+    /// Mark the connection as recently used
     fn mark_used(&mut self) {
         self.last_used = Instant::now();
         self.request_count += 1;
     }
 
-    #[allow(dead_code)] // Reserved for future connection management
+    /// Check if connection has been idle longer than max_idle_time
     fn is_idle(&self, max_idle_time: Duration) -> bool {
         self.last_used.elapsed() > max_idle_time
     }
 }
 
-/// Optimized Redis connection pool
-#[allow(dead_code)] // Reserved for future optimized Redis operations
+/// Optimized Redis connection pool with advanced features
+///
+/// Provides connection pooling, batch operations, and performance monitoring
+/// for high-throughput Redis operations.
 pub struct OptimizedRedisPool {
-    #[allow(dead_code)] // Reserved for future Redis client operations
+    /// Redis client for creating new connections
     client: Client,
-    #[allow(dead_code)] // Reserved for future connection pooling
+    /// Pool of available connections
     connections: Arc<RwLock<Vec<PooledConnection>>>,
-    #[allow(dead_code)] // Reserved for future connection limiting
+    /// Semaphore for limiting concurrent connections
     semaphore: Arc<Semaphore>,
-    #[allow(dead_code)] // Reserved for future configuration access
+    /// Redis configuration (stored for reconnection scenarios)
+    #[allow(dead_code)]
     config: RedisConfig,
-    #[allow(dead_code)] // Reserved for future pool configuration
+    /// Pool configuration
     pool_config: PoolConfig,
-    #[allow(dead_code)] // Reserved for future pool statistics
+    /// Pool statistics for monitoring
     stats: Arc<RwLock<PoolStats>>,
-    #[allow(dead_code)] // Reserved for future performance monitoring
+    /// Response time tracking per operation type
+    #[allow(dead_code)] // Reserved for detailed performance analytics
     response_times: Arc<DashMap<String, Vec<Duration>>>,
 }
 
-#[allow(dead_code)] // Reserved for future optimized Redis operations
 impl OptimizedRedisPool {
     /// Create a new optimized Redis pool
-    #[allow(dead_code)] // Reserved for future pool creation
+    ///
+    /// # Arguments
+    /// * `config` - Redis connection configuration
+    /// * `pool_config` - Pool tuning parameters
+    ///
+    /// # Returns
+    /// A new `OptimizedRedisPool` instance with initialized connections
     pub async fn new(config: &RedisConfig, pool_config: PoolConfig) -> Result<Self> {
         info!("Creating optimized Redis connection pool");
         debug!("Redis URL: {}", Self::sanitize_url(&config.url));
@@ -160,8 +178,7 @@ impl OptimizedRedisPool {
         Ok(pool)
     }
 
-    /// Initialize minimum connections
-    #[allow(dead_code)] // Reserved for future connection initialization
+    /// Initialize minimum connections in the pool
     async fn initialize_connections(&self) -> Result<()> {
         let mut connections = self.connections.write().await;
 
@@ -179,8 +196,7 @@ impl OptimizedRedisPool {
         Ok(())
     }
 
-    /// Create a new connection
-    #[allow(dead_code)] // Reserved for future connection creation
+    /// Create a new Redis connection
     async fn create_connection(&self) -> Result<MultiplexedConnection> {
         let connection = self
             .client
@@ -192,10 +208,11 @@ impl OptimizedRedisPool {
     }
 
     /// Get a connection from the pool
-    #[allow(dead_code)] // Reserved for future connection retrieval
     async fn get_connection(&self) -> Result<MultiplexedConnection> {
-        // Acquire semaphore permit
-        let _permit = self.semaphore.acquire().await.unwrap();
+        // Acquire semaphore permit - handle closed semaphore gracefully
+        let _permit = self.semaphore.acquire().await.map_err(|e| {
+            GatewayError::Internal(format!("Connection pool semaphore closed: {}", e))
+        })?;
 
         // Try to get an existing connection
         {
@@ -212,8 +229,7 @@ impl OptimizedRedisPool {
         self.create_connection().await
     }
 
-    /// Return a connection to the pool
-    #[allow(dead_code)] // Reserved for future connection pooling
+    /// Return a connection to the pool for reuse
     async fn return_connection(&self, connection: MultiplexedConnection) {
         let mut connections = self.connections.write().await;
 
@@ -224,7 +240,9 @@ impl OptimizedRedisPool {
     }
 
     /// Execute a Redis command with performance tracking
-    #[allow(dead_code)] // Reserved for future Redis operations
+    ///
+    /// Automatically handles connection acquisition, execution, and return to pool.
+    /// Also updates pool statistics for monitoring.
     pub async fn execute_command<T, F, Fut>(&self, operation: F) -> Result<T>
     where
         F: FnOnce(MultiplexedConnection) -> Fut,
@@ -261,8 +279,9 @@ impl OptimizedRedisPool {
         result.map_err(GatewayError::Redis)
     }
 
-    /// Batch set operations with pipeline
-    #[allow(dead_code)] // Reserved for future batch operations
+    /// Batch set operations with pipeline for better performance
+    ///
+    /// Uses Redis pipeline for atomic batch operations.
     pub async fn batch_set(&self, pairs: &[(String, String)], ttl: Option<u64>) -> Result<()> {
         if pairs.is_empty() {
             return Ok(());
@@ -285,8 +304,7 @@ impl OptimizedRedisPool {
         .await
     }
 
-    /// Batch get operations
-    #[allow(dead_code)] // Reserved for future batch operations
+    /// Batch get operations using MGET
     pub async fn batch_get(&self, keys: &[String]) -> Result<Vec<Option<String>>> {
         if keys.is_empty() {
             return Ok(Vec::new());
@@ -297,7 +315,8 @@ impl OptimizedRedisPool {
     }
 
     /// Batch delete operations
-    #[allow(dead_code)] // Reserved for future batch operations
+    ///
+    /// Returns the number of keys deleted.
     pub async fn batch_delete(&self, keys: &[String]) -> Result<u64> {
         if keys.is_empty() {
             return Ok(0);
@@ -307,8 +326,9 @@ impl OptimizedRedisPool {
             .await
     }
 
-    /// Get pool statistics
-    #[allow(dead_code)] // Reserved for future pool monitoring
+    /// Get pool statistics for monitoring
+    ///
+    /// Returns current pool metrics including connection counts and performance data.
     pub async fn get_stats(&self) -> PoolStats {
         let connections = self.connections.read().await;
         let mut stats = self.stats.read().await.clone();
@@ -325,7 +345,8 @@ impl OptimizedRedisPool {
     }
 
     /// Start health checker background task
-    #[allow(dead_code)] // Reserved for future health monitoring
+    ///
+    /// Periodically removes unhealthy or idle connections from the pool.
     async fn start_health_checker(&self) {
         let connections = self.connections.clone();
         let interval = self.pool_config.health_check_interval;
@@ -346,7 +367,8 @@ impl OptimizedRedisPool {
     }
 
     /// Start connection manager background task
-    #[allow(dead_code)] // Reserved for future connection management
+    ///
+    /// Ensures minimum connections are maintained in the pool.
     async fn start_connection_manager(&self) {
         let connections = self.connections.clone();
         let client = self.client.clone();
@@ -377,8 +399,7 @@ impl OptimizedRedisPool {
         });
     }
 
-    /// Sanitize URL for logging
-    #[allow(dead_code)] // Reserved for future URL sanitization
+    /// Sanitize URL for logging (redacts credentials)
     fn sanitize_url(url: &str) -> String {
         if let Some(at_pos) = url.find('@') {
             if let Some(scheme_end) = url.find("://") {

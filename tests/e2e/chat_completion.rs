@@ -141,8 +141,10 @@ mod tests {
         use litellm_rs::{completion, user_message, CompletionOptions};
 
         // Low temperature (deterministic)
-        let mut options = CompletionOptions::default();
-        options.temperature = Some(0.0);
+        let options = CompletionOptions {
+            temperature: Some(0.0),
+            ..Default::default()
+        };
 
         let response1 = completion(
             "groq/llama-3.1-8b-instant",
@@ -183,8 +185,10 @@ mod tests {
         use litellm_rs::core::completion::FinishReason;
         use litellm_rs::{completion, user_message, CompletionOptions};
 
-        let mut options = CompletionOptions::default();
-        options.max_tokens = Some(5);
+        let options = CompletionOptions {
+            max_tokens: Some(5),
+            ..Default::default()
+        };
 
         let response = completion(
             "groq/llama-3.1-8b-instant",

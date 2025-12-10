@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn test_routing_strategy_variants() {
         // Verify all strategies can be created
-        let strategies = vec![
+        let strategies = [
             RoutingStrategy::RoundRobin,
             RoutingStrategy::Random,
             RoutingStrategy::LeastLatency,

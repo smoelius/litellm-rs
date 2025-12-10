@@ -55,8 +55,7 @@ mod tests {
         match result {
             Ok(response) => {
                 println!("Transcription: {}", response.text);
-                // Even empty audio should return a valid response
-                assert!(response.text.len() >= 0);
+                // Even empty audio should return a valid response structure
             }
             Err(e) => {
                 // Some errors are expected with minimal test audio
@@ -89,7 +88,7 @@ mod tests {
         match result {
             Ok(response) => {
                 println!("Translation: {}", response.text);
-                assert!(response.text.len() >= 0);
+                // Translation completed successfully
             }
             Err(e) => {
                 println!("Translation error (may be expected with test audio): {}", e);

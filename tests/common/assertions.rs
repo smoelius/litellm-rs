@@ -103,7 +103,7 @@ mod tests {
 
     #[test]
     fn test_contains_macro() {
-        let items = vec![1, 2, 3, 4, 5];
+        let items = [1, 2, 3, 4, 5];
         assert_contains!(items, |&x| x == 3);
     }
 }

@@ -6,7 +6,6 @@
 use crate::core::models::openai::{ChatCompletionRequest, ChatCompletionResponse};
 use crate::utils::error::Result;
 use crate::utils::perf::strings::intern_string;
-use crate::utils::sys::result::ResultExt;
 use dashmap::DashMap;
 use lru::LruCache;
 use parking_lot::RwLock;
