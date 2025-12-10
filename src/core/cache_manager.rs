@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{debug, info};
@@ -166,12 +167,33 @@ pub struct CacheManager {
     semantic_cache: Arc<RwLock<SemanticCacheMap>>,
     /// Cache configuration
     config: CacheConfig,
-    /// Cache statistics
-    stats: Arc<RwLock<CacheStats>>,
+    /// Cache statistics (lock-free atomics for hot path)
+    stats: Arc<AtomicCacheStats>,
 }
 
-/// Cache statistics
+/// Atomic cache statistics for lock-free hot path updates
 #[derive(Debug, Default)]
+pub struct AtomicCacheStats {
+    /// L1 cache hits
+    pub l1_hits: AtomicU64,
+    /// L1 cache misses
+    pub l1_misses: AtomicU64,
+    /// L2 cache hits
+    pub l2_hits: AtomicU64,
+    /// L2 cache misses
+    pub l2_misses: AtomicU64,
+    /// Semantic cache hits
+    pub semantic_hits: AtomicU64,
+    /// Semantic cache misses
+    pub semantic_misses: AtomicU64,
+    /// Cache evictions
+    pub evictions: AtomicU64,
+    /// Total cache size in bytes
+    pub total_size_bytes: AtomicUsize,
+}
+
+/// Cache statistics snapshot (returned to callers)
+#[derive(Debug, Default, Clone)]
 pub struct CacheStats {
     /// L1 cache hits
     pub l1_hits: u64,
@@ -205,6 +227,34 @@ impl CacheStats {
     }
 }
 
+impl AtomicCacheStats {
+    /// Create a snapshot of current stats
+    pub fn snapshot(&self) -> CacheStats {
+        CacheStats {
+            l1_hits: self.l1_hits.load(Ordering::Relaxed),
+            l1_misses: self.l1_misses.load(Ordering::Relaxed),
+            l2_hits: self.l2_hits.load(Ordering::Relaxed),
+            l2_misses: self.l2_misses.load(Ordering::Relaxed),
+            semantic_hits: self.semantic_hits.load(Ordering::Relaxed),
+            semantic_misses: self.semantic_misses.load(Ordering::Relaxed),
+            evictions: self.evictions.load(Ordering::Relaxed),
+            total_size_bytes: self.total_size_bytes.load(Ordering::Relaxed),
+        }
+    }
+
+    /// Reset all stats to zero
+    pub fn reset(&self) {
+        self.l1_hits.store(0, Ordering::Relaxed);
+        self.l1_misses.store(0, Ordering::Relaxed);
+        self.l2_hits.store(0, Ordering::Relaxed);
+        self.l2_misses.store(0, Ordering::Relaxed);
+        self.semantic_hits.store(0, Ordering::Relaxed);
+        self.semantic_misses.store(0, Ordering::Relaxed);
+        self.evictions.store(0, Ordering::Relaxed);
+        self.total_size_bytes.store(0, Ordering::Relaxed);
+    }
+}
+
 impl CacheManager {
     /// Create a new cache manager
     pub fn new(config: CacheConfig) -> Result<Self> {
@@ -222,7 +272,7 @@ impl CacheManager {
             l2_cache: Arc::new(DashMap::new()),
             semantic_cache: Arc::new(RwLock::new(HashMap::new())),
             config,
-            stats: Arc::new(RwLock::new(CacheStats::default())),
+            stats: Arc::new(AtomicCacheStats::default()),
         })
     }
 
@@ -234,7 +284,7 @@ impl CacheManager {
             if let Some(entry) = l1.get_mut(key) {
                 if !entry.is_expired() {
                     entry.mark_accessed();
-                    self.stats.write().l1_hits += 1;
+                    self.stats.l1_hits.fetch_add(1, Ordering::Relaxed);
                     debug!("L1 cache hit for key: {:?}", key);
                     return Ok(Some(entry.value.clone()));
                 } else {
@@ -243,7 +293,7 @@ impl CacheManager {
             }
         }
 
-        self.stats.write().l1_misses += 1;
+        self.stats.l1_misses.fetch_add(1, Ordering::Relaxed);
 
         // Try L2 cache
         if let Some(mut entry) = self.l2_cache.get_mut(key) {
@@ -254,7 +304,7 @@ impl CacheManager {
                 let mut l1 = self.l1_cache.write();
                 l1.put(key.clone(), entry.clone());
 
-                self.stats.write().l2_hits += 1;
+                self.stats.l2_hits.fetch_add(1, Ordering::Relaxed);
                 debug!("L2 cache hit for key: {:?}", key);
                 return Ok(Some(entry.value.clone()));
             } else {
@@ -262,18 +312,18 @@ impl CacheManager {
             }
         }
 
-        self.stats.write().l2_misses += 1;
+        self.stats.l2_misses.fetch_add(1, Ordering::Relaxed);
 
         // Try semantic cache if enabled
         if self.config.enable_semantic {
             if let Some(response) = self.semantic_lookup(key).await? {
-                self.stats.write().semantic_hits += 1;
+                self.stats.semantic_hits.fetch_add(1, Ordering::Relaxed);
                 debug!("Semantic cache hit for key: {:?}", key);
                 return Ok(Some(response));
             }
         }
 
-        self.stats.write().semantic_misses += 1;
+        self.stats.semantic_misses.fetch_add(1, Ordering::Relaxed);
         Ok(None)
     }
 
@@ -290,14 +340,11 @@ impl CacheManager {
             self.update_semantic_cache(&key).await?;
         }
 
-        // Update statistics
-        {
-            let mut stats = self.stats.write();
-            stats.total_size_bytes += size_bytes;
-        }
+        // Update statistics (lock-free)
+        self.stats.total_size_bytes.fetch_add(size_bytes, Ordering::Relaxed);
 
         // Cleanup expired entries periodically
-        if self.l2_cache.len().is_multiple_of(1000) {
+        if self.l2_cache.len() % 1000 == 0 {
             self.cleanup_expired().await;
         }
 
@@ -334,8 +381,8 @@ impl CacheManager {
 
     /// Clean up expired entries
     async fn cleanup_expired(&self) {
-        let mut removed_count = 0;
-        let mut removed_size = 0;
+        let mut removed_count = 0u64;
+        let mut removed_size = 0usize;
 
         // Clean L2 cache
         self.l2_cache.retain(|_, entry| {
@@ -348,14 +395,16 @@ impl CacheManager {
             }
         });
 
-        // Update statistics
-        {
-            let mut stats = self.stats.write();
-            stats.evictions += removed_count;
-            stats.total_size_bytes = stats.total_size_bytes.saturating_sub(removed_size);
-        }
-
+        // Update statistics (lock-free)
         if removed_count > 0 {
+            self.stats.evictions.fetch_add(removed_count, Ordering::Relaxed);
+            // Use saturating subtraction for size
+            let current_size = self.stats.total_size_bytes.load(Ordering::Relaxed);
+            self.stats.total_size_bytes.store(
+                current_size.saturating_sub(removed_size),
+                Ordering::Relaxed,
+            );
+
             info!(
                 "Cleaned up {} expired cache entries, freed {} bytes",
                 removed_count, removed_size
@@ -363,23 +412,9 @@ impl CacheManager {
         }
     }
 
-    /// Get cache statistics
+    /// Get cache statistics (lock-free snapshot)
     pub fn stats(&self) -> CacheStats {
-        // Use our result extension for better error handling
-        let stats_result: Result<CacheStats> = Ok({
-            let stats = self.stats.read();
-            CacheStats {
-                l1_hits: stats.l1_hits,
-                l1_misses: stats.l1_misses,
-                l2_hits: stats.l2_hits,
-                l2_misses: stats.l2_misses,
-                semantic_hits: stats.semantic_hits,
-                semantic_misses: stats.semantic_misses,
-                evictions: stats.evictions,
-                total_size_bytes: stats.total_size_bytes,
-            }
-        });
-        stats_result.unwrap_or_log_default("cache stats retrieval")
+        self.stats.snapshot()
     }
 
     /// Clear all caches
@@ -388,8 +423,8 @@ impl CacheManager {
         self.l2_cache.clear();
         self.semantic_cache.write().clear();
 
-        let mut stats = self.stats.write();
-        *stats = CacheStats::default();
+        // Reset atomic stats
+        self.stats.reset();
 
         info!("All caches cleared");
     }

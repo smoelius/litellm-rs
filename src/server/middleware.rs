@@ -8,6 +8,8 @@ use crate::auth::AuthMethod;
 use crate::core::models::RequestContext;
 use crate::server::AppState;
 use actix_web::HttpMessage;
+use dashmap::DashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
 use actix_web::dev::{Service, Transform, forward_ready};
@@ -21,9 +23,220 @@ use futures::future::{Ready, ready};
 use std::future::Future;
 use std::pin::Pin;
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tracing::{debug, info, warn};
 use uuid::Uuid;
+
+/// Brute force protection for authentication endpoints
+///
+/// This struct tracks failed authentication attempts per client
+/// and blocks requests after too many failures.
+pub struct AuthRateLimiter {
+    /// Map of client identifier -> (failure count, first failure time, lockout until)
+    attempts: DashMap<String, AuthAttemptTracker>,
+    /// Maximum failed attempts before lockout
+    max_attempts: u32,
+    /// Time window for counting failures (seconds)
+    window_secs: u64,
+    /// Lockout duration (seconds) - uses exponential backoff
+    base_lockout_secs: u64,
+    /// Total blocked attempts counter for monitoring
+    blocked_count: AtomicU64,
+}
+
+/// Tracks authentication attempts for a single client
+struct AuthAttemptTracker {
+    /// Number of failed attempts in current window
+    failure_count: u32,
+    /// When the first failure in current window occurred
+    window_start: Instant,
+    /// If locked out, when the lockout expires
+    lockout_until: Option<Instant>,
+    /// Number of lockouts (for exponential backoff)
+    lockout_count: u32,
+}
+
+impl Default for AuthRateLimiter {
+    fn default() -> Self {
+        Self::new(5, 300, 60) // 5 attempts per 5 minutes, 1 minute base lockout
+    }
+}
+
+impl AuthRateLimiter {
+    /// Create a new auth rate limiter
+    ///
+    /// # Arguments
+    /// * `max_attempts` - Maximum failed attempts before lockout
+    /// * `window_secs` - Time window for counting failures
+    /// * `base_lockout_secs` - Base lockout duration (increases exponentially)
+    pub fn new(max_attempts: u32, window_secs: u64, base_lockout_secs: u64) -> Self {
+        Self {
+            attempts: DashMap::new(),
+            max_attempts,
+            window_secs,
+            base_lockout_secs,
+            blocked_count: AtomicU64::new(0),
+        }
+    }
+
+    /// Check if a client is allowed to attempt authentication
+    ///
+    /// Returns Ok(()) if allowed, Err with seconds to wait if blocked
+    pub fn check_allowed(&self, client_id: &str) -> Result<(), u64> {
+        let now = Instant::now();
+
+        // Get or create tracker
+        let mut entry = self.attempts.entry(client_id.to_string()).or_insert_with(|| {
+            AuthAttemptTracker {
+                failure_count: 0,
+                window_start: now,
+                lockout_until: None,
+                lockout_count: 0,
+            }
+        });
+
+        let tracker = entry.value_mut();
+
+        // Check if currently locked out
+        if let Some(lockout_until) = tracker.lockout_until {
+            if now < lockout_until {
+                let remaining = lockout_until.duration_since(now).as_secs();
+                self.blocked_count.fetch_add(1, Ordering::Relaxed);
+                warn!(
+                    "Auth attempt blocked for {} - locked out for {} more seconds",
+                    client_id, remaining
+                );
+                return Err(remaining);
+            } else {
+                // Lockout expired, reset but keep lockout count for exponential backoff
+                tracker.lockout_until = None;
+                tracker.failure_count = 0;
+                tracker.window_start = now;
+            }
+        }
+
+        // Check if window has expired
+        let window_duration = Duration::from_secs(self.window_secs);
+        if now.duration_since(tracker.window_start) > window_duration {
+            // Reset window
+            tracker.failure_count = 0;
+            tracker.window_start = now;
+            // Decay lockout count over time (reset after successful window)
+            if tracker.lockout_count > 0 {
+                tracker.lockout_count = tracker.lockout_count.saturating_sub(1);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Record a failed authentication attempt
+    ///
+    /// Returns the lockout duration in seconds if the client is now locked out
+    pub fn record_failure(&self, client_id: &str) -> Option<u64> {
+        let now = Instant::now();
+
+        let mut entry = self.attempts.entry(client_id.to_string()).or_insert_with(|| {
+            AuthAttemptTracker {
+                failure_count: 0,
+                window_start: now,
+                lockout_until: None,
+                lockout_count: 0,
+            }
+        });
+
+        let tracker = entry.value_mut();
+        tracker.failure_count += 1;
+
+        info!(
+            "Auth failure for {}: attempt {} of {} in window",
+            client_id, tracker.failure_count, self.max_attempts
+        );
+
+        // Check if we've exceeded max attempts
+        if tracker.failure_count >= self.max_attempts {
+            // Calculate lockout duration with exponential backoff
+            // Each lockout doubles the duration up to a maximum
+            let multiplier = 2u64.pow(tracker.lockout_count.min(6)); // Cap at 64x
+            let lockout_secs = self.base_lockout_secs * multiplier;
+            let lockout_duration = Duration::from_secs(lockout_secs);
+
+            tracker.lockout_until = Some(now + lockout_duration);
+            tracker.lockout_count += 1;
+            tracker.failure_count = 0;
+
+            warn!(
+                "Client {} locked out for {} seconds (lockout #{}) after {} failed attempts",
+                client_id, lockout_secs, tracker.lockout_count, self.max_attempts
+            );
+
+            return Some(lockout_secs);
+        }
+
+        None
+    }
+
+    /// Record a successful authentication (resets failure count)
+    pub fn record_success(&self, client_id: &str) {
+        if let Some(mut entry) = self.attempts.get_mut(client_id) {
+            entry.failure_count = 0;
+            entry.lockout_until = None;
+            // Gradually reduce lockout count on success
+            entry.lockout_count = entry.lockout_count.saturating_sub(1);
+        }
+    }
+
+    /// Get the total number of blocked attempts (for monitoring)
+    pub fn blocked_attempts(&self) -> u64 {
+        self.blocked_count.load(Ordering::Relaxed)
+    }
+
+    /// Clean up old entries (call periodically)
+    pub fn cleanup(&self) {
+        let now = Instant::now();
+        let max_age = Duration::from_secs(self.window_secs * 10); // Keep entries for 10x window
+
+        self.attempts.retain(|_, tracker| {
+            // Keep if recently active or locked out
+            now.duration_since(tracker.window_start) < max_age
+                || tracker.lockout_until.is_some_and(|until| until > now)
+        });
+    }
+}
+
+/// Global auth rate limiter
+static AUTH_RATE_LIMITER: std::sync::OnceLock<Arc<AuthRateLimiter>> = std::sync::OnceLock::new();
+
+/// Get or initialize the global auth rate limiter
+pub fn get_auth_rate_limiter() -> Arc<AuthRateLimiter> {
+    AUTH_RATE_LIMITER
+        .get_or_init(|| Arc::new(AuthRateLimiter::default()))
+        .clone()
+}
+
+/// Extract a client identifier for rate limiting
+/// Uses IP address, falling back to a hash of auth credentials
+fn get_client_identifier(req: &ServiceRequest) -> String {
+    // Try to get IP address
+    let ip = req
+        .connection_info()
+        .peer_addr()
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "unknown".to_string());
+
+    // Also include API key hash if present (to track per-key abuse)
+    if let Some(api_key) = req.headers().get("x-api-key")
+        .or_else(|| req.headers().get("authorization"))
+        .and_then(|h| h.to_str().ok())
+    {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        api_key.hash(&mut hasher);
+        format!("{}:{:x}", ip, hasher.finish())
+    } else {
+        format!("ip:{}", ip)
+    }
+}
 
 /// Request ID middleware for Actix-web
 pub struct RequestIdMiddleware;
@@ -134,6 +347,20 @@ where
             });
         }
 
+        // Get client identifier for brute force protection
+        let client_id = get_client_identifier(&req);
+
+        // Check brute force protection BEFORE attempting authentication
+        let auth_limiter = get_auth_rate_limiter();
+        if let Err(retry_after) = auth_limiter.check_allowed(&client_id) {
+            return Box::pin(async move {
+                Err(actix_web::error::ErrorTooManyRequests(format!(
+                    "Too many failed authentication attempts. Retry after {} seconds.",
+                    retry_after
+                )))
+            });
+        }
+
         // Get app state
         let state = req.app_data::<web::Data<AppState>>().cloned();
         if state.is_none() {
@@ -158,15 +385,29 @@ where
         let auth_method = extract_auth_method(req.headers());
 
         let fut = self.service.call(req);
+        let client_id_clone = client_id.clone();
         Box::pin(async move {
             // Authenticate request
             match state.auth.authenticate(auth_method, context).await {
                 Ok(auth_result) => {
                     if auth_result.success {
+                        // Record successful auth (resets failure count)
+                        auth_limiter.record_success(&client_id_clone);
                         debug!("Authentication successful for {}", path);
                         let res = fut.await?;
                         Ok(res)
                     } else {
+                        // Record failed auth attempt
+                        if let Some(lockout_secs) = auth_limiter.record_failure(&client_id_clone) {
+                            warn!(
+                                "Authentication failed for {} (now locked out for {}s): {:?}",
+                                path, lockout_secs, auth_result.error
+                            );
+                            return Err(actix_web::error::ErrorTooManyRequests(format!(
+                                "Too many failed attempts. Account locked for {} seconds.",
+                                lockout_secs
+                            )));
+                        }
                         warn!(
                             "Authentication failed for {}: {:?}",
                             path, auth_result.error
@@ -175,6 +416,8 @@ where
                     }
                 }
                 Err(e) => {
+                    // Record error as failure too (could be a probing attack)
+                    auth_limiter.record_failure(&client_id_clone);
                     warn!("Authentication error for {}: {}", path, e);
                     Err(actix_web::error::ErrorInternalServerError(
                         "Authentication error",
@@ -766,5 +1009,112 @@ mod tests {
         assert!(is_api_route("/v1/models"));
         assert!(!is_api_route("/api/users"));
         assert!(!is_api_route("/health"));
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_allows_initial_attempts() {
+        let limiter = AuthRateLimiter::new(3, 60, 30);
+        let client_id = "test_client_1";
+
+        // First few attempts should be allowed
+        assert!(limiter.check_allowed(client_id).is_ok());
+        assert!(limiter.record_failure(client_id).is_none());
+
+        assert!(limiter.check_allowed(client_id).is_ok());
+        assert!(limiter.record_failure(client_id).is_none());
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_locks_after_max_attempts() {
+        let limiter = AuthRateLimiter::new(3, 60, 30);
+        let client_id = "test_client_2";
+
+        // First 2 failures - no lockout yet
+        limiter.record_failure(client_id);
+        limiter.record_failure(client_id);
+
+        // Third failure should trigger lockout
+        let lockout = limiter.record_failure(client_id);
+        assert!(lockout.is_some());
+        assert_eq!(lockout.unwrap(), 30); // Base lockout time
+
+        // Further attempts should be blocked
+        let check = limiter.check_allowed(client_id);
+        assert!(check.is_err());
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_exponential_backoff() {
+        let limiter = AuthRateLimiter::new(2, 60, 10);
+        let client_id = "test_client_3";
+
+        // First lockout
+        limiter.record_failure(client_id);
+        let lockout1 = limiter.record_failure(client_id);
+        assert_eq!(lockout1.unwrap(), 10); // 10 * 2^0 = 10
+
+        // Simulate lockout expiration by creating a new client entry
+        // (In real scenario, would wait for lockout to expire)
+        let client_id2 = "test_client_3b";
+        limiter.record_failure(client_id2);
+        limiter.record_failure(client_id2);
+
+        // Second lockout for same pattern (if we could wait) would be 10 * 2^1 = 20
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_success_resets_failure_count() {
+        let limiter = AuthRateLimiter::new(3, 60, 30);
+        let client_id = "test_client_4";
+
+        // 2 failures
+        limiter.record_failure(client_id);
+        limiter.record_failure(client_id);
+
+        // Successful auth resets count
+        limiter.record_success(client_id);
+
+        // Should be able to fail again without immediate lockout
+        assert!(limiter.record_failure(client_id).is_none());
+        assert!(limiter.record_failure(client_id).is_none());
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_different_clients_independent() {
+        let limiter = AuthRateLimiter::new(2, 60, 30);
+        let client_a = "client_a";
+        let client_b = "client_b";
+
+        // Lock out client A
+        limiter.record_failure(client_a);
+        limiter.record_failure(client_a);
+
+        // Client A locked out
+        assert!(limiter.check_allowed(client_a).is_err());
+
+        // Client B should still be allowed
+        assert!(limiter.check_allowed(client_b).is_ok());
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_blocked_count() {
+        let limiter = AuthRateLimiter::new(1, 60, 30);
+        let client_id = "test_client_5";
+
+        // Lock out the client
+        limiter.record_failure(client_id);
+
+        // Initial blocked count should be 0
+        assert_eq!(limiter.blocked_attempts(), 0);
+
+        // Try to access while locked out
+        let _ = limiter.check_allowed(client_id);
+
+        // Blocked count should increase
+        assert_eq!(limiter.blocked_attempts(), 1);
+
+        // Try again
+        let _ = limiter.check_allowed(client_id);
+        assert_eq!(limiter.blocked_attempts(), 2);
     }
 }

@@ -88,7 +88,57 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Batches::Metadata).text().null())
                     .to_owned(),
             )
-            .await
+            .await?;
+
+        // Create indexes for frequently queried columns
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_batches_status")
+                    .table(Batches::Table)
+                    .col(Batches::Status)
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_batches_created_at")
+                    .table(Batches::Table)
+                    .col(Batches::CreatedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        // Composite index for common query pattern: status + created_at
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_batches_status_created_at")
+                    .table(Batches::Table)
+                    .col(Batches::Status)
+                    .col(Batches::CreatedAt)
+                    .to_owned(),
+            )
+            .await?;
+
+        // Index for endpoint queries
+        manager
+            .create_index(
+                Index::create()
+                    .if_not_exists()
+                    .name("idx_batches_endpoint")
+                    .table(Batches::Table)
+                    .col(Batches::Endpoint)
+                    .to_owned(),
+            )
+            .await?;
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

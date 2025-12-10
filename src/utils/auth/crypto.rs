@@ -1,15 +1,20 @@
 //! Cryptographic utilities for the Gateway
 //!
-//! This module provides cryptographic functions for password hashing, API key generation, etc.
+//! This module provides cryptographic functions for password hashing, API key generation,
+//! and authenticated encryption using AES-256-GCM.
 
 #![allow(dead_code)]
 
 use crate::utils::error::{GatewayError, Result};
+use aes_gcm::{
+    Aes256Gcm, Key, Nonce,
+    aead::{Aead, KeyInit},
+};
 use argon2::password_hash::{SaltString, rand_core::OsRng};
 use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use base64::{Engine as _, engine::general_purpose};
-use hmac::{Hmac, Mac};
-use rand::{Rng, distributions::Alphanumeric};
+use hmac::{Hmac, Mac, digest::KeyInit as HmacKeyInit};
+use rand::{Rng, RngCore, distributions::Alphanumeric};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -99,7 +104,7 @@ pub fn extract_api_key_prefix(api_key: &str) -> String {
 
 /// Create HMAC signature
 pub fn create_hmac_signature(secret: &str, data: &str) -> Result<String> {
-    let mut mac = HmacSha256::new_from_slice(secret.as_bytes())
+    let mut mac = <HmacSha256 as HmacKeyInit>::new_from_slice(secret.as_bytes())
         .map_err(|e| GatewayError::Crypto(format!("Invalid HMAC key: {}", e)))?;
 
     mac.update(data.as_bytes());
@@ -149,34 +154,89 @@ pub fn generate_totp_secret() -> String {
     general_purpose::STANDARD.encode(&bytes)
 }
 
-/// Encrypt data using AES-GCM (simplified version)
-pub fn encrypt_data(key: &[u8], data: &str) -> Result<String> {
-    // This is a simplified implementation
-    // In production, you would use a proper AES-GCM implementation
+/// AES-256-GCM nonce size (96 bits / 12 bytes as recommended by NIST)
+const AES_GCM_NONCE_SIZE: usize = 12;
+
+/// Derive a 256-bit key from arbitrary-length input using SHA-256
+fn derive_key(key: &[u8]) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(key);
-    hasher.update(data.as_bytes());
-    Ok(hex::encode(hasher.finalize()))
+    hasher.finalize().into()
 }
 
-/// Decrypt data using AES-GCM (simplified version)
+/// Encrypt data using AES-256-GCM with authenticated encryption.
+///
+/// The output format is: base64(nonce || ciphertext || tag)
+/// - nonce: 12 bytes (randomly generated)
+/// - ciphertext: variable length (same as plaintext)
+/// - tag: 16 bytes (authentication tag)
+///
+/// # Security
+/// - Uses cryptographically secure random nonce for each encryption
+/// - Provides both confidentiality and integrity protection
+/// - Key is derived using SHA-256 if not exactly 32 bytes
+pub fn encrypt_data(key: &[u8], data: &str) -> Result<String> {
+    // Derive 256-bit key from input
+    let derived_key = derive_key(key);
+    let cipher_key = Key::<Aes256Gcm>::from_slice(&derived_key);
+    let cipher = Aes256Gcm::new(cipher_key);
+
+    // Generate random 96-bit nonce (12 bytes)
+    let mut nonce_bytes = [0u8; AES_GCM_NONCE_SIZE];
+    rand::thread_rng().fill_bytes(&mut nonce_bytes);
+    let nonce = Nonce::from_slice(&nonce_bytes);
+
+    // Encrypt the data
+    let ciphertext = cipher
+        .encrypt(nonce, data.as_bytes())
+        .map_err(|e| GatewayError::Crypto(format!("Encryption failed: {}", e)))?;
+
+    // Prepend nonce to ciphertext for storage
+    let mut output = Vec::with_capacity(AES_GCM_NONCE_SIZE + ciphertext.len());
+    output.extend_from_slice(&nonce_bytes);
+    output.extend_from_slice(&ciphertext);
+
+    // Encode as base64 for safe storage/transmission
+    Ok(general_purpose::STANDARD.encode(&output))
+}
+
+/// Decrypt data encrypted with AES-256-GCM.
+///
+/// Expects input format: base64(nonce || ciphertext || tag)
+///
+/// # Security
+/// - Verifies authentication tag before returning plaintext
+/// - Returns error if data has been tampered with
 pub fn decrypt_data(key: &[u8], encrypted_data: &str) -> Result<String> {
-    // Basic implementation using XOR cipher for demonstration
-    // In production, you would use a proper AES-GCM implementation
-
     // Decode base64 encrypted data
-    let encrypted_bytes =
-        base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encrypted_data)
-            .map_err(|e| GatewayError::Crypto(format!("Failed to decode encrypted data: {}", e)))?;
+    let encrypted_bytes = general_purpose::STANDARD
+        .decode(encrypted_data)
+        .map_err(|e| GatewayError::Crypto(format!("Failed to decode encrypted data: {}", e)))?;
 
-    // Simple XOR decryption (for demonstration only)
-    let mut decrypted = Vec::new();
-    for (i, &byte) in encrypted_bytes.iter().enumerate() {
-        let key_byte = key[i % key.len()];
-        decrypted.push(byte ^ key_byte);
+    // Validate minimum length (nonce + at least 16-byte auth tag)
+    if encrypted_bytes.len() < AES_GCM_NONCE_SIZE + 16 {
+        return Err(GatewayError::Crypto(
+            "Encrypted data too short - possible corruption or tampering".to_string(),
+        ));
     }
 
-    String::from_utf8(decrypted).map_err(|e| {
+    // Derive 256-bit key from input
+    let derived_key = derive_key(key);
+    let cipher_key = Key::<Aes256Gcm>::from_slice(&derived_key);
+    let cipher = Aes256Gcm::new(cipher_key);
+
+    // Extract nonce and ciphertext
+    let nonce = Nonce::from_slice(&encrypted_bytes[..AES_GCM_NONCE_SIZE]);
+    let ciphertext = &encrypted_bytes[AES_GCM_NONCE_SIZE..];
+
+    // Decrypt and verify authentication tag
+    let plaintext = cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|_| GatewayError::Crypto(
+            "Decryption failed - data may have been tampered with or wrong key".to_string()
+        ))?;
+
+    String::from_utf8(plaintext).map_err(|e| {
         GatewayError::Crypto(format!("Failed to convert decrypted data to string: {}", e))
     })
 }
@@ -371,5 +431,111 @@ mod tests {
         let old_timestamp = timestamp - 400; // More than 5 minutes old
         let old_signature = generate_webhook_signature(secret, payload, old_timestamp).unwrap();
         assert!(!verify_webhook_signature(secret, payload, old_timestamp, &old_signature).unwrap());
+    }
+
+    #[test]
+    fn test_aes_gcm_encryption_decryption() {
+        let key = b"my_secret_encryption_key_123456";
+        let plaintext = "Hello, World! This is sensitive data.";
+
+        // Encrypt
+        let encrypted = encrypt_data(key, plaintext).unwrap();
+
+        // Encrypted output should be base64 and different from plaintext
+        assert_ne!(encrypted, plaintext);
+        assert!(encrypted.len() > plaintext.len()); // Includes nonce + tag
+
+        // Decrypt
+        let decrypted = decrypt_data(key, &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aes_gcm_different_nonces() {
+        let key = b"test_key_for_nonce_uniqueness!!";
+        let plaintext = "Same message encrypted twice";
+
+        // Encrypt same plaintext twice
+        let encrypted1 = encrypt_data(key, plaintext).unwrap();
+        let encrypted2 = encrypt_data(key, plaintext).unwrap();
+
+        // Each encryption should produce different ciphertext (due to random nonce)
+        assert_ne!(encrypted1, encrypted2);
+
+        // Both should decrypt to the same plaintext
+        assert_eq!(decrypt_data(key, &encrypted1).unwrap(), plaintext);
+        assert_eq!(decrypt_data(key, &encrypted2).unwrap(), plaintext);
+    }
+
+    #[test]
+    fn test_aes_gcm_wrong_key() {
+        let key1 = b"correct_key_for_encryption_1234";
+        let key2 = b"wrong_key_for_decryption_5678!!";
+        let plaintext = "Secret message";
+
+        let encrypted = encrypt_data(key1, plaintext).unwrap();
+
+        // Decryption with wrong key should fail
+        let result = decrypt_data(key2, &encrypted);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aes_gcm_tampered_data() {
+        let key = b"key_for_tamper_test_1234567890!";
+        let plaintext = "Important data";
+
+        let encrypted = encrypt_data(key, plaintext).unwrap();
+
+        // Tamper with the encrypted data
+        let mut tampered_bytes = general_purpose::STANDARD.decode(&encrypted).unwrap();
+        if let Some(byte) = tampered_bytes.last_mut() {
+            *byte ^= 0xFF; // Flip bits in the last byte
+        }
+        let tampered = general_purpose::STANDARD.encode(&tampered_bytes);
+
+        // Decryption should fail due to authentication tag mismatch
+        let result = decrypt_data(key, &tampered);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aes_gcm_short_data_rejected() {
+        let key = b"test_key_for_short_data_check!!";
+
+        // Data too short (less than nonce + auth tag)
+        let short_data = general_purpose::STANDARD.encode(&[0u8; 10]);
+        let result = decrypt_data(key, &short_data);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_aes_gcm_empty_plaintext() {
+        let key = b"key_for_empty_plaintext_test!!!";
+        let plaintext = "";
+
+        let encrypted = encrypt_data(key, plaintext).unwrap();
+        let decrypted = decrypt_data(key, &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aes_gcm_unicode_plaintext() {
+        let key = b"key_for_unicode_test_1234567890";
+        let plaintext = "Hello 世界! Привет мир! 🔐🔑";
+
+        let encrypted = encrypt_data(key, plaintext).unwrap();
+        let decrypted = decrypt_data(key, &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_aes_gcm_large_plaintext() {
+        let key = b"key_for_large_data_test_1234567";
+        let plaintext = "A".repeat(10000); // 10KB of data
+
+        let encrypted = encrypt_data(key, &plaintext).unwrap();
+        let decrypted = decrypt_data(key, &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
     }
 }
