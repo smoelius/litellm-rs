@@ -15,6 +15,7 @@ pub mod models;
 pub mod observability; // Advanced observability and monitoring
 pub mod providers;
 pub mod rate_limiter; // Rate limiting system
+pub mod rerank; // Rerank API for RAG systems
 pub mod router;
 pub mod security;
 pub mod semantic_cache;
