@@ -202,7 +202,11 @@ impl RateLimiter {
             current_count,
             limit,
             // Adjust remaining if we just recorded
-            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
+            remaining: if record && allowed {
+                remaining.saturating_sub(1)
+            } else {
+                remaining
+            },
             reset_after_secs,
             retry_after_secs,
         }
@@ -220,13 +224,13 @@ impl RateLimiter {
         let entry = if let Some(e) = entries.get_mut(key) {
             e
         } else {
-            entries.entry(key.to_string()).or_insert_with(|| {
-                RateLimitEntry {
+            entries
+                .entry(key.to_string())
+                .or_insert_with(|| RateLimitEntry {
                     tokens: limit as f64,
                     last_refill: now,
                     timestamps: Vec::new(),
-                }
-            })
+                })
         };
 
         // Refill tokens based on elapsed time
@@ -261,7 +265,11 @@ impl RateLimiter {
             current_count,
             limit,
             // Adjust remaining if we just consumed a token
-            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
+            remaining: if record && allowed {
+                remaining.saturating_sub(1)
+            } else {
+                remaining
+            },
             reset_after_secs,
             retry_after_secs,
         }
@@ -317,7 +325,11 @@ impl RateLimiter {
             current_count,
             limit,
             // Adjust remaining if we just recorded
-            remaining: if record && allowed { remaining.saturating_sub(1) } else { remaining },
+            remaining: if record && allowed {
+                remaining.saturating_sub(1)
+            } else {
+                remaining
+            },
             reset_after_secs,
             retry_after_secs,
         }
@@ -540,10 +552,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_cleanup() {
-        let limiter = RateLimiter::with_window(
-            test_config(true, 100),
-            Duration::from_millis(50),
-        );
+        let limiter = RateLimiter::with_window(test_config(true, 100), Duration::from_millis(50));
 
         // Use atomic method
         limiter.check_and_record("key1").await;

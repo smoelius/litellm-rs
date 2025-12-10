@@ -611,14 +611,26 @@ mod tests {
             .await
             .unwrap();
 
-        executor.increment_active_requests("provider_a").await.unwrap();
-        executor.increment_active_requests("provider_a").await.unwrap();
-        executor.increment_active_requests("provider_a").await.unwrap();
+        executor
+            .increment_active_requests("provider_a")
+            .await
+            .unwrap();
+        executor
+            .increment_active_requests("provider_a")
+            .await
+            .unwrap();
+        executor
+            .increment_active_requests("provider_a")
+            .await
+            .unwrap();
 
         let usage = executor.get_usage("provider_a").await.unwrap();
         assert_eq!(usage.active_requests, 3);
 
-        executor.decrement_active_requests("provider_a").await.unwrap();
+        executor
+            .decrement_active_requests("provider_a")
+            .await
+            .unwrap();
         let usage = executor.get_usage("provider_a").await.unwrap();
         assert_eq!(usage.active_requests, 2);
     }
@@ -629,8 +641,14 @@ mod tests {
             .await
             .unwrap();
 
-        executor.record_token_usage("provider_a", 1000).await.unwrap();
-        executor.record_token_usage("provider_a", 500).await.unwrap();
+        executor
+            .record_token_usage("provider_a", 1000)
+            .await
+            .unwrap();
+        executor
+            .record_token_usage("provider_a", 500)
+            .await
+            .unwrap();
 
         let usage = executor.get_usage("provider_a").await.unwrap();
         assert_eq!(usage.tpm, 1500);
@@ -643,8 +661,14 @@ mod tests {
             .await
             .unwrap();
 
-        executor.record_token_usage("provider_a", 1000).await.unwrap();
-        executor.increment_active_requests("provider_a").await.unwrap();
+        executor
+            .record_token_usage("provider_a", 1000)
+            .await
+            .unwrap();
+        executor
+            .increment_active_requests("provider_a")
+            .await
+            .unwrap();
 
         executor.reset_usage_counters().await.unwrap();
 

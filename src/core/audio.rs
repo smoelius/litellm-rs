@@ -186,10 +186,7 @@ impl AudioService {
     }
 
     /// Transcribe audio to text
-    pub async fn transcribe(
-        &self,
-        request: TranscriptionRequest,
-    ) -> Result<TranscriptionResponse> {
+    pub async fn transcribe(&self, request: TranscriptionRequest) -> Result<TranscriptionResponse> {
         info!(
             "Transcribing audio: model={}, file_size={}",
             request.model,
@@ -198,9 +195,7 @@ impl AudioService {
 
         // Validate file size (max 25MB)
         if request.file.len() > 25 * 1024 * 1024 {
-            return Err(GatewayError::validation(
-                "Audio file too large (max 25MB)",
-            ));
+            return Err(GatewayError::validation("Audio file too large (max 25MB)"));
         }
 
         // Determine provider from model name
@@ -230,7 +225,9 @@ impl AudioService {
                         request.response_format,
                     )
                     .await
-                    .map_err(|e| GatewayError::internal(format!("Groq transcription error: {}", e)))?;
+                    .map_err(|e| {
+                        GatewayError::internal(format!("Groq transcription error: {}", e))
+                    })?;
 
                 Ok(TranscriptionResponse {
                     text: response.text,
@@ -273,10 +270,7 @@ impl AudioService {
     }
 
     /// Translate audio to English text
-    pub async fn translate(
-        &self,
-        request: TranslationRequest,
-    ) -> Result<TranslationResponse> {
+    pub async fn translate(&self, request: TranslationRequest) -> Result<TranslationResponse> {
         info!(
             "Translating audio: model={}, file_size={}",
             request.model,
@@ -285,9 +279,7 @@ impl AudioService {
 
         // Validate file size (max 25MB)
         if request.file.len() > 25 * 1024 * 1024 {
-            return Err(GatewayError::validation(
-                "Audio file too large (max 25MB)",
-            ));
+            return Err(GatewayError::validation("Audio file too large (max 25MB)"));
         }
 
         // For translation, we use transcription with target language = English
@@ -316,7 +308,9 @@ impl AudioService {
                         request.response_format,
                     )
                     .await
-                    .map_err(|e| GatewayError::internal(format!("Groq translation error: {}", e)))?;
+                    .map_err(|e| {
+                        GatewayError::internal(format!("Groq translation error: {}", e))
+                    })?;
 
                 Ok(TranslationResponse {
                     text: response.text,
@@ -343,10 +337,7 @@ impl AudioService {
     }
 
     /// Convert text to speech
-    pub async fn speech(
-        &self,
-        request: SpeechRequest,
-    ) -> Result<SpeechResponse> {
+    pub async fn speech(&self, request: SpeechRequest) -> Result<SpeechResponse> {
         info!(
             "Generating speech: model={}, voice={}, text_len={}",
             request.model,
@@ -409,7 +400,9 @@ fn parse_model_string(model: &str) -> (&str, &str) {
 
 /// Supported audio formats
 pub fn supported_audio_formats() -> &'static [&'static str] {
-    &["flac", "m4a", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "wav", "webm"]
+    &[
+        "flac", "m4a", "mp3", "mp4", "mpeg", "mpga", "oga", "ogg", "wav", "webm",
+    ]
 }
 
 /// Get content type from format
@@ -431,9 +424,18 @@ mod tests {
 
     #[test]
     fn test_parse_model_string() {
-        assert_eq!(parse_model_string("groq/whisper-large-v3"), ("groq", "whisper-large-v3"));
-        assert_eq!(parse_model_string("openai/whisper-1"), ("openai", "whisper-1"));
-        assert_eq!(parse_model_string("whisper-large-v3"), ("groq", "whisper-large-v3"));
+        assert_eq!(
+            parse_model_string("groq/whisper-large-v3"),
+            ("groq", "whisper-large-v3")
+        );
+        assert_eq!(
+            parse_model_string("openai/whisper-1"),
+            ("openai", "whisper-1")
+        );
+        assert_eq!(
+            parse_model_string("whisper-large-v3"),
+            ("groq", "whisper-large-v3")
+        );
         assert_eq!(parse_model_string("tts-1"), ("openai", "tts-1"));
     }
 

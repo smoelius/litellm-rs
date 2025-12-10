@@ -5,7 +5,6 @@
 #![allow(dead_code)]
 
 use crate::config::MonitoringConfig;
-use std::collections::VecDeque;
 use crate::monitoring::{
     ErrorMetrics, LatencyPercentiles, PerformanceMetrics, ProviderMetrics, RequestMetrics,
     SystemResourceMetrics,
@@ -13,8 +12,9 @@ use crate::monitoring::{
 use crate::utils::error::Result;
 use parking_lot::RwLock;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tracing::debug;
 
@@ -180,7 +180,9 @@ impl MetricsCollector {
         let endpoint_key = format!("{} {}", method, path);
         *metrics.endpoints.entry(endpoint_key).or_insert(0) += 1;
 
-        metrics.last_minute_requests.push_bounded(Instant::now(), MAX_RECENT_EVENTS);
+        metrics
+            .last_minute_requests
+            .push_bounded(Instant::now(), MAX_RECENT_EVENTS);
 
         Ok(())
     }
@@ -246,7 +248,9 @@ impl MetricsCollector {
             metrics.warnings += 1;
         }
 
-        metrics.last_minute_errors.push_bounded(Instant::now(), MAX_RECENT_EVENTS);
+        metrics
+            .last_minute_errors
+            .push_bounded(Instant::now(), MAX_RECENT_EVENTS);
 
         Ok(())
     }
@@ -289,7 +293,8 @@ impl MetricsCollector {
 
         // Calculate response time percentiles
         // Filter out NaN/Inf values and sort safely
-        let mut sorted_times: Vec<f64> = metrics.response_times
+        let mut sorted_times: Vec<f64> = metrics
+            .response_times
             .iter()
             .filter(|&&t| t.is_finite())
             .copied()
@@ -488,12 +493,24 @@ impl MetricsCollector {
                     // For now, use placeholder values
                     // Using push_bounded for automatic size limiting (1 hour at 10-second intervals = 360 samples)
                     const SYSTEM_MAX_SAMPLES: usize = 360;
-                    metrics.cpu_samples.push_bounded(get_cpu_usage(), SYSTEM_MAX_SAMPLES);
-                    metrics.memory_samples.push_bounded(get_memory_usage(), SYSTEM_MAX_SAMPLES);
-                    metrics.disk_samples.push_bounded(get_disk_usage(), SYSTEM_MAX_SAMPLES);
-                    metrics.network_in_samples.push_bounded(get_network_bytes_in(), SYSTEM_MAX_SAMPLES);
-                    metrics.network_out_samples.push_bounded(get_network_bytes_out(), SYSTEM_MAX_SAMPLES);
-                    metrics.connection_samples.push_bounded(get_active_connections(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .cpu_samples
+                        .push_bounded(get_cpu_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .memory_samples
+                        .push_bounded(get_memory_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .disk_samples
+                        .push_bounded(get_disk_usage(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .network_in_samples
+                        .push_bounded(get_network_bytes_in(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .network_out_samples
+                        .push_bounded(get_network_bytes_out(), SYSTEM_MAX_SAMPLES);
+                    metrics
+                        .connection_samples
+                        .push_bounded(get_active_connections(), SYSTEM_MAX_SAMPLES);
                 }
             }
         });
@@ -588,19 +605,16 @@ fn calculate_average_u32(values: &VecDeque<u32>) -> u32 {
 // These functions provide real system monitoring when the metrics feature is enabled
 
 #[cfg(feature = "metrics")]
-static SYSTEM: Lazy<parking_lot::Mutex<System>> = Lazy::new(|| {
-    parking_lot::Mutex::new(System::new_all())
-});
+static SYSTEM: Lazy<parking_lot::Mutex<System>> =
+    Lazy::new(|| parking_lot::Mutex::new(System::new_all()));
 
 #[cfg(feature = "metrics")]
-static NETWORKS: Lazy<parking_lot::Mutex<Networks>> = Lazy::new(|| {
-    parking_lot::Mutex::new(Networks::new_with_refreshed_list())
-});
+static NETWORKS: Lazy<parking_lot::Mutex<Networks>> =
+    Lazy::new(|| parking_lot::Mutex::new(Networks::new_with_refreshed_list()));
 
 #[cfg(feature = "metrics")]
-static DISKS: Lazy<parking_lot::Mutex<Disks>> = Lazy::new(|| {
-    parking_lot::Mutex::new(Disks::new_with_refreshed_list())
-});
+static DISKS: Lazy<parking_lot::Mutex<Disks>> =
+    Lazy::new(|| parking_lot::Mutex::new(Disks::new_with_refreshed_list()));
 
 #[cfg(feature = "metrics")]
 fn get_cpu_usage() -> f64 {
@@ -630,7 +644,10 @@ fn get_memory_usage() -> u64 {
 fn get_disk_usage() -> u64 {
     let mut disks = DISKS.lock();
     disks.refresh_list();
-    disks.iter().map(|d| d.total_space() - d.available_space()).sum()
+    disks
+        .iter()
+        .map(|d| d.total_space() - d.available_space())
+        .sum()
 }
 
 #[cfg(not(feature = "metrics"))]

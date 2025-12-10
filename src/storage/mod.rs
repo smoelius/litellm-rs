@@ -86,7 +86,10 @@ impl StorageLayer {
             match vector::VectorStoreBackend::new(vector_config).await {
                 Ok(v) => Some(Arc::new(v)),
                 Err(e) => {
-                    warn!("Vector database initialization failed: {}, continuing without vector DB", e);
+                    warn!(
+                        "Vector database initialization failed: {}, continuing without vector DB",
+                        e
+                    );
                     None
                 }
             }

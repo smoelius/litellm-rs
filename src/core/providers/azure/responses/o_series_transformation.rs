@@ -89,10 +89,7 @@ impl OSeriesResponseTransformation {
         }
 
         // Handle choices with reasoning content
-        if let Some(choices) = response
-            .get_mut("choices")
-            .and_then(|c| c.as_array_mut())
-        {
+        if let Some(choices) = response.get_mut("choices").and_then(|c| c.as_array_mut()) {
             for choice in choices {
                 self.transform_o_series_choice(choice)?;
             }

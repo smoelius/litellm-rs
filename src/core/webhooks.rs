@@ -191,7 +191,10 @@ impl WebhookManager {
     /// Use `new()` for fallible construction
     pub fn new_or_default() -> Self {
         Self::new().unwrap_or_else(|e| {
-            tracing::error!("Failed to create WebhookManager: {}, using minimal client", e);
+            tracing::error!(
+                "Failed to create WebhookManager: {}, using minimal client",
+                e
+            );
             // Create a minimal client as fallback
             Self {
                 client: Client::new(),
@@ -300,7 +303,9 @@ impl WebhookManager {
                 .filter(|(_, delivery)| {
                     delivery.status == WebhookDeliveryStatus::Pending
                         || (delivery.status == WebhookDeliveryStatus::Retrying
-                            && delivery.next_retry_at.is_some_and(|t| t <= chrono::Utc::now()))
+                            && delivery
+                                .next_retry_at
+                                .is_some_and(|t| t <= chrono::Utc::now()))
                 })
                 .filter_map(|(idx, delivery)| {
                     data.webhooks
@@ -327,7 +332,11 @@ impl WebhookManager {
                     } else {
                         let next_retry = chrono::Utc::now()
                             + chrono::Duration::seconds(config.retry_delay_seconds as i64);
-                        results.push((idx, WebhookDeliveryStatus::Retrying, Some(next_retry.to_rfc3339())));
+                        results.push((
+                            idx,
+                            WebhookDeliveryStatus::Retrying,
+                            Some(next_retry.to_rfc3339()),
+                        ));
                     }
                 }
             }
@@ -353,9 +362,10 @@ impl WebhookManager {
                         }
                         WebhookDeliveryStatus::Retrying => {
                             if let Some(next_retry_str) = info {
-                                delivery.next_retry_at = chrono::DateTime::parse_from_rfc3339(&next_retry_str)
-                                    .ok()
-                                    .map(|dt| dt.with_timezone(&chrono::Utc));
+                                delivery.next_retry_at =
+                                    chrono::DateTime::parse_from_rfc3339(&next_retry_str)
+                                        .ok()
+                                        .map(|dt| dt.with_timezone(&chrono::Utc));
                             }
                             delivery.attempts += 1;
                         }
@@ -365,7 +375,8 @@ impl WebhookManager {
             }
 
             // Remove completed deliveries (keep failed ones for debugging)
-            data.delivery_queue.retain(|d| d.status != WebhookDeliveryStatus::Delivered);
+            data.delivery_queue
+                .retain(|d| d.status != WebhookDeliveryStatus::Delivered);
         }
 
         Ok(())
@@ -415,10 +426,10 @@ impl WebhookManager {
         let delivery_time = start_time.elapsed().as_millis() as f64;
         {
             let mut data = self.data.write().await;
-            data.stats.avg_delivery_time_ms =
-                (data.stats.avg_delivery_time_ms * (data.stats.successful_deliveries as f64)
-                    + delivery_time)
-                    / (data.stats.successful_deliveries + 1) as f64;
+            data.stats.avg_delivery_time_ms = (data.stats.avg_delivery_time_ms
+                * (data.stats.successful_deliveries as f64)
+                + delivery_time)
+                / (data.stats.successful_deliveries + 1) as f64;
         }
 
         if (200..300).contains(&status_code) {

@@ -859,9 +859,7 @@ impl From<GatewayError> for AsyncBatchError {
     fn from(err: GatewayError) -> Self {
         let retryable = matches!(
             &err,
-            GatewayError::Timeout(_)
-                | GatewayError::Network(_)
-                | GatewayError::RateLimit { .. }
+            GatewayError::Timeout(_) | GatewayError::Network(_) | GatewayError::RateLimit { .. }
         );
 
         Self {

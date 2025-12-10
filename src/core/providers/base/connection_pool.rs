@@ -114,7 +114,10 @@ impl Default for GlobalPoolManager {
     /// use `GlobalPoolManager::new()` directly.
     fn default() -> Self {
         Self::new().unwrap_or_else(|e| {
-            tracing::error!("Failed to create GlobalPoolManager: {}, using minimal client", e);
+            tracing::error!(
+                "Failed to create GlobalPoolManager: {}, using minimal client",
+                e
+            );
             // Fallback to a basic client without custom settings
             Self {
                 pool: std::sync::Arc::new(ConnectionPool {

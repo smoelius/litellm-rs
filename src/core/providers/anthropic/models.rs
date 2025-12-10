@@ -684,13 +684,21 @@ impl AnthropicModelRegistry {
         // Check newest models first (most specific)
         if model_lower.contains("claude-opus-4-5") || model_lower.contains("claude-opus-4.5") {
             Some(AnthropicModelFamily::ClaudeOpus45)
-        } else if model_lower.contains("claude-sonnet-4-5") || model_lower.contains("claude-sonnet-4.5") {
+        } else if model_lower.contains("claude-sonnet-4-5")
+            || model_lower.contains("claude-sonnet-4.5")
+        {
             Some(AnthropicModelFamily::ClaudeSonnet45)
-        } else if model_lower.contains("claude-sonnet-4") && !model_lower.contains("claude-sonnet-4-5") {
+        } else if model_lower.contains("claude-sonnet-4")
+            && !model_lower.contains("claude-sonnet-4-5")
+        {
             Some(AnthropicModelFamily::ClaudeSonnet4)
-        } else if model_lower.contains("claude-3-5-sonnet") || model_lower.contains("claude-3.5-sonnet") {
+        } else if model_lower.contains("claude-3-5-sonnet")
+            || model_lower.contains("claude-3.5-sonnet")
+        {
             Some(AnthropicModelFamily::Claude35Sonnet)
-        } else if model_lower.contains("claude-3-5-haiku") || model_lower.contains("claude-3.5-haiku") {
+        } else if model_lower.contains("claude-3-5-haiku")
+            || model_lower.contains("claude-3.5-haiku")
+        {
             Some(AnthropicModelFamily::Claude3Haiku)
         } else if model_lower.contains("claude-3-opus") {
             Some(AnthropicModelFamily::Claude3Opus)

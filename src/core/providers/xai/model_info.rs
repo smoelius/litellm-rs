@@ -18,8 +18,8 @@ pub enum XAIModel {
     // Grok 2 models (2024)
     Grok2,
     Grok2Mini,
-    Grok21212,     // Grok 2 (December 2024 update)
-    Grok2Vision,   // Grok 2 with vision
+    Grok21212,   // Grok 2 (December 2024 update)
+    Grok2Vision, // Grok 2 with vision
     // Experimental
     GrokBeta,
     GrokVision,
@@ -62,7 +62,7 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         ModelInfo {
             model_id: "grok-4",
             display_name: "Grok 4",
-            context_length: 256000,    // 256K context
+            context_length: 256000, // 256K context
             max_output_tokens: 128000,
             supports_tools: true,
             supports_vision: true,
@@ -80,7 +80,7 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         ModelInfo {
             model_id: "grok-3",
             display_name: "Grok 3",
-            context_length: 131072,    // 128K context
+            context_length: 131072, // 128K context
             max_output_tokens: 65536,
             supports_tools: true,
             supports_vision: true,
@@ -132,7 +132,7 @@ static MODEL_CONFIGS: LazyLock<HashMap<&'static str, ModelInfo>> = LazyLock::new
         ModelInfo {
             model_id: "grok-2",
             display_name: "Grok-2",
-            context_length: 131072,    // 128K context
+            context_length: 131072, // 128K context
             max_output_tokens: 32768,
             supports_tools: true,
             supports_vision: false,

@@ -1,8 +1,8 @@
 //! Storage configuration
 
+use super::file_storage::VectorDbConfig;
 use super::*;
 use super::{default_connection_timeout, default_redis_max_connections};
-use super::file_storage::VectorDbConfig;
 use serde::{Deserialize, Serialize};
 
 /// Storage configuration

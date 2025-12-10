@@ -265,8 +265,12 @@ async fn audio_transcriptions(
             Ok(f) => f,
             Err(e) => {
                 error!("Error reading multipart field: {}", e);
-                return Ok(HttpResponse::BadRequest()
-                    .json(ApiResponse::<()>::error(format!("Invalid multipart data: {}", e))));
+                return Ok(
+                    HttpResponse::BadRequest().json(ApiResponse::<()>::error(format!(
+                        "Invalid multipart data: {}",
+                        e
+                    ))),
+                );
             }
         };
 
@@ -336,8 +340,9 @@ async fn audio_transcriptions(
     let file = match file_data {
         Some(data) if !data.is_empty() => data,
         _ => {
-            return Ok(HttpResponse::BadRequest()
-                .json(ApiResponse::<()>::error("No audio file provided".to_string())));
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+                "No audio file provided".to_string(),
+            )));
         }
     };
 
@@ -398,8 +403,12 @@ async fn audio_translations(
             Ok(f) => f,
             Err(e) => {
                 error!("Error reading multipart field: {}", e);
-                return Ok(HttpResponse::BadRequest()
-                    .json(ApiResponse::<()>::error(format!("Invalid multipart data: {}", e))));
+                return Ok(
+                    HttpResponse::BadRequest().json(ApiResponse::<()>::error(format!(
+                        "Invalid multipart data: {}",
+                        e
+                    ))),
+                );
             }
         };
 
@@ -445,17 +454,16 @@ async fn audio_translations(
                     }
                 }
             }
-            _ => {
-                while field.next().await.is_some() {}
-            }
+            _ => while field.next().await.is_some() {},
         }
     }
 
     let file = match file_data {
         Some(data) if !data.is_empty() => data,
         _ => {
-            return Ok(HttpResponse::BadRequest()
-                .json(ApiResponse::<()>::error("No audio file provided".to_string())));
+            return Ok(HttpResponse::BadRequest().json(ApiResponse::<()>::error(
+                "No audio file provided".to_string(),
+            )));
         }
     };
 
@@ -514,11 +522,9 @@ async fn audio_speech(
     let audio_service = AudioService::new(state.router.clone());
 
     match audio_service.speech(speech_request).await {
-        Ok(response) => {
-            Ok(HttpResponse::Ok()
-                .content_type(response.content_type)
-                .body(response.audio))
-        }
+        Ok(response) => Ok(HttpResponse::Ok()
+            .content_type(response.content_type)
+            .body(response.audio)),
         Err(e) => {
             error!("Speech generation error: {}", e);
             Ok(errors::gateway_error_to_response(e))

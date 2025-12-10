@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use tracing::{debug, info};
 
@@ -340,7 +340,9 @@ impl CacheManager {
         }
 
         // Update statistics (lock-free)
-        self.stats.total_size_bytes.fetch_add(size_bytes, Ordering::Relaxed);
+        self.stats
+            .total_size_bytes
+            .fetch_add(size_bytes, Ordering::Relaxed);
 
         // Cleanup expired entries periodically
         if self.l2_cache.len() % 1000 == 0 {
@@ -396,13 +398,14 @@ impl CacheManager {
 
         // Update statistics (lock-free)
         if removed_count > 0 {
-            self.stats.evictions.fetch_add(removed_count, Ordering::Relaxed);
+            self.stats
+                .evictions
+                .fetch_add(removed_count, Ordering::Relaxed);
             // Use saturating subtraction for size
             let current_size = self.stats.total_size_bytes.load(Ordering::Relaxed);
-            self.stats.total_size_bytes.store(
-                current_size.saturating_sub(removed_size),
-                Ordering::Relaxed,
-            );
+            self.stats
+                .total_size_bytes
+                .store(current_size.saturating_sub(removed_size), Ordering::Relaxed);
 
             info!(
                 "Cleaned up {} expired cache entries, freed {} bytes",

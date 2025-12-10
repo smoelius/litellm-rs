@@ -4,9 +4,9 @@
 
 #[cfg(test)]
 mod tests {
+    use litellm_rs::core::providers::ProviderError;
     use litellm_rs::core::router::load_balancer::{FallbackConfig, LoadBalancer};
     use litellm_rs::core::router::strategy::RoutingStrategy;
-    use litellm_rs::core::providers::ProviderError;
 
     /// Test load balancer creation
     #[tokio::test]
@@ -27,7 +27,11 @@ mod tests {
 
         let lb = lb.unwrap();
         assert!(lb.fallback_config().general_fallbacks.contains_key("gpt-4"));
-        assert!(lb.fallback_config().context_window_fallbacks.contains_key("gpt-4"));
+        assert!(
+            lb.fallback_config()
+                .context_window_fallbacks
+                .contains_key("gpt-4")
+        );
     }
 
     /// Test fallback selection for context length errors

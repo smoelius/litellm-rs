@@ -151,8 +151,8 @@ impl DeepSeekModelRegistry {
                 "DeepSeek V3",
                 128_000,
                 Some(8_192),
-                0.00014,   // $0.14/1M input (cache miss)
-                0.00028,   // $0.28/1M output
+                0.00014, // $0.14/1M input (cache miss)
+                0.00028, // $0.28/1M output
                 false,
             ),
             (
@@ -170,8 +170,8 @@ impl DeepSeekModelRegistry {
                 "DeepSeek R1",
                 128_000,
                 Some(64_000),
-                0.00055,   // $0.55/1M input (cache miss)
-                0.00219,   // $2.19/1M output
+                0.00055, // $0.55/1M input (cache miss)
+                0.00219, // $2.19/1M output
                 true,
             ),
             (
@@ -179,7 +179,7 @@ impl DeepSeekModelRegistry {
                 "DeepSeek R1 Lite Preview",
                 128_000,
                 Some(32_000),
-                0.00014,   // Same as V3 pricing
+                0.00014, // Same as V3 pricing
                 0.00028,
                 true,
             ),
@@ -249,7 +249,9 @@ impl DeepSeekModelRegistry {
             ),
         ];
 
-        for (id, name, context_len, output_len, input_cost, output_cost, has_reasoning) in default_models {
+        for (id, name, context_len, output_len, input_cost, output_cost, has_reasoning) in
+            default_models
+        {
             let model_info = ModelInfo {
                 id: id.to_string(),
                 name: name.to_string(),

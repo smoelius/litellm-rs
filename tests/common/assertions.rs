@@ -27,10 +27,7 @@ impl ChatResponseAssertions for ChatResponse {
             "Expected response to have usage information"
         );
         let usage = self.usage.as_ref().unwrap();
-        assert!(
-            usage.prompt_tokens > 0,
-            "Expected positive prompt_tokens"
-        );
+        assert!(usage.prompt_tokens > 0, "Expected positive prompt_tokens");
     }
 }
 

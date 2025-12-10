@@ -56,7 +56,10 @@ macro_rules! skip_without_api_key {
             }
         };
         if std::env::var(key_var).is_err() {
-            eprintln!("Skipping test: {} not set for {} provider", key_var, $provider);
+            eprintln!(
+                "Skipping test: {} not set for {} provider",
+                key_var, $provider
+            );
             return;
         }
     };

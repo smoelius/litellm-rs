@@ -11,8 +11,8 @@ mod tests {
 
     /// Helper to create a provider registry with Groq
     async fn create_provider_registry() -> Arc<ProviderRegistry> {
-        use litellm_rs::core::providers::groq::GroqProvider;
         use litellm_rs::core::providers::Provider;
+        use litellm_rs::core::providers::groq::GroqProvider;
 
         let api_key =
             std::env::var("GROQ_API_KEY").expect("GROQ_API_KEY environment variable not set");
@@ -59,7 +59,10 @@ mod tests {
             }
             Err(e) => {
                 // Some errors are expected with minimal test audio
-                println!("Transcription error (may be expected with test audio): {}", e);
+                println!(
+                    "Transcription error (may be expected with test audio): {}",
+                    e
+                );
             }
         }
     }
@@ -129,11 +132,17 @@ mod tests {
         let response = result.unwrap();
 
         println!("Transcription: {}", response.text);
-        assert!(!response.text.is_empty(), "Expected non-empty transcription");
+        assert!(
+            !response.text.is_empty(),
+            "Expected non-empty transcription"
+        );
 
         if let Some(segments) = response.segments {
             println!("Segments: {:?}", segments);
-            assert!(!segments.is_empty(), "Expected segments in verbose response");
+            assert!(
+                !segments.is_empty(),
+                "Expected segments in verbose response"
+            );
         }
     }
 

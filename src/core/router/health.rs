@@ -111,7 +111,9 @@ impl HealthChecker {
 
                     // Update status based on result
                     let mut statuses_guard = statuses.write().await;
-                    let status = statuses_guard.entry(name.clone()).or_insert_with(ProviderHealthStatus::default);
+                    let status = statuses_guard
+                        .entry(name.clone())
+                        .or_insert_with(ProviderHealthStatus::default);
 
                     match health_result {
                         Ok(()) => {
@@ -121,14 +123,24 @@ impl HealthChecker {
                                 status.last_success = Some(Instant::now());
                                 status.response_time = Some(response_time);
                                 status.last_error = None;
-                                debug!("Provider {} is healthy ({}ms)", name, response_time.as_millis());
+                                debug!(
+                                    "Provider {} is healthy ({}ms)",
+                                    name,
+                                    response_time.as_millis()
+                                );
                             } else {
                                 status.consecutive_failures += 1;
-                                status.last_error = Some(format!("Health check timed out: {}ms > {}ms",
-                                    response_time.as_millis(), timeout.as_millis()));
+                                status.last_error = Some(format!(
+                                    "Health check timed out: {}ms > {}ms",
+                                    response_time.as_millis(),
+                                    timeout.as_millis()
+                                ));
                                 if status.consecutive_failures >= max_failures {
                                     status.healthy = false;
-                                    error!("Provider {} marked unhealthy after {} failures", name, max_failures);
+                                    error!(
+                                        "Provider {} marked unhealthy after {} failures",
+                                        name, max_failures
+                                    );
                                 }
                             }
                         }
@@ -137,7 +149,10 @@ impl HealthChecker {
                             status.last_error = Some(e);
                             if status.consecutive_failures >= max_failures {
                                 status.healthy = false;
-                                error!("Provider {} marked unhealthy after {} failures", name, max_failures);
+                                error!(
+                                    "Provider {} marked unhealthy after {} failures",
+                                    name, max_failures
+                                );
                             }
                         }
                     }

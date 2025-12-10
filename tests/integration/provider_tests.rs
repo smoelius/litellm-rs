@@ -108,8 +108,8 @@ mod tests {
             ChatMessage, ChatRequest, MessageContent, MessageRole,
         };
 
-        let api_key = std::env::var("GROQ_API_KEY")
-            .expect("GROQ_API_KEY environment variable not set");
+        let api_key =
+            std::env::var("GROQ_API_KEY").expect("GROQ_API_KEY environment variable not set");
 
         let provider = GroqProvider::with_api_key(&api_key).await.unwrap();
 
@@ -117,7 +117,9 @@ mod tests {
             model: "llama-3.1-8b-instant".to_string(),
             messages: vec![ChatMessage {
                 role: MessageRole::User,
-                content: Some(MessageContent::Text("Say 'Hello' and nothing else".to_string())),
+                content: Some(MessageContent::Text(
+                    "Say 'Hello' and nothing else".to_string(),
+                )),
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
@@ -129,7 +131,11 @@ mod tests {
 
         let context = RequestContext::default();
         let response = provider.chat_completion(request, context).await;
-        assert!(response.is_ok(), "Chat completion failed: {:?}", response.err());
+        assert!(
+            response.is_ok(),
+            "Chat completion failed: {:?}",
+            response.err()
+        );
 
         let response = response.unwrap();
         assert!(!response.choices.is_empty());

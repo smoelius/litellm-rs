@@ -231,10 +231,7 @@ pub enum LogDestination {
         log_name: String,
     },
     /// Datadog Logs
-    DatadogLogs {
-        api_key: String,
-        site: String,
-    },
+    DatadogLogs { api_key: String, site: String },
     /// Custom webhook
     Webhook {
         url: String,
@@ -332,13 +329,9 @@ pub enum AlertChannel {
         severity: String,
     },
     /// Discord webhook
-    Discord {
-        webhook_url: String,
-    },
+    Discord { webhook_url: String },
     /// Microsoft Teams
-    Teams {
-        webhook_url: String,
-    },
+    Teams { webhook_url: String },
     /// Custom webhook
     Webhook {
         url: String,
@@ -517,29 +510,35 @@ impl MetricsCollector {
         success: bool,
     ) {
         let mut metrics = self.prometheus_metrics.write().await;
-        
+
         // Request counter
         let key = format!("{}:{}", provider, model);
         *metrics.request_total.entry(key.clone()).or_insert(0) += 1;
-        
+
         // Duration histogram (bounded to prevent memory leaks)
         metrics
             .request_duration
             .entry(key.clone())
             .or_insert_with(BoundedHistogram::default)
             .record(duration.as_secs_f64());
-        
+
         // Error counter
         if !success {
             *metrics.error_total.entry(key.clone()).or_insert(0) += 1;
         }
-        
+
         // Token usage
         if let Some(token_usage) = tokens {
-            *metrics.token_usage.entry(format!("{}:prompt", key)).or_insert(0) += token_usage.prompt_tokens as u64;
-            *metrics.token_usage.entry(format!("{}:completion", key)).or_insert(0) += token_usage.completion_tokens as u64;
+            *metrics
+                .token_usage
+                .entry(format!("{}:prompt", key))
+                .or_insert(0) += token_usage.prompt_tokens as u64;
+            *metrics
+                .token_usage
+                .entry(format!("{}:completion", key))
+                .or_insert(0) += token_usage.completion_tokens as u64;
         }
-        
+
         // Cost tracking
         if let Some(request_cost) = cost {
             *metrics.cost_total.entry(key).or_insert(0.0) += request_cost;
@@ -559,14 +558,16 @@ impl MetricsCollector {
     /// Update provider health
     pub async fn update_provider_health(&self, provider: &str, health_score: f64) {
         let mut metrics = self.prometheus_metrics.write().await;
-        metrics.provider_health.insert(provider.to_string(), health_score);
+        metrics
+            .provider_health
+            .insert(provider.to_string(), health_score);
     }
 
     /// Export metrics to Prometheus format
     pub async fn export_prometheus(&self) -> String {
         let metrics = self.prometheus_metrics.read().await;
         let mut output = String::new();
-        
+
         // Request total
         output.push_str("# HELP litellm_requests_total Total number of requests\n");
         output.push_str("# TYPE litellm_requests_total counter\n");
@@ -579,7 +580,7 @@ impl MetricsCollector {
                 ));
             }
         }
-        
+
         // Error total
         output.push_str("# HELP litellm_errors_total Total number of errors\n");
         output.push_str("# TYPE litellm_errors_total counter\n");
@@ -592,16 +593,22 @@ impl MetricsCollector {
                 ));
             }
         }
-        
+
         // Cache metrics
         output.push_str("# HELP litellm_cache_hits_total Total cache hits\n");
         output.push_str("# TYPE litellm_cache_hits_total counter\n");
-        output.push_str(&format!("litellm_cache_hits_total {}\n", metrics.cache_hits));
-        
+        output.push_str(&format!(
+            "litellm_cache_hits_total {}\n",
+            metrics.cache_hits
+        ));
+
         output.push_str("# HELP litellm_cache_misses_total Total cache misses\n");
         output.push_str("# TYPE litellm_cache_misses_total counter\n");
-        output.push_str(&format!("litellm_cache_misses_total {}\n", metrics.cache_misses));
-        
+        output.push_str(&format!(
+            "litellm_cache_misses_total {}\n",
+            metrics.cache_misses
+        ));
+
         // Provider health
         output.push_str("# HELP litellm_provider_health Provider health score\n");
         output.push_str("# TYPE litellm_provider_health gauge\n");
@@ -611,7 +618,7 @@ impl MetricsCollector {
                 provider, health
             ));
         }
-        
+
         output
     }
 
@@ -654,7 +661,7 @@ impl LogAggregator {
     pub async fn log(&self, entry: LogEntry) {
         let mut buffer = self.buffer.write().await;
         buffer.push(entry);
-        
+
         // Flush if buffer is full
         if buffer.len() >= 100 {
             self.flush_buffer().await;
@@ -667,10 +674,10 @@ impl LogAggregator {
         if buffer.is_empty() {
             return;
         }
-        
+
         let entries = buffer.drain(..).collect::<Vec<_>>();
         drop(buffer);
-        
+
         // Send to all destinations
         for destination in &self.destinations {
             if let Err(e) = self.send_to_destination(destination, &entries).await {
@@ -686,15 +693,26 @@ impl LogAggregator {
         entries: &[LogEntry],
     ) -> Result<()> {
         match destination {
-            LogDestination::Elasticsearch { url: _, index: _, auth: _ } => {
+            LogDestination::Elasticsearch {
+                url: _,
+                index: _,
+                auth: _,
+            } => {
                 // Send to Elasticsearch
                 debug!("Sending {} logs to Elasticsearch", entries.len());
             }
-            LogDestination::Splunk { url: _, token: _, index: _ } => {
+            LogDestination::Splunk {
+                url: _,
+                token: _,
+                index: _,
+            } => {
                 // Send to Splunk
                 debug!("Sending {} logs to Splunk", entries.len());
             }
-            LogDestination::DatadogLogs { api_key: _, site: _ } => {
+            LogDestination::DatadogLogs {
+                api_key: _,
+                site: _,
+            } => {
                 // Send to Datadog Logs
                 debug!("Sending {} logs to Datadog", entries.len());
             }
@@ -702,12 +720,14 @@ impl LogAggregator {
                 // Send to webhook
                 let client = reqwest::Client::new();
                 let mut request = client.post(url).json(entries);
-                
+
                 for (key, value) in headers {
                     request = request.header(key, value);
                 }
-                
-                request.send().await
+
+                request
+                    .send()
+                    .await
                     .map_err(|e| GatewayError::Network(e.to_string()))?;
             }
             _ => {

@@ -305,10 +305,7 @@ impl RerankService {
         let response = tokio::time::timeout(self.timeout, provider.rerank(request.clone()))
             .await
             .map_err(|_| {
-                GatewayError::Timeout(format!(
-                    "Rerank request timed out after {:?}",
-                    self.timeout
-                ))
+                GatewayError::Timeout(format!("Rerank request timed out after {:?}", self.timeout))
             })??;
 
         // Cache result if enabled
@@ -546,7 +543,11 @@ impl RerankProvider for CohereRerankProvider {
     async fn rerank(&self, request: RerankRequest) -> Result<RerankResponse> {
         // Extract model name (remove provider prefix)
         let model = if request.model.contains('/') {
-            request.model.split('/').next_back().unwrap_or(&request.model)
+            request
+                .model
+                .split('/')
+                .next_back()
+                .unwrap_or(&request.model)
         } else {
             &request.model
         };
@@ -624,7 +625,10 @@ impl RerankProvider for CohereRerankProvider {
                 query_tokens: None,
                 document_tokens: None,
                 total_tokens: None,
-                search_units: bu.get("search_units").and_then(|s| s.as_u64()).map(|s| s as u32),
+                search_units: bu
+                    .get("search_units")
+                    .and_then(|s| s.as_u64())
+                    .map(|s| s as u32),
             })
         });
 
@@ -690,7 +694,11 @@ impl JinaRerankProvider {
 impl RerankProvider for JinaRerankProvider {
     async fn rerank(&self, request: RerankRequest) -> Result<RerankResponse> {
         let model = if request.model.contains('/') {
-            request.model.split('/').next_back().unwrap_or(&request.model)
+            request
+                .model
+                .split('/')
+                .next_back()
+                .unwrap_or(&request.model)
         } else {
             &request.model
         };
@@ -757,9 +765,15 @@ impl RerankProvider for JinaRerankProvider {
             .collect();
 
         let usage = jina_response.get("usage").map(|u| RerankUsage {
-            query_tokens: u.get("prompt_tokens").and_then(|t| t.as_u64()).map(|t| t as u32),
+            query_tokens: u
+                .get("prompt_tokens")
+                .and_then(|t| t.as_u64())
+                .map(|t| t as u32),
             document_tokens: None,
-            total_tokens: u.get("total_tokens").and_then(|t| t.as_u64()).map(|t| t as u32),
+            total_tokens: u
+                .get("total_tokens")
+                .and_then(|t| t.as_u64())
+                .map(|t| t as u32),
             search_units: None,
         });
 
@@ -846,10 +860,7 @@ mod tests {
             service.extract_provider_name("jina/jina-reranker-v2"),
             "jina"
         );
-        assert_eq!(
-            service.extract_provider_name("voyage/rerank-2"),
-            "voyage"
-        );
+        assert_eq!(service.extract_provider_name("voyage/rerank-2"), "voyage");
         // No provider prefix - uses default
         assert_eq!(
             service.extract_provider_name("rerank-english-v3.0"),

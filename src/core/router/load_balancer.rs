@@ -1,7 +1,7 @@
 //! Load balancer for provider selection
 
-use crate::core::providers::unified_provider::ProviderError;
 use crate::core::providers::Provider;
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::router::health::HealthChecker;
 use crate::core::router::strategy::{RoutingStrategy, StrategyExecutor};
 use crate::core::types::common::RequestContext;
@@ -42,14 +42,22 @@ impl FallbackConfig {
     }
 
     /// Add a content policy fallback
-    pub fn add_content_policy_fallback(&mut self, model: &str, fallbacks: Vec<String>) -> &mut Self {
+    pub fn add_content_policy_fallback(
+        &mut self,
+        model: &str,
+        fallbacks: Vec<String>,
+    ) -> &mut Self {
         self.content_policy_fallbacks
             .insert(model.to_string(), fallbacks);
         self
     }
 
     /// Add a context window fallback
-    pub fn add_context_window_fallback(&mut self, model: &str, fallbacks: Vec<String>) -> &mut Self {
+    pub fn add_context_window_fallback(
+        &mut self,
+        model: &str,
+        fallbacks: Vec<String>,
+    ) -> &mut Self {
         self.context_window_fallbacks
             .insert(model.to_string(), fallbacks);
         self
@@ -282,9 +290,7 @@ impl LoadBalancer {
         self.providers.insert(name.to_string(), provider);
 
         // Create default deployment info if not already present
-        self.deployments
-            .entry(name.to_string())
-            .or_default();
+        self.deployments.entry(name.to_string()).or_default();
 
         // Clear model support cache since we have a new provider
         self.model_support_cache.clear();
@@ -302,7 +308,8 @@ impl LoadBalancer {
     ) -> Result<()> {
         // Add provider to the map
         self.providers.insert(name.to_string(), provider);
-        self.deployments.insert(name.to_string(), deployment_info.clone());
+        self.deployments
+            .insert(name.to_string(), deployment_info.clone());
 
         // Clear model support cache since we have a new provider
         self.model_support_cache.clear();
@@ -322,7 +329,9 @@ impl LoadBalancer {
 
     /// Get deployment info for a provider
     pub fn get_deployment_info(&self, name: &str) -> Option<DeploymentInfo> {
-        self.deployments.get(name).map(|entry| entry.value().clone())
+        self.deployments
+            .get(name)
+            .map(|entry| entry.value().clone())
     }
 
     /// Remove a provider from the load balancer
@@ -332,9 +341,8 @@ impl LoadBalancer {
         self.deployments.remove(name);
 
         // Selectively invalidate cache entries that might include this provider
-        self.model_support_cache.retain(|_, providers| {
-            !providers.contains(&name.to_string())
-        });
+        self.model_support_cache
+            .retain(|_, providers| !providers.contains(&name.to_string()));
 
         info!("Removed provider {} from load balancer", name);
         Ok(())
@@ -482,7 +490,10 @@ impl LoadBalancer {
         grouped_providers.sort_by_key(|(_, priority)| *priority);
 
         // Extract just the names for strategy selection
-        let provider_names: Vec<String> = grouped_providers.into_iter().map(|(name, _)| name).collect();
+        let provider_names: Vec<String> = grouped_providers
+            .into_iter()
+            .map(|(name, _)| name)
+            .collect();
 
         // Filter by health status if health checker is available
         let healthy_providers = if let Some(health_checker) = &self.health_checker {
@@ -713,10 +724,7 @@ impl LoadBalancer {
                     return Some((fallback_model, provider));
                 }
                 Err(e) => {
-                    warn!(
-                        "Fallback model {} not available: {}",
-                        fallback_model, e
-                    );
+                    warn!("Fallback model {} not available: {}", fallback_model, e);
                     continue;
                 }
             }
@@ -788,9 +796,7 @@ mod tests {
 
         let lb = lb.unwrap();
         assert_eq!(
-            lb.fallback_config()
-                .general_fallbacks
-                .get("gpt-4"),
+            lb.fallback_config().general_fallbacks.get("gpt-4"),
             Some(&vec!["gpt-3.5-turbo".to_string()])
         );
     }
@@ -799,7 +805,10 @@ mod tests {
     async fn test_select_fallback_models_context_length() {
         let mut config = FallbackConfig::new();
         config
-            .add_context_window_fallback("gpt-4", vec!["gpt-4-32k".to_string(), "gpt-4-turbo".to_string()])
+            .add_context_window_fallback(
+                "gpt-4",
+                vec!["gpt-4-32k".to_string(), "gpt-4-turbo".to_string()],
+            )
             .add_general_fallback("gpt-4", vec!["gpt-3.5-turbo".to_string()]);
 
         let lb = LoadBalancer::with_fallbacks(RoutingStrategy::RoundRobin, config)
@@ -883,7 +892,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_select_fallback_models_no_config() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         let error = ProviderError::timeout("openai", "Request timeout");
         let fallbacks = lb.select_fallback_models(&error, "gpt-4");
@@ -907,8 +918,7 @@ mod tests {
 
     #[test]
     fn test_deployment_info_with_tags() {
-        let info = DeploymentInfo::new()
-            .with_tags(["fast", "cheap", "reliable"]);
+        let info = DeploymentInfo::new().with_tags(["fast", "cheap", "reliable"]);
 
         assert_eq!(info.tags.len(), 3);
         assert!(info.tags.contains(&"fast".to_string()));
@@ -918,8 +928,7 @@ mod tests {
 
     #[test]
     fn test_deployment_info_has_all_tags() {
-        let info = DeploymentInfo::new()
-            .with_tags(["fast", "cheap", "reliable"]);
+        let info = DeploymentInfo::new().with_tags(["fast", "cheap", "reliable"]);
 
         // Should match when all tags present
         assert!(info.has_all_tags(&["fast".to_string(), "cheap".to_string()]));
@@ -933,8 +942,7 @@ mod tests {
 
     #[test]
     fn test_deployment_info_has_any_tag() {
-        let info = DeploymentInfo::new()
-            .with_tags(["fast", "cheap"]);
+        let info = DeploymentInfo::new().with_tags(["fast", "cheap"]);
 
         // Should match when any tag present
         assert!(info.has_any_tag(&["fast".to_string(), "expensive".to_string()]));
@@ -948,14 +956,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_load_balancer_with_deployment_info() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         let deployment = DeploymentInfo::new()
             .with_tag("fast")
             .with_group("test-group");
 
         // Use update_deployment_info since we don't have a real Provider
-        lb.deployments.insert("test_provider".to_string(), deployment);
+        lb.deployments
+            .insert("test_provider".to_string(), deployment);
 
         let info = lb.get_deployment_info("test_provider");
         assert!(info.is_some());
@@ -967,7 +978,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_providers_by_tag() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         // Add deployment info directly
         lb.deployments.insert(
@@ -1000,7 +1013,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_providers_by_group() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         lb.deployments.insert(
             "provider_a".to_string(),
@@ -1027,7 +1042,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_tags() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         lb.deployments.insert(
             "provider_a".to_string(),
@@ -1045,7 +1062,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_all_groups() {
-        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin).await.unwrap();
+        let lb = LoadBalancer::new(RoutingStrategy::RoundRobin)
+            .await
+            .unwrap();
 
         lb.deployments.insert(
             "provider_a".to_string(),

@@ -149,13 +149,17 @@ impl V0Provider {
     ///
     /// # Errors
     /// Returns error if HTTP client cannot be created
-    pub fn new(config: V0Config) -> Result<Self, crate::core::providers::unified_provider::ProviderError> {
+    pub fn new(
+        config: V0Config,
+    ) -> Result<Self, crate::core::providers::unified_provider::ProviderError> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(config.timeout_seconds))
             .build()
-            .map_err(|e| crate::core::providers::unified_provider::ProviderError::Configuration {
-                provider: "v0",
-                message: format!("Failed to create HTTP client: {}", e),
+            .map_err(|e| {
+                crate::core::providers::unified_provider::ProviderError::Configuration {
+                    provider: "v0",
+                    message: format!("Failed to create HTTP client: {}", e),
+                }
             })?;
 
         Ok(Self { config, client })

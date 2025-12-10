@@ -141,8 +141,8 @@ impl LlamaProvider {
                 supports_streaming: true,
                 supports_tools: true,
                 supports_multimodal: true, // Native multimodal
-                input_cost_per_1k_tokens: Some(0.00008),  // $0.08/1M input
-                output_cost_per_1k_tokens: Some(0.0003),  // $0.30/1M output
+                input_cost_per_1k_tokens: Some(0.00008), // $0.08/1M input
+                output_cost_per_1k_tokens: Some(0.0003), // $0.30/1M output
                 currency: "USD".to_string(),
                 capabilities: vec![
                     ProviderCapability::ChatCompletion,
@@ -162,8 +162,8 @@ impl LlamaProvider {
                 supports_streaming: true,
                 supports_tools: true,
                 supports_multimodal: true,
-                input_cost_per_1k_tokens: Some(0.00020),  // $0.20/1M input
-                output_cost_per_1k_tokens: Some(0.0006),  // $0.60/1M output
+                input_cost_per_1k_tokens: Some(0.00020), // $0.20/1M input
+                output_cost_per_1k_tokens: Some(0.0006), // $0.60/1M output
                 currency: "USD".to_string(),
                 capabilities: vec![
                     ProviderCapability::ChatCompletion,

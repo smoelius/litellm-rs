@@ -138,7 +138,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test_temperature_control() {
-        use litellm_rs::{completion, user_message, CompletionOptions};
+        use litellm_rs::{CompletionOptions, completion, user_message};
 
         // Low temperature (deterministic)
         let options = CompletionOptions {
@@ -183,7 +183,7 @@ mod tests {
     #[ignore]
     async fn test_max_tokens_limit() {
         use litellm_rs::core::completion::FinishReason;
-        use litellm_rs::{completion, user_message, CompletionOptions};
+        use litellm_rs::{CompletionOptions, completion, user_message};
 
         let options = CompletionOptions {
             max_tokens: Some(5),

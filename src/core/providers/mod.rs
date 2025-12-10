@@ -626,7 +626,9 @@ impl Provider {
                 let api_key = config
                     .get("api_key")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("anthropic", "api_key is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("anthropic", "api_key is required")
+                    })?;
                 let provider = anthropic::AnthropicProvider::new(
                     anthropic::AnthropicConfig::default().with_api_key(api_key),
                 )?;
@@ -656,7 +658,9 @@ impl Provider {
                 let api_key = config
                     .get("api_key")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("openrouter", "api_key is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("openrouter", "api_key is required")
+                    })?;
                 let or_config = openrouter::OpenRouterConfig::new(api_key);
                 let provider = openrouter::OpenRouterProvider::new(or_config)?;
                 Ok(Provider::OpenRouter(provider))
@@ -665,7 +669,9 @@ impl Provider {
                 let api_key = config
                     .get("api_key")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("mistral", "api_key is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("mistral", "api_key is required")
+                    })?;
                 let mistral_config = mistral::MistralConfig {
                     api_key: api_key.to_string(),
                     ..Default::default()
@@ -679,7 +685,9 @@ impl Provider {
                 let api_key = config
                     .get("api_key")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("deepseek", "api_key is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("deepseek", "api_key is required")
+                    })?;
                 let mut ds_config = deepseek::DeepSeekConfig::new("deepseek");
                 ds_config.base.api_key = Some(api_key.to_string());
                 let provider = deepseek::DeepSeekProvider::new(ds_config)?;
@@ -689,7 +697,9 @@ impl Provider {
                 let api_key = config
                     .get("api_key")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("moonshot", "api_key is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("moonshot", "api_key is required")
+                    })?;
                 let moonshot_config = moonshot::MoonshotConfig {
                     api_key: api_key.to_string(),
                     ..Default::default()
@@ -703,11 +713,15 @@ impl Provider {
                 let account_id = config
                     .get("account_id")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("cloudflare", "account_id is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("cloudflare", "account_id is required")
+                    })?;
                 let api_token = config
                     .get("api_token")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ProviderError::configuration("cloudflare", "api_token is required"))?;
+                    .ok_or_else(|| {
+                        ProviderError::configuration("cloudflare", "api_token is required")
+                    })?;
                 let cf_config = cloudflare::CloudflareConfig {
                     account_id: Some(account_id.to_string()),
                     api_token: Some(api_token.to_string()),

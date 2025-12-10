@@ -116,49 +116,49 @@ impl crate::core::traits::provider::ProviderConfig for VertexAIProviderConfig {
 #[derive(Debug, Clone)]
 pub enum VertexAIModel {
     // Gemini 2.5 models (2025 - Latest)
-    Gemini25Pro,         // gemini-2.5-pro
-    Gemini25Flash,       // gemini-2.5-flash
-    Gemini25FlashLite,   // gemini-2.5-flash-lite-preview
+    Gemini25Pro,       // gemini-2.5-pro
+    Gemini25Flash,     // gemini-2.5-flash
+    Gemini25FlashLite, // gemini-2.5-flash-lite-preview
 
     // Gemini 2.0 models (2024-2025)
-    Gemini20Flash,           // gemini-2.0-flash
-    Gemini20FlashExp,        // gemini-2.0-flash-exp
-    Gemini20FlashThinking,   // gemini-2.0-flash-thinking-exp
-    Gemini20FlashLite,       // gemini-2.0-flash-lite
+    Gemini20Flash,         // gemini-2.0-flash
+    Gemini20FlashExp,      // gemini-2.0-flash-exp
+    Gemini20FlashThinking, // gemini-2.0-flash-thinking-exp
+    Gemini20FlashLite,     // gemini-2.0-flash-lite
 
     // Gemini 1.5 models (2024)
-    GeminiPro,               // gemini-1.5-pro
-    GeminiProVision,         // gemini-1.5-pro-vision (legacy)
-    GeminiFlash,             // gemini-1.5-flash
-    GeminiFlash8B,           // gemini-1.5-flash-8b
+    GeminiPro,       // gemini-1.5-pro
+    GeminiProVision, // gemini-1.5-pro-vision (legacy)
+    GeminiFlash,     // gemini-1.5-flash
+    GeminiFlash8B,   // gemini-1.5-flash-8b
 
     // Gemini 1.0 models (legacy)
-    GeminiUltra,             // gemini-ultra (deprecated)
+    GeminiUltra, // gemini-ultra (deprecated)
 
     // Partner models - Claude
     Claude3Opus,
     Claude3Sonnet,
     Claude3Haiku,
-    Claude35Sonnet,          // claude-3-5-sonnet@20241022
+    Claude35Sonnet, // claude-3-5-sonnet@20241022
 
     // Meta models - Llama 3.x and 4
     Llama3_70B,
     Llama3_8B,
-    Llama31_405B,            // llama-3.1-405b
-    Llama31_70B,             // llama-3.1-70b
-    Llama32_90B,             // llama-3.2-90b
-    Llama4Scout,             // llama-4-scout (2025)
-    Llama4Maverick,          // llama-4-maverick (2025)
+    Llama31_405B,   // llama-3.1-405b
+    Llama31_70B,    // llama-3.1-70b
+    Llama32_90B,    // llama-3.2-90b
+    Llama4Scout,    // llama-4-scout (2025)
+    Llama4Maverick, // llama-4-maverick (2025)
 
     // AI21 models
     Jamba15Large,
     Jamba15Mini,
-    Jamba2,                  // jamba-2 (2025)
+    Jamba2, // jamba-2 (2025)
 
     // Mistral models
-    MistralLarge,            // mistral-large
-    MistralNemo,             // mistral-nemo
-    Codestral,               // codestral
+    MistralLarge, // mistral-large
+    MistralNemo,  // mistral-nemo
+    Codestral,    // codestral
 
     // Custom model
     Custom(String),
@@ -293,23 +293,22 @@ impl VertexAIModel {
 
     /// Check if model supports function calling
     pub fn supports_function_calling(&self) -> bool {
-        self.is_gemini() || matches!(
-            self,
-            Self::Claude3Opus
-                | Self::Claude3Sonnet
-                | Self::Claude3Haiku
-                | Self::Claude35Sonnet
-                | Self::MistralLarge
-        )
+        self.is_gemini()
+            || matches!(
+                self,
+                Self::Claude3Opus
+                    | Self::Claude3Sonnet
+                    | Self::Claude3Haiku
+                    | Self::Claude35Sonnet
+                    | Self::MistralLarge
+            )
     }
 
     /// Check if model supports thinking/reasoning mode
     pub fn supports_thinking_mode(&self) -> bool {
         matches!(
             self,
-            Self::Gemini25Pro
-                | Self::Gemini25Flash
-                | Self::Gemini20FlashThinking
+            Self::Gemini25Pro | Self::Gemini25Flash | Self::Gemini20FlashThinking
         )
     }
 
@@ -317,9 +316,9 @@ impl VertexAIModel {
     pub fn max_context_tokens(&self) -> usize {
         match self {
             // Gemini 2.5 models - 1M+ context
-            Self::Gemini25Pro => 1_048_576,        // 1M tokens
-            Self::Gemini25Flash => 1_048_576,      // 1M tokens
-            Self::Gemini25FlashLite => 1_048_576,  // 1M tokens
+            Self::Gemini25Pro => 1_048_576,       // 1M tokens
+            Self::Gemini25Flash => 1_048_576,     // 1M tokens
+            Self::Gemini25FlashLite => 1_048_576, // 1M tokens
 
             // Gemini 2.0 models
             Self::Gemini20Flash => 1_048_576,
@@ -328,9 +327,9 @@ impl VertexAIModel {
             Self::Gemini20FlashLite => 1_048_576,
 
             // Gemini 1.5 models
-            Self::GeminiPro => 2_097_152,          // 2M tokens
+            Self::GeminiPro => 2_097_152, // 2M tokens
             Self::GeminiProVision => 2_097_152,
-            Self::GeminiFlash => 1_048_576,        // 1M tokens
+            Self::GeminiFlash => 1_048_576, // 1M tokens
             Self::GeminiFlash8B => 1_048_576,
 
             // Legacy
@@ -348,8 +347,8 @@ impl VertexAIModel {
             Self::Llama31_405B => 128_000,
             Self::Llama31_70B => 128_000,
             Self::Llama32_90B => 128_000,
-            Self::Llama4Scout => 10_000_000,       // 10M context (claimed)
-            Self::Llama4Maverick => 1_000_000,     // 1M context
+            Self::Llama4Scout => 10_000_000, // 10M context (claimed)
+            Self::Llama4Maverick => 1_000_000, // 1M context
 
             // AI21 models
             Self::Jamba15Large => 256_000,

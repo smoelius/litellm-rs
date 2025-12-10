@@ -46,7 +46,9 @@ mod tests {
             enabled: true,
         };
 
-        let db = Database::new(&config).await.expect("Failed to create database");
+        let db = Database::new(&config)
+            .await
+            .expect("Failed to create database");
         let result = db.migrate().await;
         assert!(result.is_ok(), "Migration failed: {:?}", result.err());
     }
@@ -62,7 +64,9 @@ mod tests {
             enabled: true,
         };
 
-        let db = Database::new(&config).await.expect("Failed to create database");
+        let db = Database::new(&config)
+            .await
+            .expect("Failed to create database");
         db.migrate().await.expect("Migration failed");
 
         // Try to find a user that doesn't exist
@@ -82,7 +86,9 @@ mod tests {
             enabled: true,
         };
 
-        let db = Database::new(&config).await.expect("Failed to create database");
+        let db = Database::new(&config)
+            .await
+            .expect("Failed to create database");
         db.migrate().await.expect("Migration failed");
 
         // List batches (should be empty)
@@ -102,7 +108,9 @@ mod tests {
             enabled: true,
         };
 
-        let db = Database::new(&config).await.expect("Failed to create database");
+        let db = Database::new(&config)
+            .await
+            .expect("Failed to create database");
         let stats = db.stats();
 
         // Just verify we can get stats (size is always >= 0 as usize)

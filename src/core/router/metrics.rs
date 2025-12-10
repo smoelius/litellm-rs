@@ -136,16 +136,10 @@ impl RouterMetrics {
             metrics.last_request = Some(Instant::now());
 
             // Update min/max response times
-            if metrics
-                .min_response_time
-                .is_none_or(|min| duration < min)
-            {
+            if metrics.min_response_time.is_none_or(|min| duration < min) {
                 metrics.min_response_time = Some(duration);
             }
-            if metrics
-                .max_response_time
-                .is_none_or(|max| duration > max)
-            {
+            if metrics.max_response_time.is_none_or(|max| duration > max) {
                 metrics.max_response_time = Some(duration);
             }
         }
@@ -294,21 +288,37 @@ impl RouterMetrics {
         // Overall metrics - use write! macro for efficient formatting
         output.push_str("# HELP router_requests_total Total number of requests\n");
         output.push_str("# TYPE router_requests_total counter\n");
-        let _ = writeln!(output, "router_requests_total {}", snapshot.overall_metrics.total_requests);
+        let _ = writeln!(
+            output,
+            "router_requests_total {}",
+            snapshot.overall_metrics.total_requests
+        );
 
         output.push_str(
             "# HELP router_requests_successful_total Total number of successful requests\n",
         );
         output.push_str("# TYPE router_requests_successful_total counter\n");
-        let _ = writeln!(output, "router_requests_successful_total {}", snapshot.overall_metrics.successful_requests);
+        let _ = writeln!(
+            output,
+            "router_requests_successful_total {}",
+            snapshot.overall_metrics.successful_requests
+        );
 
         output.push_str("# HELP router_requests_failed_total Total number of failed requests\n");
         output.push_str("# TYPE router_requests_failed_total counter\n");
-        let _ = writeln!(output, "router_requests_failed_total {}", snapshot.overall_metrics.failed_requests);
+        let _ = writeln!(
+            output,
+            "router_requests_failed_total {}",
+            snapshot.overall_metrics.failed_requests
+        );
 
         output.push_str("# HELP router_response_time_seconds Average response time in seconds\n");
         output.push_str("# TYPE router_response_time_seconds gauge\n");
-        let _ = writeln!(output, "router_response_time_seconds {:.6}", snapshot.overall_metrics.avg_response_time.as_secs_f64());
+        let _ = writeln!(
+            output,
+            "router_response_time_seconds {:.6}",
+            snapshot.overall_metrics.avg_response_time.as_secs_f64()
+        );
 
         // Provider metrics
         for (provider, metrics) in &snapshot.provider_metrics {

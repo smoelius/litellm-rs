@@ -8,7 +8,9 @@ mod tests {
     use litellm_rs::core::providers::deepseek::DeepSeekProvider;
     use litellm_rs::core::traits::LLMProvider;
     use litellm_rs::core::types::common::RequestContext;
-    use litellm_rs::core::types::requests::{ChatMessage, ChatRequest, MessageContent, MessageRole};
+    use litellm_rs::core::types::requests::{
+        ChatMessage, ChatRequest, MessageContent, MessageRole,
+    };
 
     /// Helper to create a simple chat request
     fn create_chat_request(model: &str, content: &str) -> ChatRequest {
@@ -34,7 +36,10 @@ mod tests {
     async fn test_deepseek_chat_completion() {
         let provider = DeepSeekProvider::from_env().expect("Failed to create DeepSeek provider");
 
-        let request = create_chat_request("deepseek-chat", "Say 'Hello from DeepSeek!' and nothing else.");
+        let request = create_chat_request(
+            "deepseek-chat",
+            "Say 'Hello from DeepSeek!' and nothing else.",
+        );
         let context = RequestContext::default();
 
         let response = provider.chat_completion(request, context).await;
@@ -97,9 +102,15 @@ mod tests {
             }
         }
 
-        println!("DeepSeek streaming: {} chunks, content: {}", chunk_count, full_content);
+        println!(
+            "DeepSeek streaming: {} chunks, content: {}",
+            chunk_count, full_content
+        );
         assert!(chunk_count > 0, "Expected at least one chunk");
-        assert!(!full_content.is_empty(), "Expected non-empty streamed content");
+        assert!(
+            !full_content.is_empty(),
+            "Expected non-empty streamed content"
+        );
     }
 
     /// E2E test for DeepSeek with system message
@@ -114,7 +125,8 @@ mod tests {
                 ChatMessage {
                     role: MessageRole::System,
                     content: Some(MessageContent::Text(
-                        "You are a helpful assistant that responds in exactly one word.".to_string(),
+                        "You are a helpful assistant that responds in exactly one word."
+                            .to_string(),
                     )),
                     name: None,
                     tool_calls: None,

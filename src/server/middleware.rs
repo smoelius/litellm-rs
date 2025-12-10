@@ -9,8 +9,8 @@ use crate::core::models::RequestContext;
 use crate::server::AppState;
 use actix_web::HttpMessage;
 use dashmap::DashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use actix_web::dev::{Service, Transform, forward_ready};
 use actix_web::{
@@ -86,14 +86,15 @@ impl AuthRateLimiter {
         let now = Instant::now();
 
         // Get or create tracker
-        let mut entry = self.attempts.entry(client_id.to_string()).or_insert_with(|| {
-            AuthAttemptTracker {
+        let mut entry = self
+            .attempts
+            .entry(client_id.to_string())
+            .or_insert_with(|| AuthAttemptTracker {
                 failure_count: 0,
                 window_start: now,
                 lockout_until: None,
                 lockout_count: 0,
-            }
-        });
+            });
 
         let tracker = entry.value_mut();
 
@@ -136,14 +137,15 @@ impl AuthRateLimiter {
     pub fn record_failure(&self, client_id: &str) -> Option<u64> {
         let now = Instant::now();
 
-        let mut entry = self.attempts.entry(client_id.to_string()).or_insert_with(|| {
-            AuthAttemptTracker {
+        let mut entry = self
+            .attempts
+            .entry(client_id.to_string())
+            .or_insert_with(|| AuthAttemptTracker {
                 failure_count: 0,
                 window_start: now,
                 lockout_until: None,
                 lockout_count: 0,
-            }
-        });
+            });
 
         let tracker = entry.value_mut();
         tracker.failure_count += 1;
@@ -225,7 +227,9 @@ fn get_client_identifier(req: &ServiceRequest) -> String {
         .unwrap_or_else(|| "unknown".to_string());
 
     // Also include API key hash if present (to track per-key abuse)
-    if let Some(api_key) = req.headers().get("x-api-key")
+    if let Some(api_key) = req
+        .headers()
+        .get("x-api-key")
         .or_else(|| req.headers().get("authorization"))
         .and_then(|h| h.to_str().ok())
     {

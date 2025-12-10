@@ -230,11 +230,11 @@ pub fn decrypt_data(key: &[u8], encrypted_data: &str) -> Result<String> {
     let ciphertext = &encrypted_bytes[AES_GCM_NONCE_SIZE..];
 
     // Decrypt and verify authentication tag
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|_| GatewayError::Crypto(
-            "Decryption failed - data may have been tampered with or wrong key".to_string()
-        ))?;
+    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|_| {
+        GatewayError::Crypto(
+            "Decryption failed - data may have been tampered with or wrong key".to_string(),
+        )
+    })?;
 
     String::from_utf8(plaintext).map_err(|e| {
         GatewayError::Crypto(format!("Failed to convert decrypted data to string: {}", e))

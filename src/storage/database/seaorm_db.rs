@@ -590,7 +590,10 @@ impl SeaOrmDatabase {
 
     /// List API keys by user
     /// Note: Changed from i64 to Uuid to avoid lossy conversion from Uuid->i64
-    pub async fn list_api_keys_by_user(&self, _user_id: uuid::Uuid) -> Result<Vec<crate::auth::ApiKey>> {
+    pub async fn list_api_keys_by_user(
+        &self,
+        _user_id: uuid::Uuid,
+    ) -> Result<Vec<crate::auth::ApiKey>> {
         // TODO: Implement API key listing by user
         warn!("list_api_keys_by_user not implemented yet");
         Ok(vec![])

@@ -79,10 +79,7 @@ impl AzureResponseTransformation {
         mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
         // Normalize choice structure
-        if let Some(choices) = response
-            .get_mut("choices")
-            .and_then(|c| c.as_array_mut())
-        {
+        if let Some(choices) = response.get_mut("choices").and_then(|c| c.as_array_mut()) {
             for choice in choices {
                 self.transform_choice_object(choice)?;
             }
@@ -111,10 +108,7 @@ impl AzureResponseTransformation {
         mut response: serde_json::Value,
     ) -> Result<serde_json::Value, String> {
         // Similar transformations as chat but for completion format
-        if let Some(choices) = response
-            .get_mut("choices")
-            .and_then(|c| c.as_array_mut())
-        {
+        if let Some(choices) = response.get_mut("choices").and_then(|c| c.as_array_mut()) {
             for choice in choices {
                 self.transform_completion_choice(choice)?;
             }

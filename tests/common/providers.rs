@@ -17,8 +17,7 @@ pub struct ProviderTestConfig {
 impl Default for ProviderTestConfig {
     fn default() -> Self {
         Self {
-            skip_live_tests: env::var("SKIP_LIVE_TESTS").is_ok()
-                || env::var("CI").is_ok(),
+            skip_live_tests: env::var("SKIP_LIVE_TESTS").is_ok() || env::var("CI").is_ok(),
             timeout_secs: 30,
         }
     }

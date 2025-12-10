@@ -111,8 +111,8 @@ pub enum OpenAIModelFamily {
     TTS,
     Embedding,
     Moderation,
-    GPT4OAudio,    // GPT-4O with audio capabilities
-    Realtime,      // Realtime API models
+    GPT4OAudio, // GPT-4O with audio capabilities
+    Realtime,   // Realtime API models
 }
 
 /// Model-specific configuration
@@ -399,8 +399,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT4O,
                 128000,
                 Some(16384),
-                0.0025,  // $2.50/1M input
-                0.010,   // $10/1M output
+                0.0025, // $2.50/1M input
+                0.010,  // $10/1M output
             ),
             (
                 "gpt-4o-2024-11-20",
@@ -427,8 +427,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT4OMini,
                 128000,
                 Some(16384),
-                0.00015,  // $0.15/1M input
-                0.0006,   // $0.60/1M output
+                0.00015, // $0.15/1M input
+                0.0006,  // $0.60/1M output
             ),
             (
                 "gpt-4o-mini-2024-07-18",
@@ -476,8 +476,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::O1,
                 200000,
                 Some(100000),
-                0.015,   // $15/1M input
-                0.060,   // $60/1M output
+                0.015, // $15/1M input
+                0.060, // $60/1M output
             ),
             (
                 "o1-2024-12-17",
@@ -503,8 +503,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::O1,
                 128000,
                 Some(65536),
-                0.003,   // $3/1M input
-                0.012,   // $12/1M output
+                0.003, // $3/1M input
+                0.012, // $12/1M output
             ),
             (
                 "o1-mini-2024-09-12",
@@ -522,8 +522,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::O1Pro,
                 200000,
                 Some(100000),
-                0.150,   // $150/1M input (ChatGPT Pro)
-                0.600,   // $600/1M output
+                0.150, // $150/1M input (ChatGPT Pro)
+                0.600, // $600/1M output
             ),
             (
                 "o1-pro-2024-12-17",
@@ -541,8 +541,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::O3Mini,
                 200000,
                 Some(100000),
-                0.0011,  // $1.10/1M input
-                0.0044,  // $4.40/1M output
+                0.0011, // $1.10/1M input
+                0.0044, // $4.40/1M output
             ),
             (
                 "o3-mini-2025-01-31",
@@ -580,8 +580,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT5,
                 272000,
                 Some(128000),
-                0.00125,  // $1.25/1M input
-                0.010,    // $10/1M output
+                0.00125, // $1.25/1M input
+                0.010,   // $10/1M output
             ),
             (
                 "gpt-5-2025-08-01",
@@ -599,8 +599,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT5Mini,
                 272000,
                 Some(64000),
-                0.00025,  // $0.25/1M input
-                0.002,    // $2/1M output
+                0.00025, // $0.25/1M input
+                0.002,   // $2/1M output
             ),
             // GPT-5 Nano
             (
@@ -609,8 +609,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT5Nano,
                 128000,
                 Some(32000),
-                0.00005,  // $0.05/1M input
-                0.0004,   // $0.40/1M output
+                0.00005, // $0.05/1M input
+                0.0004,  // $0.40/1M output
             ),
             // GPT-5.1 (November 2025)
             (
@@ -619,8 +619,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT51,
                 272000,
                 Some(128000),
-                0.00125,  // $1.25/1M input
-                0.010,    // $10/1M output
+                0.00125, // $1.25/1M input
+                0.010,   // $10/1M output
             ),
             (
                 "gpt-5.1-2025-11-01",
@@ -638,8 +638,8 @@ impl OpenAIModelRegistry {
                 OpenAIModelFamily::GPT51Thinking,
                 400000,
                 Some(196000),
-                0.00250,  // $2.50/1M input (thinking mode)
-                0.020,    // $20/1M output (thinking mode)
+                0.00250, // $2.50/1M input (thinking mode)
+                0.020,   // $20/1M output (thinking mode)
             ),
             // ==================== GPT-4 Legacy Models ====================
             (
