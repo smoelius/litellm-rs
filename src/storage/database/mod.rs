@@ -12,3 +12,4 @@ pub mod seaorm_db;
 
 // Re-export the main database interface
 pub use seaorm_db::SeaOrmDatabase as Database;
+pub use seaorm_db::{DatabaseBackendType, DatabaseStats};

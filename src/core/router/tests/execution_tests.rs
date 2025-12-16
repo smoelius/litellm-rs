@@ -8,7 +8,6 @@ use crate::core::router::execution::is_retryable_error;
 use crate::core::router::fallback::{ExecutionResult, FallbackConfig};
 use crate::core::router::router::Router;
 use std::sync::atomic::Ordering;
-use std::time::Duration;
 
 #[test]
 fn test_is_retryable_error() {

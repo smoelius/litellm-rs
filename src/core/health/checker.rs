@@ -1,0 +1,62 @@
+//! Health checking methods
+//!
+//! This module provides health check implementations and methods for
+//! updating provider health status.
+
+use super::monitor::HealthMonitor;
+use super::provider::ProviderHealth;
+use super::types::HealthCheckResult;
+use crate::utils::error::{GatewayError, Result};
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+use tracing::info;
+
+impl HealthMonitor {
+    /// Get health status for a provider
+    pub fn get_provider_health(&self, provider_id: &str) -> Option<ProviderHealth> {
+        self.provider_health
+            .read()
+            .ok()
+            .and_then(|health| health.get(provider_id).cloned())
+    }
+
+    /// Get health status for all providers
+    pub fn get_all_provider_health(&self) -> HashMap<String, ProviderHealth> {
+        self.provider_health
+            .read()
+            .map(|health| health.clone())
+            .unwrap_or_default()
+    }
+
+    /// Manually update provider health
+    pub fn update_provider_health(&self, provider_id: &str, result: HealthCheckResult) {
+        if let Ok(mut health_map) = self.provider_health.write() {
+            if let Some(provider_health) = health_map.get_mut(provider_id) {
+                provider_health.update(result);
+                info!("Manually updated health for {}: {:?}", provider_id, provider_health.status);
+            }
+        }
+    }
+}
+
+/// Perform actual health check for a provider
+pub(crate) async fn perform_health_check(provider_id: &str) -> Result<Duration> {
+    let start_time = Instant::now();
+
+    // In a real implementation, this would call the provider's health endpoint
+    // For now, simulate a health check with variable response times
+    let delay = match provider_id {
+        id if id.contains("openai") => Duration::from_millis(100 + rand::random::<u64>() % 200),
+        id if id.contains("anthropic") => Duration::from_millis(150 + rand::random::<u64>() % 300),
+        _ => Duration::from_millis(50 + rand::random::<u64>() % 100),
+    };
+
+    tokio::time::sleep(delay).await;
+
+    // Simulate occasional failures
+    if rand::random::<f64>() < 0.05 {
+        return Err(GatewayError::External("Simulated health check failure".to_string()));
+    }
+
+    Ok(start_time.elapsed())
+}

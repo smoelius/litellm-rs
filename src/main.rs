@@ -6,9 +6,10 @@
 
 use litellm_rs::server;
 use tracing::Level;
+use std::process::ExitCode;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> ExitCode {
     // Initialize logging system
     tracing_subscriber::fmt()
         .with_max_level(Level::INFO)
@@ -17,5 +18,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         .init();
 
     // Start server (auto-loads config/gateway.yaml)
-    server::run_server().await.map_err(|e| e.into())
+    match server::run_server().await {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(e) => {
+            // Print error using Display (not Debug) to preserve newlines
+            eprintln!("Error: {}", e);
+            ExitCode::FAILURE
+        }
+    }
 }

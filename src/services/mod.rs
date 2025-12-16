@@ -4,4 +4,7 @@
 
 pub mod pricing;
 
-pub use pricing::PricingService;
+pub use pricing::{
+    CostRange, CostResult, CostType, ModelInfo, PricingEventType, PricingService,
+    PricingStatistics, PricingUpdateEvent,
+};

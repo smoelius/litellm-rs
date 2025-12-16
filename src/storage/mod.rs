@@ -42,36 +42,17 @@ impl StorageLayer {
         debug!("Connecting to database");
         let database = Arc::new(database::Database::new(&config.database).await?);
 
-        // Initialize Redis (optional)
-        let redis = if config.redis.enabled {
-            debug!("Connecting to Redis");
-            Arc::new(redis::RedisPool::new(&config.redis).await?)
-        } else {
-            debug!("Redis disabled, skipping Redis connection");
-            // For now, we'll still try to create a Redis pool but ignore errors
-            match redis::RedisPool::new(&config.redis).await {
-                Ok(pool) => Arc::new(pool),
-                Err(e) => {
-                    warn!("Redis connection failed: {}, continuing without Redis", e);
-                    // Create a minimal Redis config for fallback
-                    let fallback_config = crate::config::models::storage::RedisConfig {
-                        url: "redis://localhost:6379".to_string(),
-                        enabled: false,
-                        max_connections: 1,
-                        connection_timeout: 5,
-                        cluster: false,
-                    };
-                    match redis::RedisPool::new(&fallback_config).await {
-                        Ok(pool) => Arc::new(pool),
-                        Err(fallback_err) => {
-                            // Return error instead of panicking
-                            return Err(GatewayError::Internal(format!(
-                                "Failed to create Redis pool (primary: {}, fallback: {})",
-                                e, fallback_err
-                            )));
-                        }
-                    }
-                }
+        // Initialize Redis (optional with graceful degradation)
+        debug!("Creating Redis connection pool");
+        let redis = match redis::RedisPool::new(&config.redis).await {
+            Ok(pool) => {
+                info!("Redis connection established");
+                Arc::new(pool)
+            }
+            Err(e) => {
+                warn!("Redis connection failed: {}. Gateway will operate without caching.", e);
+                // Create a no-op Redis pool wrapper
+                Arc::new(redis::RedisPool::create_noop())
             }
         };
 

@@ -212,7 +212,8 @@ fn bench_unified_router(c: &mut Criterion) {
                 rpm_limit: Some(1000),
                 ..Default::default()
             });
-            black_box(router.add_deployment(deployment))
+            router.add_deployment(deployment);
+            black_box(())
         });
     });
 
@@ -357,14 +358,15 @@ fn bench_concurrent_router(c: &mut Criterion) {
                         for _ in 0..num_tasks {
                             let router = router.clone();
                             let handle = tokio::spawn(async move {
-                                router.select_deployment("gpt-4")
+                                let _ = router.select_deployment("gpt-4");
                             });
                             handles.push(handle);
                         }
 
                         for handle in handles {
-                            black_box(handle.await.unwrap());
+                            let _ = handle.await;
                         }
+                        black_box(());
                     })
                 });
             },
@@ -408,8 +410,9 @@ fn bench_concurrent_router(c: &mut Criterion) {
                         }
 
                         for handle in handles {
-                            black_box(handle.await.unwrap());
+                            handle.await.unwrap();
                         }
+                        black_box(());
                     })
                 });
             },
@@ -517,8 +520,9 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                         }
 
                         for handle in handles {
-                            black_box(handle.await.unwrap());
+                            handle.await.unwrap();
                         }
+                        black_box(());
                     })
                 });
             },

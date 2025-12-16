@@ -4,7 +4,6 @@ use crate::core::providers::openai::OpenAIProvider;
 use crate::core::providers::Provider;
 use crate::core::router::config::{RouterConfig, RoutingStrategy};
 use crate::core::router::deployment::Deployment;
-use crate::core::router::error::RouterError;
 use crate::core::router::router::Router;
 use std::sync::atomic::Ordering;
 

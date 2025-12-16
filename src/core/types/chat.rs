@@ -1,0 +1,219 @@
+//! Chat request and message types
+
+use super::content::ContentPart;
+use super::message::{MessageContent, MessageRole};
+use super::tools::{FunctionCall, ResponseFormat, Tool, ToolCall, ToolChoice};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+/// Chat message
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    /// Message role
+    pub role: MessageRole,
+    /// Message content
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<MessageContent>,
+    /// Name of message sender
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Tool call list
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<Vec<ToolCall>>,
+    /// Tool call ID for responses
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
+    /// Function call (backward compatibility)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_call: Option<FunctionCall>,
+}
+
+impl Default for ChatMessage {
+    fn default() -> Self {
+        Self {
+            role: MessageRole::User,
+            content: None,
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+            function_call: None,
+        }
+    }
+}
+
+/// Chat request
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ChatRequest {
+    /// Model name
+    pub model: String,
+    /// List of chat messages
+    pub messages: Vec<ChatMessage>,
+    /// Sampling temperature (0.0 - 2.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    /// Maximum number of tokens to generate
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    /// Maximum completion tokens (new OpenAI parameter)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_completion_tokens: Option<u32>,
+    /// Nucleus sampling parameter (0.0 - 1.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    /// Frequency penalty (-2.0 - 2.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+    /// Presence penalty (-2.0 - 2.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+    /// Stop sequences
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+    /// Enable streaming
+    #[serde(default)]
+    pub stream: bool,
+    /// Tool list
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<Tool>>,
+    /// Tool selection strategy
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_choice: Option<ToolChoice>,
+    /// Parallel tool calls
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parallel_tool_calls: Option<bool>,
+    /// Response format
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
+    /// User ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+    /// Seed value (for reproducible generation)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub seed: Option<i32>,
+    /// Number of choices to return
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub n: Option<u32>,
+    /// Logit bias
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logit_bias: Option<HashMap<String, f32>>,
+    /// Legacy function definitions
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub functions: Option<Vec<serde_json::Value>>,
+    /// Legacy function call
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_call: Option<serde_json::Value>,
+    /// Whether to return logprobs
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub logprobs: Option<bool>,
+    /// Number of top logprobs to return
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_logprobs: Option<u32>,
+    /// Additional provider-specific parameters
+    #[serde(flatten)]
+    pub extra_params: HashMap<String, serde_json::Value>,
+}
+
+impl ChatRequest {
+    /// Create new chat request
+    pub fn new(model: impl Into<String>) -> Self {
+        Self {
+            model: model.into(),
+            ..Default::default()
+        }
+    }
+
+    /// Add message
+    pub fn add_message(mut self, role: MessageRole, content: impl Into<MessageContent>) -> Self {
+        self.messages.push(ChatMessage {
+            role,
+            content: Some(content.into()),
+            name: None,
+            tool_calls: None,
+            tool_call_id: None,
+            function_call: None,
+        });
+        self
+    }
+
+    /// Add system message
+    pub fn add_system_message(self, content: impl Into<String>) -> Self {
+        self.add_message(MessageRole::System, MessageContent::Text(content.into()))
+    }
+
+    /// Add user message
+    pub fn add_user_message(self, content: impl Into<String>) -> Self {
+        self.add_message(MessageRole::User, MessageContent::Text(content.into()))
+    }
+
+    /// Add assistant message
+    pub fn add_assistant_message(self, content: impl Into<String>) -> Self {
+        self.add_message(MessageRole::Assistant, MessageContent::Text(content.into()))
+    }
+
+    /// Set temperature
+    pub fn with_temperature(mut self, temperature: f32) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Set max tokens
+    pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
+        self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// Enable streaming
+    pub fn with_streaming(mut self) -> Self {
+        self.stream = true;
+        self
+    }
+
+    /// Add tools
+    pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
+        self.tools = Some(tools);
+        self
+    }
+
+    /// Estimate input token count
+    pub fn estimate_input_tokens(&self) -> u32 {
+        let mut total = 0;
+
+        for message in &self.messages {
+            total += 4; // message structure overhead
+
+            if let Some(content) = &message.content {
+                match content {
+                    MessageContent::Text(text) => {
+                        total += (text.len() as f64 / 4.0).ceil() as u32;
+                    }
+                    MessageContent::Parts(parts) => {
+                        for part in parts {
+                            match part {
+                                ContentPart::Text { text } => {
+                                    total += (text.len() as f64 / 4.0).ceil() as u32;
+                                }
+                                ContentPart::ImageUrl { .. } | ContentPart::Image { .. } => {
+                                    total += 85;
+                                }
+                                ContentPart::Audio { .. } => {
+                                    total += 100;
+                                }
+                                ContentPart::Document { .. } => {
+                                    total += 1000;
+                                }
+                                ContentPart::ToolResult { .. } => {
+                                    total += 50;
+                                }
+                                ContentPart::ToolUse { .. } => {
+                                    total += 100;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        total
+    }
+}

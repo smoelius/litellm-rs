@@ -12,6 +12,7 @@ pub mod cache_manager;
 pub mod completion; // Core completion API
 pub mod cost; // Unified cost calculation system
 // pub mod function_calling; // Temporarily disabled
+pub mod health; // Health monitoring system
 pub mod models;
 pub mod observability; // Advanced observability and monitoring
 pub mod providers;

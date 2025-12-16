@@ -1,0 +1,91 @@
+//! Weaviate vector store implementation (placeholder)
+
+use crate::config::VectorDbConfig;
+use crate::utils::error::{GatewayError, Result};
+
+use super::types::{SearchResult, VectorPoint};
+
+/// Weaviate vector store
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub struct WeaviateStore {
+    url: String,
+    api_key: Option<String>,
+    collection: String,
+    client: reqwest::Client,
+}
+
+// Placeholder implementations for Weaviate
+#[allow(dead_code)]
+impl WeaviateStore {
+    /// Create new Weaviate store (not implemented)
+    pub async fn new(_config: &VectorDbConfig) -> Result<Self> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Store vector (not implemented)
+    pub async fn store(
+        &self,
+        _id: &str,
+        _vector: &[f32],
+        _metadata: Option<serde_json::Value>,
+    ) -> Result<()> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Search vectors (not implemented)
+    pub async fn search(
+        &self,
+        _query_vector: &[f32],
+        _limit: usize,
+        _threshold: Option<f32>,
+    ) -> Result<Vec<SearchResult>> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Delete vector (not implemented)
+    pub async fn delete(&self, _id: &str) -> Result<()> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Get vector by ID (not implemented)
+    pub async fn get(&self, _id: &str) -> Result<Option<VectorPoint>> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Health check (not implemented)
+    pub async fn health_check(&self) -> Result<()> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Close connection
+    pub async fn close(&self) -> Result<()> {
+        Ok(())
+    }
+
+    /// Batch store vectors (not implemented)
+    pub async fn batch_store(&self, _points: &[VectorPoint]) -> Result<()> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+
+    /// Count vectors (not implemented)
+    pub async fn count(&self) -> Result<u64> {
+        Err(GatewayError::VectorDb(
+            "Weaviate not implemented yet".to_string(),
+        ))
+    }
+}

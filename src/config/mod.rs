@@ -4,10 +4,11 @@
 
 pub mod builder;
 pub mod models;
+pub mod validation;
 // pub mod loader;
-// pub mod validation;
 
 pub use models::*;
+pub use validation::Validate;
 // pub use builder::*;  // Commented out until actually used
 // pub use loader::*;
 

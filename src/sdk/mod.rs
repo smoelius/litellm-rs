@@ -14,7 +14,7 @@ pub mod client;
 pub mod types;
 
 // Re-exports for convenience
-pub use client::LLMClient;
+pub use client::{LLMClient, LoadBalancer, LoadBalancingStrategy, ProviderStats};
 pub use config::{ClientConfig, ConfigBuilder};
 pub use errors::{Result, SDKError};
 pub use types::*;
