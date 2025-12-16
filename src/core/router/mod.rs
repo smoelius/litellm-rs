@@ -2,11 +2,42 @@
 //!
 //! This module provides intelligent routing, load balancing, and failover
 //! across multiple AI providers.
+//!
+//! ## Module Structure
+//!
+//! The router is organized into modular components following the single-responsibility principle:
+//!
+//! - `config` - Router configuration and routing strategy definitions
+//! - `error` - Error types and cooldown reasons
+//! - `fallback` - Fallback configuration and execution results
+//! - `deployment` - Deployment management and health tracking
+//! - `router` - Core Router struct and deployment management
+//! - `selection` - Deployment selection logic
+//! - `strategy_impl` - Routing strategy implementations
+//! - `execution` - Execution helpers and error conversion
+//! - `execute_impl` - Execute methods with retry and fallback support
+//! - `gateway_config` - Gateway configuration integration
 
+// New modular router components
+pub mod config;
+pub mod deployment;
+pub mod error;
+pub mod execute_impl;
+pub mod execution;
+pub mod fallback;
+pub mod gateway_config;
+pub mod router;
+pub mod selection;
+pub mod strategy_impl;
+
+// Legacy modules (kept for backwards compatibility)
 pub mod health;
 pub mod load_balancer;
 pub mod metrics;
 pub mod strategy;
+
+#[cfg(test)]
+mod tests;
 
 use crate::config::ProviderConfig;
 use crate::core::providers::ProviderRegistry;
@@ -28,10 +59,20 @@ use std::time::Instant;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
 
+// Re-exports from deployment module
+pub use deployment::{Deployment, DeploymentConfig, DeploymentId, DeploymentState, HealthStatus};
+
+// Re-exports from legacy modules
 pub use health::HealthChecker;
 pub use load_balancer::LoadBalancer;
 pub use metrics::RouterMetrics;
 pub use strategy::RoutingStrategy;
+
+// Re-exports from new modular router (UnifiedRouter)
+pub use config::{RouterConfig, RoutingStrategy as UnifiedRoutingStrategy};
+pub use error::{CooldownReason, RouterError};
+pub use fallback::{ExecutionResult, FallbackConfig, FallbackType};
+pub use router::Router as UnifiedRouter;
 
 /// Core router for managing AI providers and routing requests
 #[derive(Clone)]
