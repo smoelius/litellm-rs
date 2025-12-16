@@ -2,8 +2,14 @@
 //!
 //! Contains comprehensive tests for the unified router system.
 
+// Unified router tests
+mod cooldown_tests;
+mod execution_tests;
+mod fallback_tests;
 mod router_tests;
 mod strategy_tests;
-mod fallback_tests;
-mod execution_tests;
-mod cooldown_tests;
+
+// Legacy module tests (moved from embedded tests)
+mod deployment_tests;
+mod load_balancer_tests;
+mod strategy_executor_tests;

@@ -103,6 +103,12 @@ pub use core::providers::{
     Provider, ProviderError, ProviderRegistry, ProviderType, UnifiedProviderError,
 };
 
+// Export unified router
+pub use core::router::{
+    UnifiedRouter, RouterConfig, RouterError, UnifiedRoutingStrategy as RoutingStrategy,
+    Deployment, DeploymentConfig, FallbackConfig, FallbackType, CooldownReason,
+};
+
 use tracing::info;
 
 /// A minimal LiteLLM Gateway implementation

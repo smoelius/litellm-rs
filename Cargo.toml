@@ -191,3 +191,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.playground]
 features = ["full"]
+
+# Benchmark configuration
+[[bench]]
+name = "performance_benchmarks"
+harness = false
