@@ -16,7 +16,6 @@ pub mod deepseek;
 pub mod gemini;
 pub mod groq;
 pub mod meta_llama;
-pub mod meta_llama_v2; // New consolidated version
 pub mod mistral;
 pub mod moonshot;
 pub mod openai;
