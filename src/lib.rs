@@ -92,7 +92,7 @@ pub use core::completion::{
 };
 
 // Export streaming types
-pub use core::streaming::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
+pub use core::streaming::types::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
 
 // Export unified type system
 pub use core::types::{MessageContent, MessageRole};
@@ -114,7 +114,7 @@ use tracing::info;
 /// A minimal LiteLLM Gateway implementation
 pub struct Gateway {
     config: Config,
-    server: server::HttpServer,
+    server: server::server::HttpServer,
 }
 
 impl Gateway {
@@ -123,7 +123,7 @@ impl Gateway {
         info!("Creating new gateway instance");
 
         // Create HTTP server
-        let server = server::HttpServer::new(&config).await?;
+        let server = server::server::HttpServer::new(&config).await?;
 
         Ok(Self { config, server })
     }

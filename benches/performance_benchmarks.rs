@@ -4,7 +4,8 @@
 //! of various components in the litellm-rs system.
 
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
-use litellm_rs::core::cache_manager::{CacheConfig, CacheManager};
+use litellm_rs::core::cache_manager::manager::CacheManager;
+use litellm_rs::core::cache_manager::types::{CacheConfig, CacheKey};
 use litellm_rs::core::models::openai::*;
 use litellm_rs::core::router::load_balancer::LoadBalancer;
 use litellm_rs::core::router::strategy::RoutingStrategy;
@@ -42,7 +43,7 @@ fn bench_cache_operations(c: &mut Criterion) {
             cache_size,
             |b, &_size| {
                 let cache = rt.block_on(async { CacheManager::new(config.clone()).unwrap() });
-                let key = litellm_rs::core::cache_manager::CacheKey {
+                let key = CacheKey {
                     model: intern_string("gpt-4"),
                     request_hash: 12345,
                     user_id: None,
@@ -59,7 +60,7 @@ fn bench_cache_operations(c: &mut Criterion) {
                 let cache = rt.block_on(async { CacheManager::new(config.clone()).unwrap() });
 
                 b.iter(|| {
-                    let key = litellm_rs::core::cache_manager::CacheKey {
+                    let key = CacheKey {
                         model: intern_string("gpt-4"),
                         request_hash: rand::random::<u64>(),
                         user_id: None,
@@ -509,7 +510,7 @@ fn bench_concurrent_operations(c: &mut Criterion) {
                         for i in 0..num_tasks {
                             let cache = cache.clone();
                             let handle = tokio::spawn(async move {
-                                let key = litellm_rs::core::cache_manager::CacheKey {
+                                let key = CacheKey {
                                     model: intern_string("gpt-4"),
                                     request_hash: i as u64,
                                     user_id: None,

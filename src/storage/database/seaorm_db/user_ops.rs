@@ -1,4 +1,4 @@
-use crate::core::models::user::User;
+use crate::core::models::user::types::User;
 use crate::utils::error::{GatewayError, Result};
 use sea_orm::*;
 use tracing::debug;

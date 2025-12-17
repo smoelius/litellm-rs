@@ -18,7 +18,7 @@ async fn main() -> ExitCode {
         .init();
 
     // Start server (auto-loads config/gateway.yaml)
-    match server::run_server().await {
+    match server::builder::run_server().await {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             // Print error using Display (not Debug) to preserve newlines

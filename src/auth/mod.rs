@@ -19,7 +19,9 @@ mod types;
 mod user_management;
 
 // Re-export commonly used types from core models
-pub use crate::core::models::{ApiKey, User, UserRole, UserSession};
+pub use crate::core::models::ApiKey;
+pub use crate::core::models::user::session::UserSession;
+pub use crate::core::models::user::types::{User, UserRole};
 
 // Re-export types from submodules
 pub use system::AuthSystem;

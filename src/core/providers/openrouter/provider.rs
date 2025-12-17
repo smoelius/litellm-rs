@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::{LLMProvider, ProviderConfig};
+use crate::core::traits::{ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::ChatRequest,
@@ -306,7 +306,7 @@ impl OpenRouterProvider {
 impl LLMProvider for OpenRouterProvider {
     type Config = OpenRouterConfig;
     type Error = ProviderError;
-    type ErrorMapper = crate::core::traits::error_mapper::OpenAIErrorMapper; // OpenRouter uses OpenAI-compatible API
+    type ErrorMapper = crate::core::traits::error_mapper::implementations::OpenAIErrorMapper; // OpenRouter uses OpenAI-compatible API
 
     fn name(&self) -> &'static str {
         "openrouter"
@@ -384,7 +384,7 @@ impl LLMProvider for OpenRouterProvider {
     }
 
     fn get_error_mapper(&self) -> Self::ErrorMapper {
-        crate::core::traits::error_mapper::OpenAIErrorMapper
+        crate::core::traits::error_mapper::implementations::OpenAIErrorMapper
     }
 
     async fn chat_completion(

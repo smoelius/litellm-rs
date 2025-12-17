@@ -15,7 +15,7 @@ pub use async_batch::{
     batch_execute, AsyncBatchConfig, AsyncBatchError, AsyncBatchExecutor, AsyncBatchItemResult,
     AsyncBatchSummary,
 };
-pub use processor::BatchProcessor;
+pub use processor::core::BatchProcessor;
 pub use types::{
     BatchError, BatchHttpResponse, BatchItem, BatchRecord, BatchRequest, BatchRequestCounts,
     BatchResponse, BatchResult, BatchStatus, BatchType,

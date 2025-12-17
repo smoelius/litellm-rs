@@ -4,7 +4,7 @@
 mod tests {
     use super::super::channels::SlackChannel;
     use super::super::types::{AlertRule, AlertStats, ComparisonOperator};
-    use crate::monitoring::AlertSeverity;
+    use crate::monitoring::types::AlertSeverity;
     use std::time::Duration;
 
     #[test]

@@ -1,7 +1,8 @@
 //! User registration endpoint
 
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
+use crate::utils::auth::crypto::password::hash_password;
 use crate::utils::data::validation::DataValidator;
 use actix_web::{HttpResponse, Result as ActixResult, web};
 use tracing::{error, info};
@@ -74,7 +75,7 @@ pub async fn register(
     }
 
     // Hash password
-    let password_hash = match crate::utils::auth::crypto::hash_password(&request.password) {
+    let password_hash = match hash_password(&request.password) {
         Ok(hash) => hash,
         Err(e) => {
             error!("Failed to hash password: {}", e);
@@ -87,7 +88,7 @@ pub async fn register(
     };
 
     // Create user
-    let user = crate::core::models::user::User::new(
+    let user = crate::core::models::user::types::User::new(
         request.username.clone(),
         request.email.clone(),
         password_hash,

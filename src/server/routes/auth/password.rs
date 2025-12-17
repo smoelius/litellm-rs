@@ -1,7 +1,7 @@
 //! Password management endpoints
 
-use crate::core::models::User;
-use crate::server::AppState;
+use crate::core::models::user::types::User;
+use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
 use crate::utils::data::validation::DataValidator;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};

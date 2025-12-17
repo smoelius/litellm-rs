@@ -7,6 +7,7 @@ pub mod http;
 pub mod limiter;
 
 // Re-export commonly used types and functions
-pub use client::{ClientUtils, HttpClientConfig, RequestMetrics, RetryConfig};
+pub use client::types::{HttpClientConfig, RequestMetrics, RetryConfig};
+pub use client::utils::ClientUtils;
 pub use http::*;
 pub use limiter::*;

@@ -12,7 +12,7 @@
 //! ```
 
 use litellm_rs::core::providers::azure_ai::{AzureAIConfig, AzureAIProvider};
-use litellm_rs::core::traits::LLMProvider;
+use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use litellm_rs::core::types::common::RequestContext;
 use litellm_rs::core::types::requests::{ChatMessage, ChatRequest, MessageContent, MessageRole};
 

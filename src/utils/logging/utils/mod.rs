@@ -8,24 +8,22 @@
 //! - `sanitization`: Data sanitization and masking
 //! - `logger`: Logger struct for structured logging
 
-mod file_logging;
-mod logger;
-mod request_logging;
-mod sanitization;
+pub mod file_logging;
+pub mod logger;
+pub mod request_logging;
+pub mod sanitization;
 #[cfg(test)]
 mod tests;
-mod types;
-mod utils;
-
-// Re-export all public types and structs
-pub use file_logging::FileLogging;
-pub use logger::Logger;
-pub use request_logging::RequestLogging;
-pub use sanitization::Sanitization;
-pub use types::{LogEntry, LogLevel};
-pub use utils::LoggingUtils as CoreLoggingUtils;
+pub mod types;
+pub mod utils;
 
 use crate::core::providers::unified_provider::ProviderError;
+use file_logging::FileLogging;
+use request_logging::RequestLogging;
+use sanitization::Sanitization;
+use types::{LogEntry, LogLevel};
+use utils::LoggingUtils as CoreLoggingUtils;
+
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufWriter;

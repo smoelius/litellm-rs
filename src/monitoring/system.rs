@@ -22,7 +22,7 @@ pub struct MonitoringSystem {
     /// Metrics collector
     pub(super) metrics: Arc<metrics::MetricsCollector>,
     /// Health checker
-    pub(super) health: Arc<health::HealthChecker>,
+    pub(super) health: Arc<health::checker::HealthChecker>,
     /// Alert manager
     pub(super) alerts: Option<Arc<alerts::AlertManager>>,
     /// System start time
@@ -41,7 +41,7 @@ impl MonitoringSystem {
         let metrics = Arc::new(metrics::MetricsCollector::new(&config).await?);
 
         // Initialize health checker
-        let health = Arc::new(health::HealthChecker::new(storage.clone()).await?);
+        let health = Arc::new(health::checker::HealthChecker::new(storage.clone()).await?);
 
         // Initialize alert manager (if enabled)
         let alerts = None; // TODO: Add alerting config to MonitoringConfig
@@ -187,7 +187,7 @@ impl MonitoringSystem {
     }
 
     /// Get health status
-    pub async fn get_health_status(&self) -> Result<health::HealthStatus> {
+    pub async fn get_health_status(&self) -> Result<health::types::HealthStatus> {
         self.health.get_status().await
     }
 

@@ -1,6 +1,6 @@
 //! Permission checking methods
 
-use crate::core::models::User;
+use crate::core::models::user::types::User;
 use crate::utils::error::{GatewayError, Result};
 use std::collections::HashSet;
 

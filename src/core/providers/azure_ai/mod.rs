@@ -30,7 +30,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::LLMProvider;
+use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},

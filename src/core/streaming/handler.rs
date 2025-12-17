@@ -182,7 +182,7 @@ impl StreamingHandler {
     /// Create the final chunk with usage information
     async fn create_final_chunk(&self) -> Result<Event> {
         // Calculate actual token counts using the token counter
-        let token_counter = crate::utils::TokenCounter::new();
+        let token_counter = crate::utils::ai::counter::token_counter::TokenCounter::new();
         let completion_tokens = token_counter
             .count_completion_tokens(&self.model, &self.accumulated_content)
             .map(|estimate| estimate.input_tokens)

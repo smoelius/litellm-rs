@@ -3,7 +3,7 @@
 use crate::core::models::openai::{Model, ModelListResponse};
 use crate::core::providers::ProviderRegistry;
 use crate::server::routes::ApiResponse;
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
 use actix_web::{web, HttpResponse, Result as ActixResult};
 use tracing::{debug, error};

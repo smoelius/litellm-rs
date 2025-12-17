@@ -6,22 +6,21 @@ mod speech;
 mod tests;
 mod transcription;
 mod translation;
-mod types;
+
+// Make types module publicly accessible
+pub mod types;
 
 use crate::core::providers::ProviderRegistry;
 use crate::utils::error::Result;
 use std::sync::Arc;
 
-// Re-export public types for backward compatibility
-pub use types::{
-    format_to_content_type, supported_audio_formats, SegmentInfo, SpeechRequest, SpeechResponse,
-    TranscriptionRequest, TranscriptionResponse, TranslationRequest, TranslationResponse, WordInfo,
-};
-
 // Internal service imports
 use speech::SpeechService;
 use transcription::TranscriptionService;
 use translation::TranslationService;
+
+// Import types for AudioService method signatures
+use types::{SpeechRequest, SpeechResponse, TranscriptionRequest, TranscriptionResponse, TranslationRequest, TranslationResponse};
 
 /// Audio service for handling audio API requests
 pub struct AudioService {

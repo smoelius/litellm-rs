@@ -66,7 +66,7 @@ impl Router for DefaultRouter {
             use crate::core::providers::base::BaseConfig;
             use crate::core::providers::openai::config::OpenAIConfig;
             use crate::core::providers::openai::OpenAIProvider;
-            use crate::core::traits::LLMProvider;
+            use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
             let api_key = options
                 .api_key

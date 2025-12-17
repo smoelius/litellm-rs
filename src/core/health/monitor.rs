@@ -4,7 +4,8 @@
 //! for managing provider health monitoring.
 
 use super::provider::ProviderHealth;
-use crate::utils::error::recovery::{CircuitBreaker, CircuitBreakerConfig};
+use crate::utils::error::recovery::circuit_breaker::CircuitBreaker;
+use crate::utils::error::recovery::types::CircuitBreakerConfig;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 use std::time::Duration;

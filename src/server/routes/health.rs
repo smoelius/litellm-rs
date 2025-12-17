@@ -4,7 +4,7 @@
 
 #![allow(dead_code)]
 
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
 use actix_web::{HttpResponse, Result as ActixResult, web};
 

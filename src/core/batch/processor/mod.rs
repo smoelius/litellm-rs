@@ -6,10 +6,7 @@
 //! - `execution`: Batch execution and processing logic
 //! - `utils`: Utility methods for status updates and progress tracking
 
-mod core;
+pub mod core;
 mod execution;
 mod utils;
 mod validation;
-
-// Re-export the main BatchProcessor type
-pub use core::BatchProcessor;

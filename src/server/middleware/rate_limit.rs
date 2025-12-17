@@ -1,6 +1,6 @@
 //! Rate limiting middleware
 
-use crate::server::AppState;
+use crate::server::state::AppState;
 use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::web;
 use futures::future::{ready, Ready};

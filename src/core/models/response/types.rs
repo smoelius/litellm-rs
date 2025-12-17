@@ -2,11 +2,13 @@
 
 use super::super::Metadata;
 use super::super::openai::*;
-use super::{
-    AudioTranscriptionResponse, CompletionResponse, EmbeddingResponse, ErrorResponse,
-    ImageGenerationResponse, ModerationResponse, RerankResponse,
-};
-use super::{CacheInfo, ProviderInfo, ResponseMetrics};
+use super::completion::CompletionResponse;
+use super::embedding::EmbeddingResponse;
+use super::error::ErrorResponse;
+use super::media::{AudioTranscriptionResponse, ImageGenerationResponse};
+use super::metadata::{CacheInfo, ProviderInfo, ResponseMetrics};
+use super::moderation::ModerationResponse;
+use super::rerank::RerankResponse;
 use serde::{Deserialize, Serialize};
 
 /// Response type enumeration
@@ -153,7 +155,7 @@ mod tests {
     #[test]
     fn test_error_response() {
         let error_response = ErrorResponse {
-            error: super::super::ErrorDetail {
+            error: crate::core::models::response::error::ErrorDetail {
                 message: "Test error".to_string(),
                 error_type: "invalid_request".to_string(),
                 code: Some("400".to_string()),

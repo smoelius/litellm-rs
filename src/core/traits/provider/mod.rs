@@ -21,9 +21,9 @@
 // Module declarations
 mod config;
 mod handle;
-mod llm_provider;
+pub mod llm_provider;
 
-// Re-export all public types for backward compatibility
+// Re-export all public types
 pub use config::ProviderConfig;
 pub use handle::ProviderHandle;
-pub use llm_provider::LLMProvider;
+pub use llm_provider::trait_definition::LLMProvider;

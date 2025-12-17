@@ -1,7 +1,7 @@
 //! Function call processing and tool call handling
 
 use super::executor::FunctionCallingHandler;
-use super::types::*;
+use super::types::ToolCall;
 use crate::core::models::openai::{ChatMessage, MessageContent, MessageRole};
 use crate::utils::error::{GatewayError, Result};
 use serde_json::Value;

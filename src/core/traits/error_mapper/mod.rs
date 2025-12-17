@@ -10,14 +10,9 @@
 //! - `implementations` - Provider-specific error mappers (OpenAI, Anthropic)
 //! - `tests` - Comprehensive test suite
 
-mod trait_def;
-mod types;
-mod implementations;
+pub mod trait_def;
+pub mod types;
+pub mod implementations;
 
 #[cfg(test)]
 mod tests;
-
-// Re-export all public items for backward compatibility
-pub use trait_def::ErrorMapper;
-pub use types::GenericErrorMapper;
-pub use implementations::{OpenAIErrorMapper, AnthropicErrorMapper};

@@ -2,16 +2,10 @@
 //!
 //! This module provides utilities for error recovery, circuit breakers, and resilience patterns.
 
-mod circuit_breaker;
-mod resilience;
-mod retry;
-mod types;
-
-// Re-export all public types and structs for backward compatibility
-pub use circuit_breaker::CircuitBreaker;
-pub use resilience::{Bulkhead, TimeoutWrapper};
-pub use retry::RetryPolicy;
-pub use types::{CircuitBreakerConfig, CircuitBreakerMetrics, CircuitState, RetryConfig};
+pub mod circuit_breaker;
+pub mod resilience;
+pub mod retry;
+pub mod types;
 
 // Include tests module
 #[cfg(test)]

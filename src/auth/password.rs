@@ -1,6 +1,8 @@
 //! Password management operations
 
 use super::system::AuthSystem;
+use crate::utils::auth::crypto::keys::generate_token;
+use crate::utils::auth::crypto::password::{hash_password, verify_password};
 use crate::utils::error::{GatewayError, Result};
 use tracing::info;
 use uuid::Uuid;
@@ -24,12 +26,12 @@ impl AuthSystem {
             .ok_or_else(|| GatewayError::not_found("User not found"))?;
 
         // Verify old password
-        if !crate::utils::auth::crypto::verify_password(old_password, &user.password_hash)? {
+        if !verify_password(old_password, &user.password_hash)? {
             return Err(GatewayError::auth("Invalid current password"));
         }
 
         // Hash new password
-        let new_password_hash = crate::utils::auth::crypto::hash_password(new_password)?;
+        let new_password_hash = hash_password(new_password)?;
 
         // Update password
         self.storage
@@ -54,7 +56,7 @@ impl AuthSystem {
             .ok_or_else(|| GatewayError::not_found("User not found"))?;
 
         // Generate reset token
-        let reset_token = crate::utils::auth::crypto::generate_token(32);
+        let reset_token = generate_token(32);
         let expires_at = chrono::Utc::now() + chrono::Duration::hours(1);
 
         // Store reset token
@@ -80,7 +82,7 @@ impl AuthSystem {
             .ok_or_else(|| GatewayError::auth("Invalid or expired reset token"))?;
 
         // Hash new password
-        let password_hash = crate::utils::auth::crypto::hash_password(new_password)?;
+        let password_hash = hash_password(new_password)?;
 
         // Update password
         self.storage

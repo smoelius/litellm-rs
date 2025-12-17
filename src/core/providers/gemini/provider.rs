@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use crate::core::providers::base::GlobalPoolManager;
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::{LLMProvider, ProviderConfig};
+use crate::core::traits::{ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},

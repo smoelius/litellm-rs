@@ -155,7 +155,7 @@ impl DefaultRouter {
         context: RequestContext,
     ) -> Result<CompletionResponse> {
         use crate::core::providers::openrouter::{OpenRouterConfig, OpenRouterProvider};
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         let config = OpenRouterConfig {
             api_key: api_key.to_string(),
@@ -197,7 +197,7 @@ impl DefaultRouter {
         context: RequestContext,
     ) -> Result<CompletionResponse> {
         use crate::core::providers::anthropic::{AnthropicConfig, AnthropicProvider};
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         let config = AnthropicConfig::new(api_key)
             .with_base_url(api_base)
@@ -230,7 +230,7 @@ impl DefaultRouter {
         use crate::core::providers::base::BaseConfig;
         use crate::core::providers::openai::config::OpenAIConfig;
         use crate::core::providers::openai::OpenAIProvider;
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         let config = OpenAIConfig {
             base: BaseConfig {
@@ -278,7 +278,7 @@ impl DefaultRouter {
         context: RequestContext,
     ) -> Result<CompletionResponse> {
         use crate::core::providers::azure_ai::{AzureAIConfig, AzureAIProvider};
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         let mut config = AzureAIConfig::new("azure_ai");
         config.base.api_key = Some(api_key.to_string());

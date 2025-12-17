@@ -56,7 +56,7 @@ use crate::core::types::{
     responses::{ChatChunk, ChatResponse, EmbeddingResponse, ImageGenerationResponse},
 };
 
-use crate::core::traits::LLMProvider;
+use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
 /// Main Azure OpenAI provider - complete implementation
 #[derive(Debug, Clone)]

@@ -217,7 +217,7 @@ mod tests {
     #[ignore]
     async fn test_groq_provider_chat_completion() {
         use litellm_rs::core::providers::groq::GroqProvider;
-        use litellm_rs::core::traits::LLMProvider;
+        use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         use litellm_rs::core::types::common::RequestContext;
 
         let api_key =

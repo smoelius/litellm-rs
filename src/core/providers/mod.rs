@@ -36,7 +36,7 @@ pub mod provider_registry;
 pub mod unified_provider;
 
 // Export main types
-pub use crate::core::traits::LLMProvider;
+pub use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::common::{ProviderCapability, RequestContext};
 use crate::core::types::requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest};
 use crate::core::types::responses::{
@@ -358,7 +358,7 @@ impl Provider {
 
     /// Check if provider supports a specific model
     pub fn supports_model(&self, model: &str) -> bool {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         dispatch_provider_value!(self, supports_model, model)
     }
 
@@ -382,19 +382,19 @@ impl Provider {
         request: ChatRequest,
         context: RequestContext,
     ) -> Result<ChatResponse, UnifiedProviderError> {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         dispatch_provider_async!(self, chat_completion, request, context)
     }
 
     /// Execute health check
     pub async fn health_check(&self) -> crate::core::types::common::HealthStatus {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         dispatch_provider_async_direct!(self, health_check)
     }
 
     /// List available models
     pub fn list_models(&self) -> &[crate::core::types::common::ModelInfo] {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         dispatch_provider_value!(self, models)
     }
 
@@ -431,7 +431,7 @@ impl Provider {
         >,
         UnifiedProviderError,
     > {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
         use futures::StreamExt;
 
         match self {
@@ -477,7 +477,7 @@ impl Provider {
         request: EmbeddingRequest,
         context: RequestContext,
     ) -> Result<EmbeddingResponse, UnifiedProviderError> {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         match self {
             Provider::OpenAI(p) => LLMProvider::embeddings(p, request, context).await,
@@ -495,7 +495,7 @@ impl Provider {
         request: ImageGenerationRequest,
         context: RequestContext,
     ) -> Result<ImageGenerationResponse, UnifiedProviderError> {
-        use crate::core::traits::LLMProvider;
+        use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
         match self {
             Provider::OpenAI(p) => LLMProvider::image_generation(p, request, context).await,

@@ -3,7 +3,7 @@
 //! Comprehensive error types and mapping for AWS Bedrock provider
 
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::ErrorMapper;
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 use serde_json::Value;
 
 /// Bedrock-specific error type (alias for ProviderError)

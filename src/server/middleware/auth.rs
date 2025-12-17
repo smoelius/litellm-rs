@@ -4,7 +4,7 @@ use crate::auth::AuthMethod;
 use crate::core::models::RequestContext;
 use crate::server::middleware::auth_rate_limiter::get_auth_rate_limiter;
 use crate::server::middleware::helpers::{extract_auth_method, is_public_route};
-use crate::server::AppState;
+use crate::server::state::AppState;
 use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
 use actix_web::{web, HttpMessage, HttpRequest};
 use futures::future::{ready, Ready};

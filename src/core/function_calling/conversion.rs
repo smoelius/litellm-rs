@@ -1,7 +1,7 @@
 //! Provider-specific format conversion for function calling
 
 use super::executor::FunctionCallingHandler;
-use super::types::*;
+use super::types::{FunctionCall, ToolCall, ToolDefinition};
 use crate::utils::error::{GatewayError, Result};
 use serde_json::{json, Value};
 

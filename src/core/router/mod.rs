@@ -49,7 +49,7 @@ pub use health::HealthChecker;
 pub use legacy_router::Router;
 pub use load_balancer::LoadBalancer;
 pub use metrics::RouterMetrics;
-pub use strategy::RoutingStrategy;
+pub use strategy::types::RoutingStrategy;
 
 // Re-exports from new modular router (UnifiedRouter)
 pub use config::{RouterConfig, RoutingStrategy as UnifiedRoutingStrategy};

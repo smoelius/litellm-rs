@@ -8,41 +8,13 @@ use crate::utils::error::Result;
 use futures::stream::Stream;
 
 // Module declarations
-mod types;
-mod handler;
+pub mod types;
+pub mod handler;
 pub mod providers;
 pub mod utils;
 
 #[cfg(test)]
 mod tests;
-
-// Re-export types for backward compatibility
-pub use types::{
-    ChatCompletionChunk,
-    ChatCompletionChunkChoice,
-    ChatCompletionDelta,
-    Event,
-    FunctionCallDelta,
-    ToolCallDelta,
-};
-
-// Re-export handler
-pub use handler::StreamingHandler;
-
-// Re-export provider implementations
-pub use providers::{
-    AnthropicStreaming,
-    GenericStreaming,
-    OpenAIStreaming,
-};
-
-// Re-export utils
-pub use utils::{
-    create_error_event,
-    create_heartbeat_event,
-    is_done_line,
-    parse_sse_line,
-};
 
 /// Create a Server-Sent Events response for Actix-web
 pub fn create_sse_response<S>(stream: S) -> HttpResponse

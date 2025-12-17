@@ -7,7 +7,7 @@ use crate::core::models::openai::{
 use crate::core::models::RequestContext;
 use crate::core::providers::ProviderRegistry;
 use crate::server::routes::errors;
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::utils::data::validation::RequestValidator;
 use crate::utils::error::GatewayError;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};

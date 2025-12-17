@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::jwt::{Claims, JwtHandler, TokenType};
+    use crate::auth::jwt::types::{Claims, JwtHandler, TokenType};
     use crate::config::AuthConfig;
     use uuid::Uuid;
 

@@ -1,7 +1,7 @@
 //! Example of using xAI Provider
 
 use litellm_rs::core::providers::xai::{XAIConfig, XAIProvider};
-use litellm_rs::core::traits::LLMProvider;
+use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use litellm_rs::core::types::{
     common::RequestContext,
     requests::{ChatMessage, ChatRequest, MessageContent, MessageRole},

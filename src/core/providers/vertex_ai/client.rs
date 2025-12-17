@@ -9,7 +9,7 @@ use tokio::sync::RwLock;
 use tracing::debug;
 
 use crate::core::{
-    traits::{ErrorMapper, provider::LLMProvider},
+    traits::{error_mapper::trait_def::ErrorMapper, provider::LLMProvider},
     types::{
         common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
         requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},

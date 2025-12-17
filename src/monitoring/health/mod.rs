@@ -4,14 +4,10 @@
 
 #![allow(dead_code)]
 
-mod checker;
-mod components;
-mod tasks;
-mod types;
+pub mod checker;
+pub mod components;
+pub mod tasks;
+pub mod types;
 
 #[cfg(test)]
 mod tests;
-
-// Re-export public types
-pub use checker::HealthChecker;
-pub use types::{ComponentHealth, HealthCheckConfig, HealthStatus, HealthSummary};

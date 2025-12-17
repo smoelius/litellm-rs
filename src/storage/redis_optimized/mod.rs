@@ -6,7 +6,8 @@
 //! # Usage
 //!
 //! ```ignore
-//! use litellm_rs::storage::redis_optimized::{OptimizedRedisPool, PoolConfig};
+//! use litellm_rs::storage::redis_optimized::pool::OptimizedRedisPool;
+//! use litellm_rs::storage::redis_optimized::types::PoolConfig;
 //!
 //! let config = RedisConfig { url: "redis://localhost:6379".to_string(), ..Default::default() };
 //! let pool = OptimizedRedisPool::new(&config, PoolConfig::default()).await?;
@@ -20,14 +21,10 @@
 //! println!("Active connections: {}", stats.active_connections);
 //! ```
 
-mod connection;
-mod operations;
-mod pool;
-mod types;
+pub mod connection;
+pub mod operations;
+pub mod pool;
+pub mod types;
 
 #[cfg(test)]
 mod tests;
-
-// Re-export public types for backward compatibility
-pub use pool::OptimizedRedisPool;
-pub use types::{PoolConfig, PoolStats};

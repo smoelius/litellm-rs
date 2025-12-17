@@ -6,20 +6,9 @@
 pub mod alerts;
 pub mod health;
 pub mod metrics;
+pub mod system;
+pub mod types;
 
 // Internal submodules
 mod background;
-mod system;
 mod tests;
-mod types;
-
-// Re-export public types
-pub use system::MonitoringSystem;
-pub use types::{
-    Alert, AlertSeverity, ErrorMetrics, LatencyPercentiles, PerformanceMetrics, ProviderMetrics,
-    RequestMetrics, SystemResourceMetrics,
-};
-
-// SystemMetrics is used internally but also available if needed
-#[allow(unused_imports)]
-pub use types::SystemMetrics;

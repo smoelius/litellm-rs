@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::pin::Pin;
 
-use crate::core::traits::error_mapper::ErrorMapper;
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 use crate::core::types::errors::ProviderErrorTrait;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},

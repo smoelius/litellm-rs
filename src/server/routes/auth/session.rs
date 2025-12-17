@@ -1,6 +1,6 @@
 //! Session management endpoints
 
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
 use actix_web::http::header::HeaderMap;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};

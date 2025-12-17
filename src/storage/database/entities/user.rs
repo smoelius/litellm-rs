@@ -78,8 +78,9 @@ impl ActiveModelBehavior for ActiveModel {}
 // Conversion methods between SeaORM model and our domain model
 impl Model {
     /// Convert SeaORM model to domain user model
-    pub fn to_domain_user(&self) -> crate::core::models::user::User {
-        use crate::core::models::user::{UserPreferences, UserProfile, UserRole, UserStatus};
+    pub fn to_domain_user(&self) -> crate::core::models::user::types::User {
+        use crate::core::models::user::preferences::UserPreferences;
+        use crate::core::models::user::types::{UserProfile, UserRole, UserStatus};
         use crate::core::models::{Metadata, UsageStats};
         use std::str::FromStr;
 
@@ -100,7 +101,7 @@ impl Model {
             _ => UserStatus::Pending,
         };
 
-        crate::core::models::user::User {
+        crate::core::models::user::types::User {
             metadata,
             username: self.username.clone(),
             email: self.email.clone(),
@@ -120,7 +121,7 @@ impl Model {
     }
 
     /// Convert domain user model to SeaORM active model
-    pub fn from_domain_user(user: &crate::core::models::user::User) -> ActiveModel {
+    pub fn from_domain_user(user: &crate::core::models::user::types::User) -> ActiveModel {
         ActiveModel {
             id: Set(user.metadata.id),
             username: Set(user.username.clone()),
@@ -129,11 +130,11 @@ impl Model {
             display_name: Set(user.display_name.clone()),
             role: Set(user.role.to_string()),
             status: Set(match user.status {
-                crate::core::models::user::UserStatus::Active => "active".to_string(),
-                crate::core::models::user::UserStatus::Inactive => "inactive".to_string(),
-                crate::core::models::user::UserStatus::Pending => "pending".to_string(),
-                crate::core::models::user::UserStatus::Suspended => "suspended".to_string(),
-                crate::core::models::user::UserStatus::Deleted => "deleted".to_string(),
+                crate::core::models::user::types::UserStatus::Active => "active".to_string(),
+                crate::core::models::user::types::UserStatus::Inactive => "inactive".to_string(),
+                crate::core::models::user::types::UserStatus::Pending => "pending".to_string(),
+                crate::core::models::user::types::UserStatus::Suspended => "suspended".to_string(),
+                crate::core::models::user::types::UserStatus::Deleted => "deleted".to_string(),
             }),
             email_verified: Set(user.email_verified),
             two_factor_enabled: Set(user.two_factor_enabled),

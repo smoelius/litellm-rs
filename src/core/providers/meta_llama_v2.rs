@@ -14,8 +14,8 @@ use std::pin::Pin;
 use tracing::warn;
 
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::error_mapper::ErrorMapper;
-use crate::core::traits::provider::{LLMProvider, ProviderConfig as ProviderConfigTrait};
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
+use crate::core::traits::provider::{ProviderConfig as ProviderConfigTrait, llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{

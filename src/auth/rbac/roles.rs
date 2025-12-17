@@ -1,6 +1,7 @@
 //! Role management methods
 
-use crate::core::models::{TeamRole, UserRole};
+use crate::core::models::TeamRole;
+use crate::core::models::user::types::UserRole;
 use crate::utils::error::{GatewayError, Result};
 
 use super::system::RbacSystem;

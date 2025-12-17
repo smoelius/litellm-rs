@@ -6,7 +6,7 @@
 mod tests {
     use litellm_rs::core::providers::ProviderError;
     use litellm_rs::core::router::load_balancer::{FallbackConfig, LoadBalancer};
-    use litellm_rs::core::router::strategy::RoutingStrategy;
+    use litellm_rs::core::router::strategy::types::RoutingStrategy;
 
     /// Test load balancer creation
     #[tokio::test]

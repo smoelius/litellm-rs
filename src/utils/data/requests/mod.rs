@@ -1,10 +1,7 @@
-mod helpers;
-mod processing;
-mod types;
-mod validation;
+pub mod helpers;
+pub mod processing;
+pub mod types;
+pub mod validation;
 
 #[cfg(test)]
 mod tests;
-
-// Re-export all public types and structs for backward compatibility
-pub use types::{ChatCompletionRequest, MessageContent, RequestUtils, ToolCall, ToolFunction};

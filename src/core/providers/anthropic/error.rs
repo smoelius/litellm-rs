@@ -8,7 +8,7 @@ use crate::core::providers::unified_provider::ProviderError;
 pub type AnthropicError = ProviderError;
 
 /// Error
-pub use crate::core::traits::error_mapper::AnthropicErrorMapper;
+pub use crate::core::traits::error_mapper::implementations::AnthropicErrorMapper;
 
 impl AnthropicErrorMapper {
     /// Error

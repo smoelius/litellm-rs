@@ -1,7 +1,7 @@
 //! Load balancer tests
 
 use crate::core::router::load_balancer::{DeploymentInfo, FallbackConfig, LoadBalancer};
-use crate::core::router::strategy::RoutingStrategy;
+use crate::core::router::strategy::types::RoutingStrategy;
 use crate::core::providers::unified_provider::ProviderError;
 
 #[test]

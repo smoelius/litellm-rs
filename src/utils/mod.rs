@@ -30,15 +30,16 @@ pub mod perf; // Performance optimization
 pub mod sys; // System utilities // Business logic
 
 // Re-export commonly used types from each module for convenience
-pub use ai::{ModelCapabilities, ModelUtils, TokenCounter, TokenUsage, TokenUtils, TokenizerType};
+pub use ai::models::capabilities::ModelCapabilities;
+pub use ai::models::utils::ModelUtils;
+pub use ai::{TokenUsage, TokenUtils, TokenizerType};
 pub use auth::AuthUtils;
 pub use config::{ConfigDefaults, ConfigManager, ConfigUtils};
-pub use data::{
-    ChatCompletionRequest, DataUtils, MessageContent, RequestUtils, ToolCall, ToolFunction,
-};
+pub use data::DataUtils;
 pub use error::{ErrorCategory, ErrorContext, ErrorUtils};
 pub use logging::{LogEntry, LogLevel, Logger, LoggingUtils};
-pub use net::{ClientUtils, HttpClientConfig, RequestMetrics, RetryConfig};
+pub use net::client::types::{HttpClientConfig, RequestMetrics, RetryConfig};
+pub use net::client::utils::ClientUtils;
 
 // Re-export string pool for performance benchmarks
 pub mod string_pool {

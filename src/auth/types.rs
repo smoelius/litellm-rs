@@ -1,7 +1,9 @@
 //! Authentication and authorization types
 
-use crate::core::models::{ApiKey, User, UserSession};
+use crate::core::models::ApiKey;
 use crate::core::models::RequestContext;
+use crate::core::models::user::session::UserSession;
+use crate::core::models::user::types::User;
 
 /// Authentication result
 #[derive(Debug, Clone)]

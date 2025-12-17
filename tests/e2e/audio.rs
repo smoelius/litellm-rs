@@ -5,7 +5,8 @@
 
 #[cfg(test)]
 mod tests {
-    use litellm_rs::core::audio::{AudioService, TranscriptionRequest, TranslationRequest};
+    use litellm_rs::core::audio::AudioService;
+    use litellm_rs::core::audio::types::{TranscriptionRequest, TranslationRequest};
     use litellm_rs::core::providers::ProviderRegistry;
     use std::sync::Arc;
 

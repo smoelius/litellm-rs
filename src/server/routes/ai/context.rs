@@ -1,6 +1,8 @@
 //! Request context and authentication helpers
 
-use crate::core::models::{ApiKey, RequestContext, User};
+use crate::core::models::ApiKey;
+use crate::core::models::RequestContext;
+use crate::core::models::user::types::User;
 use actix_web::http::header::HeaderMap;
 use actix_web::{HttpRequest, Result as ActixResult};
 use tracing::debug;

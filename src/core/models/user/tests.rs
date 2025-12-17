@@ -2,7 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::core::models::user::{SessionType, User, UserRole, UserSession};
+    use crate::core::models::user::session::{SessionType, UserSession};
+    use crate::core::models::user::types::{User, UserRole};
     use uuid::Uuid;
 
     #[test]

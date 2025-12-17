@@ -6,7 +6,7 @@
 #[cfg(test)]
 mod tests {
     use litellm_rs::core::providers::groq::{GroqConfig, GroqProvider};
-    use litellm_rs::core::traits::LLMProvider;
+    use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
     use litellm_rs::core::types::common::ProviderCapability;
 
     /// Test Groq provider creation

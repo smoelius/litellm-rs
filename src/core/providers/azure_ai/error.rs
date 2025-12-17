@@ -3,7 +3,7 @@
 //! Error handling
 
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::error_mapper::ErrorMapper;
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 
 /// Error
 #[derive(Debug, Clone, Default)]

@@ -1,6 +1,7 @@
 //! Strategy executor tests
 
-use crate::core::router::strategy::{ProviderUsage, RoutingStrategy, StrategyExecutor};
+use crate::core::router::strategy::executor::StrategyExecutor;
+use crate::core::router::strategy::types::{ProviderUsage, RoutingStrategy};
 use crate::core::types::common::RequestContext;
 
 #[test]

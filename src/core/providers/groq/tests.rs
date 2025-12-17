@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use super::super::*;
-    use crate::core::traits::LLMProvider;
+    use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
     use crate::core::types::common::ProviderCapability;
 
     #[tokio::test]
@@ -157,7 +157,7 @@ mod tests {
 
     #[test]
     fn test_error_mapping() {
-        use crate::core::traits::ErrorMapper;
+        use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 
         let mapper = error::GroqErrorMapper;
 

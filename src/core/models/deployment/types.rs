@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use uuid::Uuid;
 
-use super::health::DeploymentHealth;
-use super::metrics::DeploymentMetrics;
+use crate::core::models::deployment::health::DeploymentHealth;
+use crate::core::models::deployment::metrics::DeploymentMetrics;
 
 /// Provider deployment configuration
 #[derive(Debug, Clone)]

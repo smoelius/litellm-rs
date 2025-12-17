@@ -8,7 +8,7 @@ use crate::core::types::{
     responses::ChatResponse,
 };
 
-use super::llm_provider::LLMProvider;
+use super::llm_provider::trait_definition::LLMProvider;
 
 /// Provider handle for routing system
 ///

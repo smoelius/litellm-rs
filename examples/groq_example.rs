@@ -1,7 +1,7 @@
 //! Example of using the Groq provider
 
 use litellm_rs::core::providers::groq::{GroqConfig, GroqProvider};
-use litellm_rs::core::traits::LLMProvider;
+use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

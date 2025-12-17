@@ -2,7 +2,7 @@
 
 use super::manager::AlertManager;
 use super::types::{AlertRule, ComparisonOperator};
-use crate::monitoring::Alert;
+use crate::monitoring::types::Alert;
 use crate::utils::error::Result;
 use std::time::Duration;
 use tracing::{debug, error, warn};

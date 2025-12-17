@@ -2,7 +2,8 @@
 
 use super::types::{AuthMethod, AuthResult, AuthzResult};
 use crate::config::AuthConfig;
-use crate::core::models::{RequestContext, User, UserRole};
+use crate::core::models::RequestContext;
+use crate::core::models::user::types::{User, UserRole};
 use crate::storage::StorageLayer;
 use crate::utils::error::Result;
 use std::sync::Arc;
@@ -16,9 +17,9 @@ pub struct AuthSystem {
     /// Storage layer for user data
     pub(super) storage: Arc<StorageLayer>,
     /// JWT handler
-    pub(super) jwt: Arc<crate::auth::jwt::JwtHandler>,
+    pub(super) jwt: Arc<crate::auth::jwt::types::JwtHandler>,
     /// API key handler
-    pub(super) api_key: Arc<crate::auth::api_key::ApiKeyHandler>,
+    pub(super) api_key: Arc<crate::auth::api_key::creation::ApiKeyHandler>,
     /// RBAC system
     pub(super) rbac: Arc<crate::auth::rbac::RbacSystem>,
 }
@@ -31,10 +32,10 @@ impl AuthSystem {
         let config = Arc::new(config.clone());
 
         // Initialize JWT handler
-        let jwt = Arc::new(crate::auth::jwt::JwtHandler::new(&config).await?);
+        let jwt = Arc::new(crate::auth::jwt::types::JwtHandler::new(&config).await?);
 
         // Initialize API key handler
-        let api_key = Arc::new(crate::auth::api_key::ApiKeyHandler::new(storage.clone()).await?);
+        let api_key = Arc::new(crate::auth::api_key::creation::ApiKeyHandler::new(storage.clone()).await?);
 
         // Initialize RBAC system
         let rbac = Arc::new(crate::auth::rbac::RbacSystem::new(&config.rbac).await?);
@@ -287,12 +288,12 @@ impl AuthSystem {
     }
 
     /// Get JWT handler
-    pub fn jwt(&self) -> &crate::auth::jwt::JwtHandler {
+    pub fn jwt(&self) -> &crate::auth::jwt::types::JwtHandler {
         &self.jwt
     }
 
     /// Get API key handler
-    pub fn api_key(&self) -> &crate::auth::api_key::ApiKeyHandler {
+    pub fn api_key(&self) -> &crate::auth::api_key::creation::ApiKeyHandler {
         &self.api_key
     }
 

@@ -3,7 +3,7 @@
 use super::channels::{NotificationChannel, SlackChannel};
 use super::types::{AlertRule, AlertStats, AlertStorage};
 use crate::config::AlertingConfig;
-use crate::monitoring::{Alert, AlertSeverity};
+use crate::monitoring::types::{Alert, AlertSeverity};
 use crate::utils::error::Result;
 use parking_lot::{Mutex, RwLock};
 use std::collections::VecDeque;

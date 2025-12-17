@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::core::traits::LLMProvider;
+use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},

@@ -1,7 +1,8 @@
 //! User management operations
 
 use super::system::AuthSystem;
-use crate::core::models::User;
+use crate::core::models::user::types::User;
+use crate::utils::auth::crypto::password::{hash_password, verify_password};
 use crate::utils::error::{GatewayError, Result};
 use tracing::info;
 
@@ -16,7 +17,7 @@ impl AuthSystem {
         info!("Creating new user: {}", username);
 
         // Hash password
-        let password_hash = crate::utils::auth::crypto::hash_password(&password)?;
+        let password_hash = hash_password(&password)?;
 
         // Create user
         let user = User::new(username, email, password_hash);
@@ -38,7 +39,7 @@ impl AuthSystem {
             .ok_or_else(|| GatewayError::auth("Invalid username or password"))?;
 
         // Verify password
-        if !crate::utils::auth::crypto::verify_password(password, &user.password_hash)? {
+        if !verify_password(password, &user.password_hash)? {
             return Err(GatewayError::auth("Invalid username or password"));
         }
 

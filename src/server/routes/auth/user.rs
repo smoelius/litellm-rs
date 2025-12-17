@@ -1,6 +1,6 @@
 //! Current user endpoint and helpers
 
-use crate::core::models::User;
+use crate::core::models::user::types::User;
 use crate::server::routes::ApiResponse;
 use actix_web::http::header::HeaderMap;
 use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};

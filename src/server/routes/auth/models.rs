@@ -1,7 +1,7 @@
 //! Request and response models for authentication endpoints
 
-use crate::auth::jwt::TokenPair;
-use crate::core::models::User;
+use crate::auth::jwt::types::TokenPair;
+use crate::core::models::user::types::User;
 use serde::{Deserialize, Serialize};
 
 /// User registration request

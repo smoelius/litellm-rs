@@ -2,7 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::{presets, ConfigBuilder, ProviderConfigBuilder};
+    use super::super::presets;
+    use super::super::types::{ConfigBuilder, ProviderConfigBuilder};
 
     #[test]
     fn test_config_builder() {

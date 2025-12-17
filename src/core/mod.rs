@@ -56,7 +56,7 @@ pub struct Gateway {
     /// Authentication system
     auth: Arc<crate::auth::AuthSystem>,
     /// Monitoring system
-    monitoring: Arc<crate::monitoring::MonitoringSystem>,
+    monitoring: Arc<crate::monitoring::system::MonitoringSystem>,
 }
 
 impl Gateway {
@@ -78,7 +78,7 @@ impl Gateway {
         // Initialize monitoring system
         debug!("Initializing monitoring system");
         let monitoring = Arc::new(
-            crate::monitoring::MonitoringSystem::new(&config.gateway.monitoring, storage.clone())
+            crate::monitoring::system::MonitoringSystem::new(&config.gateway.monitoring, storage.clone())
                 .await?,
         );
 
@@ -180,7 +180,7 @@ impl Gateway {
     }
 
     /// Get monitoring system
-    pub fn monitoring(&self) -> &crate::monitoring::MonitoringSystem {
+    pub fn monitoring(&self) -> &crate::monitoring::system::MonitoringSystem {
         &self.monitoring
     }
 

@@ -2,9 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use super::super::builtin::*;
-    use super::super::executor::FunctionCallingHandler;
-    use super::super::executor::FunctionExecutor;
+    use super::super::builtin::{CalculatorFunction, WeatherFunction};
+    use super::super::executor::{FunctionCallingHandler, FunctionExecutor};
     use serde_json::json;
 
     #[test]

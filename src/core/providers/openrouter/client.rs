@@ -7,7 +7,7 @@ use std::pin::Pin;
 use std::time::Duration;
 use tracing::{debug, error, warn};
 
-use crate::core::traits::{ErrorMapper, ProviderConfig, provider::LLMProvider};
+use crate::core::traits::{error_mapper::trait_def::ErrorMapper, ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},

@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use crate::core::models::openai::{ChatMessage, MessageContent, MessageRole};
-    use crate::utils::ai::counter::TokenCounter;
+    use crate::utils::ai::counter::token_counter::TokenCounter;
 
     #[test]
     fn test_text_token_estimation() {

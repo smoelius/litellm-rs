@@ -1,6 +1,6 @@
 //! Convenience functions for common configurations
 
-use super::{ProviderConfigBuilder, ServerConfigBuilder};
+use super::types::{ProviderConfigBuilder, ServerConfigBuilder};
 use crate::utils::error::Result;
 use std::time::Duration;
 

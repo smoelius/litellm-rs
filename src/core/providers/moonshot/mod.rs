@@ -17,7 +17,7 @@ use crate::core::providers::base_provider::{
     OpenAIRequestTransformer, UrlBuilder,
 };
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::{ErrorMapper, ProviderConfig, provider::LLMProvider};
+use crate::core::traits::{error_mapper::trait_def::ErrorMapper, ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},

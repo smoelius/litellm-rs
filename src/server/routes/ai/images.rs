@@ -4,7 +4,7 @@ use crate::core::models::openai::{ImageGenerationRequest, ImageGenerationRespons
 use crate::core::models::RequestContext;
 use crate::core::providers::ProviderRegistry;
 use crate::server::routes::ApiResponse;
-use crate::server::AppState;
+use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
 use tracing::{error, info};

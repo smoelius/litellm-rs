@@ -3,7 +3,7 @@
 //! This module provides efficient batch operations for database interactions,
 //! reducing the number of round trips and improving overall performance.
 
-use crate::core::models::User;
+use crate::core::models::user::types::User;
 use crate::storage::database::Database;
 use crate::utils::error::{GatewayError, Result};
 use sqlx::{Postgres, Sqlite, Transaction};

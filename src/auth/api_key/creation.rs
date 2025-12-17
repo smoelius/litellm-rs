@@ -3,9 +3,10 @@
 //! This module provides methods for creating and verifying API keys.
 
 use super::types::{ApiKeyVerification, CreateApiKeyRequest};
-use crate::core::models::{ApiKey, Metadata, UsageStats, User};
+use crate::core::models::{ApiKey, Metadata, UsageStats};
+use crate::core::models::user::types::User;
 use crate::storage::StorageLayer;
-use crate::utils::auth::crypto;
+use crate::utils::auth::crypto::keys::{extract_api_key_prefix, generate_api_key, hash_api_key};
 use crate::utils::error::Result;
 use chrono::Utc;
 use std::sync::Arc;
@@ -36,9 +37,9 @@ impl ApiKeyHandler {
         info!("Creating API key: {}", name);
 
         // Generate API key
-        let raw_key = crypto::generate_api_key();
-        let key_hash = crypto::hash_api_key(&raw_key);
-        let key_prefix = crypto::extract_api_key_prefix(&raw_key);
+        let raw_key = generate_api_key();
+        let key_hash = hash_api_key(&raw_key);
+        let key_prefix = extract_api_key_prefix(&raw_key);
 
         // Create API key object
         let api_key = ApiKey {
@@ -71,9 +72,9 @@ impl ApiKeyHandler {
         info!("Creating API key with options: {}", request.name);
 
         // Generate API key
-        let raw_key = crypto::generate_api_key();
-        let key_hash = crypto::hash_api_key(&raw_key);
-        let key_prefix = crypto::extract_api_key_prefix(&raw_key);
+        let raw_key = generate_api_key();
+        let key_hash = hash_api_key(&raw_key);
+        let key_prefix = extract_api_key_prefix(&raw_key);
 
         // Create API key object
         let api_key = ApiKey {
@@ -103,7 +104,7 @@ impl ApiKeyHandler {
         debug!("Verifying API key");
 
         // Hash the provided key
-        let key_hash = crypto::hash_api_key(raw_key);
+        let key_hash = hash_api_key(raw_key);
 
         // Find API key in database
         let api_key = match self.storage.db().find_api_key_by_hash(&key_hash).await? {
@@ -144,7 +145,7 @@ impl ApiKeyHandler {
 
     /// Verify API key with detailed result
     pub async fn verify_key_detailed(&self, raw_key: &str) -> Result<ApiKeyVerification> {
-        let key_hash = crypto::hash_api_key(raw_key);
+        let key_hash = hash_api_key(raw_key);
 
         let api_key = match self.storage.db().find_api_key_by_hash(&key_hash).await? {
             Some(key) => key,

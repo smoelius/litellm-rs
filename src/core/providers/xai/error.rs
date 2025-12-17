@@ -1,7 +1,7 @@
 //! xAI-specific error types and error mapping
 
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::ErrorMapper;
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 use crate::core::types::errors::ProviderErrorTrait;
 use thiserror::Error;
 

@@ -14,7 +14,7 @@ use super::sigv4::SigV4Signer;
 use super::utils::{AwsAuth, validate_region};
 use crate::core::providers::base_provider::{BaseHttpClient, BaseProviderConfig};
 use crate::core::providers::unified_provider::ProviderError;
-use crate::core::traits::ErrorMapper;
+use crate::core::traits::error_mapper::trait_def::ErrorMapper;
 
 /// Bedrock HTTP client wrapper
 #[derive(Debug, Clone)]

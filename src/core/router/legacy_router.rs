@@ -9,7 +9,7 @@ use crate::core::providers::ProviderRegistry;
 use crate::core::router::health::{HealthChecker, RouterHealthStatus};
 use crate::core::router::load_balancer::LoadBalancer;
 use crate::core::router::metrics::{RouterMetrics, RouterMetricsSnapshot};
-use crate::core::router::strategy::RoutingStrategy;
+use crate::core::router::strategy::types::RoutingStrategy;
 use crate::core::types::{
     common::{ModelInfo, RequestContext},
     requests::{ChatRequest, CompletionRequest, EmbeddingRequest, ImageGenerationRequest},

@@ -1,6 +1,6 @@
 //! Alert types and data structures
 
-use crate::monitoring::AlertSeverity;
+use crate::monitoring::types::AlertSeverity;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
@@ -8,7 +8,7 @@ use std::time::Duration;
 #[derive(Debug, Default)]
 pub(super) struct AlertStorage {
     /// Alert history
-    pub history: VecDeque<crate::monitoring::Alert>,
+    pub history: VecDeque<crate::monitoring::types::Alert>,
     /// Alert rules
     pub rules: HashMap<String, AlertRule>,
     /// Alert statistics

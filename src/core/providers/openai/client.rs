@@ -10,7 +10,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
-use crate::core::traits::LLMProvider;
+use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
@@ -333,7 +333,7 @@ impl OpenAIProvider {
 impl LLMProvider for OpenAIProvider {
     type Config = OpenAIConfig;
     type Error = OpenAIError;
-    type ErrorMapper = crate::core::traits::error_mapper::OpenAIErrorMapper;
+    type ErrorMapper = crate::core::traits::error_mapper::implementations::OpenAIErrorMapper;
 
     fn name(&self) -> &'static str {
         "openai"
@@ -528,7 +528,7 @@ impl LLMProvider for OpenAIProvider {
     }
 
     fn get_error_mapper(&self) -> Self::ErrorMapper {
-        crate::core::traits::error_mapper::OpenAIErrorMapper
+        crate::core::traits::error_mapper::implementations::OpenAIErrorMapper
     }
 }
 
@@ -1104,7 +1104,7 @@ impl OpenAIProvider {
 /// Error mapper for OpenAI provider
 pub struct OpenAIErrorMapper;
 
-impl crate::core::traits::ErrorMapper<OpenAIError> for OpenAIErrorMapper {
+impl crate::core::traits::error_mapper::trait_def::ErrorMapper<OpenAIError> for OpenAIErrorMapper {
     fn map_http_error(&self, status_code: u16, response_body: &str) -> OpenAIError {
         // Simple error mapping - in real implementation would parse OpenAI error format
         match status_code {
