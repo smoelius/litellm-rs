@@ -45,6 +45,7 @@ This is a **high-performance AI Gateway** written in Rust that provides OpenAI-c
 - **Trait-based abstractions**: Pluggable components via traits
 - **Error handling**: Comprehensive error types with context preservation
 - **Configuration**: Type-safe config models with Default implementations
+- **No backward compatibility**: Break old formats freely - prioritize clean architecture over legacy support
 
 ### Provider Integration
 - **Unified Provider trait**: Common interface for all AI providers
