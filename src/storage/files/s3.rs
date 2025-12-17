@@ -2,7 +2,10 @@
 
 use crate::config::S3Config;
 use crate::utils::error::{GatewayError, Result};
-use tracing::{debug, info};
+use tracing::info;
+#[cfg(feature = "s3")]
+use tracing::debug;
+#[cfg(feature = "s3")]
 use uuid::Uuid;
 
 #[cfg(feature = "s3")]
