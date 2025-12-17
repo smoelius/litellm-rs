@@ -1,0 +1,530 @@
+//! LLM Provider trait definition
+//!
+//! Defines the unified interface for all AI providers
+
+use async_trait::async_trait;
+use futures::Stream;
+use serde_json::Value;
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::pin::Pin;
+
+use crate::core::traits::error_mapper::ErrorMapper;
+use crate::core::types::errors::ProviderErrorTrait;
+use crate::core::types::{
+    common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
+    requests::{ChatRequest, EmbeddingRequest, ImageGenerationRequest},
+    responses::{ChatChunk, ChatResponse, EmbeddingResponse, ImageGenerationResponse},
+};
+
+use super::super::config::ProviderConfig;
+
+/// Unified LLM Provider interface
+///
+/// This is the core abstraction of LiteLLM, all AI providers must implement this trait
+///
+/// # Design Principles
+///
+/// 1. **Request uniformity**: All providers use the same request/response format
+/// 2. **Capability driven**: Declare supported features through capabilities()
+/// 3. **Provider agnostic**: Users don't need to know provider-specific details
+/// 4. **Type safety**: Use associated types to ensure compile-time type safety
+/// 5. **Async first**: All I/O operations are asynchronous
+/// 6. **Observability**: Built-in cost calculation, latency statistics, and monitoring
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use async_trait::async_trait;
+/// use crate::core::traits::provider::{LLMProvider, ProviderConfig};
+/// use crate::core::types::common::ProviderCapability;
+/// use crate::core::types::errors::ProviderErrorTrait;
+///
+/// #[derive(Debug, Clone)]
+/// struct MyConfig {
+///     api_key: String,
+/// }
+///
+/// impl ProviderConfig for MyConfig {
+///     fn validate(&self) -> Result<(), String> { Ok(()) }
+///     fn api_key(&self) -> Option<&str> { Some(&self.api_key) }
+///     fn api_base(&self) -> Option<&str> { None }
+///     fn timeout(&self) -> std::time::Duration { std::time::Duration::from_secs(30) }
+///     fn max_retries(&self) -> u32 { 3 }
+/// }
+///
+/// #[derive(Debug)]
+/// struct MyProvider;
+///
+/// #[async_trait]
+/// impl LLMProvider for MyProvider {
+///     type Config = MyConfig;
+///     type Error = crate::core::providers::unified_provider::ProviderError;
+///     type ErrorMapper = crate::core::traits::error_mapper::GenericErrorMapper;
+///
+///     fn name(&self) -> &'static str {
+///         "my_provider"
+///     }
+///
+///     fn capabilities(&self) -> &'static [ProviderCapability] {
+///         &[ProviderCapability::ChatCompletion]
+///     }
+///
+///     fn models(&self) -> &[crate::core::types::common::ModelInfo] {
+///         &[]
+///     }
+///
+///     // implement other required methods...
+/// }
+/// ```
+#[async_trait]
+pub trait LLMProvider: Send + Sync + Debug + 'static {
+    /// Provider configuration type
+    ///
+    /// Must implement ProviderConfig for validation and common settings
+    type Config: ProviderConfig + Clone + Send + Sync;
+
+    /// Provider-specific error type
+    ///
+    /// Must implement ProviderErrorTrait for unified error handling
+    type Error: ProviderErrorTrait;
+
+    /// Error mapper for converting various error types
+    ///
+    /// Handles HTTP, JSON, network, and other error conversions
+    type ErrorMapper: ErrorMapper<Self::Error>;
+
+    // ==================== Basic Metadata ====================
+
+    /// Get provider name
+    ///
+    /// # Returns
+    /// Static string identifier for the provider, such as "openai", "anthropic", "v0", etc.
+    ///
+    /// # Note
+    /// This name is used for routing and logging, must be unique across the entire system
+    fn name(&self) -> &'static str;
+
+    /// Get provider capabilities
+    ///
+    /// # Returns
+    /// Static capability list for quickly querying which features this provider supports
+    ///
+    /// # Use Cases
+    /// - Request routing: Route requests only to compatible providers
+    /// - Feature detection: Check if specific functionality is available
+    /// - UI display: Show provider feature characteristics
+    fn capabilities(&self) -> &'static [ProviderCapability];
+
+    /// Get supported model list
+    ///
+    /// # Returns
+    /// List of models supported by this provider
+    ///
+    /// # Implementation Suggestions
+    /// - Load from configuration file or remote API
+    /// - Include model metadata like context length, cost, etc.
+    /// - Recommend caching for performance
+    fn models(&self) -> &[ModelInfo];
+
+    // ==================== Capability Query Methods ====================
+
+    /// Check if model is supported
+    ///
+    /// # Parameters
+    /// * `model` - Model name to check
+    ///
+    /// # Returns
+    /// True if the model is supported by this provider
+    ///
+    /// # Default Implementation
+    /// Searches in the list returned by models()
+    fn supports_model(&self, model: &str) -> bool {
+        self.models().iter().any(|m| m.id == model)
+    }
+
+    /// Check if tools are supported
+    ///
+    /// # Returns
+    /// True if tool calling is supported
+    ///
+    /// # Default Implementation
+    /// Checks if capabilities contain ToolCalling
+    fn supports_tools(&self) -> bool {
+        self.capabilities()
+            .contains(&ProviderCapability::ToolCalling)
+    }
+
+    /// Check if streaming is supported
+    ///
+    /// # Returns
+    /// True if Server-Sent Events streaming output is supported
+    ///
+    /// # Default Implementation
+    /// Checks if capabilities contain ChatCompletionStream
+    fn supports_streaming(&self) -> bool {
+        self.capabilities()
+            .contains(&ProviderCapability::ChatCompletionStream)
+    }
+
+    /// Check if image generation is supported
+    ///
+    /// # Returns
+    /// True if image generation (like DALL-E) is supported
+    fn supports_image_generation(&self) -> bool {
+        self.capabilities()
+            .contains(&ProviderCapability::ImageGeneration)
+    }
+
+    /// Check if embeddings are supported
+    ///
+    /// # Returns
+    /// True if text embedding generation is supported
+    fn supports_embeddings(&self) -> bool {
+        self.capabilities()
+            .contains(&ProviderCapability::Embeddings)
+    }
+
+    /// Check if vision capabilities are supported
+    ///
+    /// # Returns
+    /// True if image analysis/vision is supported
+    fn supports_vision(&self) -> bool {
+        // Currently returns false, as ProviderCapability doesn't have Vision variant
+        false
+    }
+
+    // ==================== Python LiteLLM Compatible Interface ====================
+
+    /// Get supported OpenAI parameters
+    ///
+    /// Returns all OpenAI standard parameter names supported by this provider
+    ///
+    /// # Parameters
+    /// * `model` - Model name to check parameters for
+    ///
+    /// # Returns
+    /// List of supported parameter names
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// // OpenAI provider might return:
+    /// // ["temperature", "max_tokens", "top_p", "frequency_penalty", "presence_penalty", "tools"]
+    /// //
+    /// // Anthropic provider might return:
+    /// // ["temperature", "max_tokens", "top_p", "top_k", "tools"]
+    /// fn get_supported_openai_params(&self, _model: &str) -> &'static [&'static str] {
+    ///     &["temperature", "max_tokens", "top_p"]
+    /// }
+    /// ```
+    fn get_supported_openai_params(&self, model: &str) -> &'static [&'static str];
+
+    /// Map OpenAI parameters to provider-specific parameters
+    ///
+    /// Convert standard OpenAI parameters to format understood by this provider
+    ///
+    /// # Parameters
+    /// * `params` - Input parameter mapping (OpenAI format)
+    /// * `model` - Target model name
+    ///
+    /// # Returns
+    /// Converted parameter mapping (provider-specific format)
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// use std::collections::HashMap;
+    /// use serde_json::Value;
+    ///
+    /// // For Anthropic provider:
+    /// // input: {"max_tokens": 100, "temperature": 0.7}
+    /// // output: {"max_tokens_to_sample": 100, "temperature": 0.7}
+    /// //
+    /// // For Azure provider:
+    /// // input: {"user": "alice", "stream": true}
+    /// // output: {"end_user_id": "alice", "stream": true}
+    /// async fn map_openai_params(
+    ///     &self,
+    ///     params: HashMap<String, Value>,
+    ///     _model: &str,
+    /// ) -> Result<HashMap<String, Value>, Self::Error> {
+    ///     Ok(params) // Pass through unchanged
+    /// }
+    /// ```
+    async fn map_openai_params(
+        &self,
+        params: HashMap<String, Value>,
+        model: &str,
+    ) -> Result<HashMap<String, Value>, Self::Error>;
+
+    /// Transform request format
+    ///
+    /// Convert standard ChatRequest to provider-specific request format
+    ///
+    /// # Parameters
+    /// * `request` - Standard chat request
+    /// * `context` - Request context with metadata
+    ///
+    /// # Returns
+    /// Provider-specific request as JSON Value
+    ///
+    /// # Implementation Notes
+    /// This method should:
+    /// 1. Validate request parameters
+    /// 2. Convert message format
+    /// 3. Map model names if needed
+    /// 4. Handle provider-specific options
+    /// 5. Set authentication headers
+    async fn transform_request(
+        &self,
+        request: ChatRequest,
+        context: RequestContext,
+    ) -> Result<Value, Self::Error>;
+
+    /// Transform response format
+    ///
+    /// Convert provider-specific response to standard ChatResponse format
+    ///
+    /// # Parameters
+    /// * `raw_response` - Raw response bytes from provider
+    /// * `model` - Model name used for the request
+    /// * `request_id` - Unique request identifier
+    ///
+    /// # Returns
+    /// Standardized chat response
+    ///
+    /// # Implementation Notes
+    /// This method should:
+    /// 1. Parse provider response format
+    /// 2. Extract choices and messages
+    /// 3. Convert tool call format
+    /// 4. Calculate token usage
+    /// 5. Handle error cases gracefully
+    async fn transform_response(
+        &self,
+        raw_response: &[u8],
+        model: &str,
+        request_id: &str,
+    ) -> Result<ChatResponse, Self::Error>;
+
+    /// Get error mapper instance
+    ///
+    /// Returns the error mapper for this provider
+    ///
+    /// # Returns
+    /// Error mapper that handles provider-specific error formats
+    fn get_error_mapper(&self) -> Self::ErrorMapper;
+
+    // ==================== Core Functionality: Chat Completion ====================
+
+    /// Execute chat completion request
+    ///
+    /// This is the core method that all LLM providers must implement
+    ///
+    /// # Parameters
+    /// * `request` - Chat completion request
+    /// * `context` - Request context with metadata
+    ///
+    /// # Returns
+    /// Chat completion response
+    ///
+    /// # Errors
+    /// * `Self::Error::authentication()` - Authentication failed
+    /// * `Self::Error::not_supported()` - Model or feature not supported
+    /// * `Self::Error::network_error()` - Network or API error
+    /// * `Self::Error::rate_limit()` - Rate limit exceeded
+    /// * `Self::Error::parsing_error()` - Response parsing failed
+    async fn chat_completion(
+        &self,
+        request: ChatRequest,
+        context: RequestContext,
+    ) -> Result<ChatResponse, Self::Error>;
+
+    /// Execute streaming chat completion request
+    ///
+    /// Returns response chunks as a stream for real-time processing
+    ///
+    /// # Parameters
+    /// * `request` - Chat completion request
+    /// * `context` - Request context with metadata
+    ///
+    /// # Returns
+    /// Stream where each item is a ChatChunk
+    ///
+    /// # Default Implementation
+    /// Returns not supported error
+    ///
+    /// # Note
+    /// Should only be called when supports_streaming() returns true
+    async fn chat_completion_stream(
+        &self,
+        _request: ChatRequest,
+        _context: RequestContext,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<ChatChunk, Self::Error>> + Send>>, Self::Error>
+    {
+        Err(Self::Error::not_supported("streaming"))
+    }
+
+    // ==================== Optional Features ====================
+
+    /// Generate text embeddings
+    ///
+    /// Convert text to high-dimensional vectors for semantic search, clustering, and other applications
+    ///
+    /// # Parameters
+    /// * `request` - Embedding request with input text
+    /// * `context` - Request context with metadata
+    ///
+    /// # Returns
+    /// Embedding response with vectors
+    ///
+    /// # Default Implementation
+    /// Returns not supported error
+    ///
+    /// # Use Cases
+    /// - Semantic search
+    /// - Document similarity calculation
+    /// - Recommendation systems
+    /// - RAG (Retrieval Augmented Generation) systems
+    async fn embeddings(
+        &self,
+        _request: EmbeddingRequest,
+        _context: RequestContext,
+    ) -> Result<EmbeddingResponse, Self::Error> {
+        Err(Self::Error::not_supported("embeddings"))
+    }
+
+    /// Generate images
+    ///
+    /// Generate images based on text descriptions
+    ///
+    /// # Parameters
+    /// * `request` - Image generation request
+    /// * `context` - Request context with metadata
+    ///
+    /// # Returns
+    /// Image generation response with URLs or data
+    ///
+    /// # Default Implementation
+    /// Returns not supported error
+    ///
+    /// # Supported Models
+    /// - OpenAI DALL-E series
+    /// - Midjourney (via proxy)
+    /// - Stable Diffusion
+    async fn image_generation(
+        &self,
+        _request: ImageGenerationRequest,
+        _context: RequestContext,
+    ) -> Result<ImageGenerationResponse, Self::Error> {
+        Err(Self::Error::not_supported("image_generation"))
+    }
+
+    // ==================== Health Monitoring ====================
+
+    /// Check provider health status
+    ///
+    /// Validate that the provider is operational and responding correctly
+    ///
+    /// # Returns
+    /// HealthStatus enum containing Healthy, Degraded, Unhealthy, etc. states
+    ///
+    /// # Implementation Suggestions
+    /// - Test API connectivity
+    /// - Validate authentication
+    /// - Send lightweight test request
+    /// - Check rate limit status
+    ///
+    /// # Use Cases
+    /// - Load balancer health checks
+    /// - Service discovery updates
+    /// - Failover decision making
+    /// - Monitoring and alerting
+    async fn health_check(&self) -> HealthStatus;
+
+    // ==================== Cost Management ====================
+
+    /// Calculate request cost
+    ///
+    /// # Parameters
+    /// * `model` - Model name used
+    /// * `input_tokens` - Number of input tokens
+    /// * `output_tokens` - Number of output tokens
+    ///
+    /// # Returns
+    /// Estimated cost in USD
+    ///
+    /// # Use Cases
+    /// - Cost control and budget management
+    /// - User quota management
+    /// - Cost optimization decisions
+    /// - Billing and statistics
+    async fn calculate_cost(
+        &self,
+        model: &str,
+        input_tokens: u32,
+        output_tokens: u32,
+    ) -> Result<f64, Self::Error>;
+
+    // ==================== Performance Metrics ====================
+
+    /// Get average response latency
+    ///
+    /// # Returns
+    /// Average latency for this provider
+    ///
+    /// # Default Implementation
+    /// Returns 100ms, subclasses should override with actual statistics
+    ///
+    /// # Use Cases
+    /// - Route selection: Prefer providers with lower latency
+    /// - Performance benchmarking
+    /// - Performance monitoring and optimization
+    async fn get_average_latency(&self) -> Result<std::time::Duration, Self::Error> {
+        Ok(std::time::Duration::from_millis(100))
+    }
+
+    /// Get success rate
+    ///
+    /// # Returns
+    /// Success rate between 0.0 and 1.0
+    ///
+    /// # Default Implementation
+    /// Returns 0.99 (99% success rate)
+    ///
+    /// # Use Cases
+    /// - Service quality assessment
+    /// - Automatic failover
+    /// - SLA monitoring
+    async fn get_success_rate(&self) -> Result<f32, Self::Error> {
+        Ok(0.99)
+    }
+
+    // ==================== Utility Methods ====================
+
+    /// Estimate token count for text
+    ///
+    /// # Parameters
+    /// * `text` - Text to analyze
+    ///
+    /// # Returns
+    /// Estimated token count
+    ///
+    /// # Default Implementation
+    /// Uses simple heuristic: approximately 4 characters equals 1 token
+    ///
+    /// # Implementation Suggestions
+    /// Use model-specific tokenizers when possible:
+    /// - OpenAI: Use tiktoken library
+    /// - Anthropic: Use Claude tokenizer
+    /// - Others: Can use online API or simple estimation
+    ///
+    /// # Use Cases
+    /// - Pre-request validation
+    /// - Cost estimation
+    /// - Context length management
+    async fn estimate_tokens(&self, text: &str) -> Result<u32, Self::Error> {
+        // Simple estimation: 4 characters approximately equals 1 token
+        // Subclasses should implement more accurate tokenization
+        Ok((text.len() as f64 / 4.0).ceil() as u32)
+    }
+}
