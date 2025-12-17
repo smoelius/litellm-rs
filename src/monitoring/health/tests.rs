@@ -1,7 +1,5 @@
 //! Health checking tests
 
-#![cfg(test)]
-
 use std::collections::HashMap;
 use std::time::Duration;
 

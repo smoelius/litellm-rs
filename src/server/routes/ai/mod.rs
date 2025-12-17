@@ -54,7 +54,6 @@ pub fn configure_routes(cfg: &mut web::ServiceConfig) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::core::models::RequestContext;
 
     #[test]

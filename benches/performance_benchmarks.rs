@@ -8,7 +8,7 @@ use litellm_rs::core::cache_manager::manager::CacheManager;
 use litellm_rs::core::cache_manager::types::{CacheConfig, CacheKey};
 use litellm_rs::core::models::openai::*;
 use litellm_rs::core::router::load_balancer::LoadBalancer;
-use litellm_rs::core::router::strategy::RoutingStrategy;
+use litellm_rs::core::router::strategy::types::RoutingStrategy;
 use litellm_rs::core::router::{
     UnifiedRouter, RouterConfig, UnifiedRoutingStrategy, Deployment, DeploymentConfig,
 };

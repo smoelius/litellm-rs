@@ -1,7 +1,5 @@
 //! Tests for cryptographic utilities
 
-#![cfg(test)]
-
 use super::*;
 use base64::{Engine as _, engine::general_purpose};
 use std::time::{SystemTime, UNIX_EPOCH};

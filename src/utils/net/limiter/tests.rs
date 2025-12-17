@@ -2,8 +2,6 @@
 //!
 //! This module contains comprehensive tests for the rate limiter.
 
-#![cfg(test)]
-
 use super::limiter::RateLimiter;
 use super::types::{RateLimitConfig, RateLimitKey};
 use uuid::Uuid;

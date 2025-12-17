@@ -2,8 +2,6 @@
 //!
 //! This module contains comprehensive tests for all error mapper types.
 
-#![cfg(test)]
-
 use super::trait_def::ErrorMapper;
 use super::types::GenericErrorMapper;
 use super::implementations::{OpenAIErrorMapper, AnthropicErrorMapper};

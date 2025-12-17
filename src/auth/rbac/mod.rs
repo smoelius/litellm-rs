@@ -12,4 +12,3 @@ mod types;
 
 // Re-export public types and structs
 pub use system::RbacSystem;
-pub use types::{Permission, PermissionCheck, Role};

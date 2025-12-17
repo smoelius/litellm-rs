@@ -11,7 +11,6 @@ mod tests {
     use crate::storage::vector::VectorStore;
     use crate::utils::error::Result;
     use std::sync::Arc;
-    use tokio::sync::RwLock;
 
     #[test]
     fn test_semantic_cache_config_default() {

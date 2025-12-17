@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::super::types::{HttpClientConfig, RequestMetrics, RetryConfig};
+    use super::super::types::RequestMetrics;
     use super::super::utils::ClientUtils;
     use std::time::Duration;
 

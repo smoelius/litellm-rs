@@ -20,23 +20,25 @@ mod tests {
 
         assert!(RequestValidator::validate_chat_completion_request(
             "gpt-4",
-            &[message.clone()],
+            std::slice::from_ref(&message),
             None,
             None
         )
         .is_ok());
         assert!(RequestValidator::validate_chat_completion_request(
             "claude-3.5-sonnet",
-            &[message.clone()],
+            std::slice::from_ref(&message),
             None,
             None
         )
         .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request("", &[message.clone()], None, None)
-            .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request("", std::slice::from_ref(&message), None, None)
+                .is_err()
+        );
         assert!(RequestValidator::validate_chat_completion_request(
             "invalid@model",
-            &[message],
+            std::slice::from_ref(&message),
             None,
             None
         )

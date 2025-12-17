@@ -119,12 +119,14 @@ impl DataExportTools {
 
     /// Check if format is supported
     pub fn is_format_supported(&self, format: &ExportFormat) -> bool {
-        self.formats.iter().any(|f| match (f, format) {
-            (ExportFormat::Json, ExportFormat::Json) => true,
-            (ExportFormat::Csv, ExportFormat::Csv) => true,
-            (ExportFormat::Xml, ExportFormat::Xml) => true,
-            (ExportFormat::Pdf, ExportFormat::Pdf) => true,
-            _ => false,
+        self.formats.iter().any(|f| {
+            matches!(
+                (f, format),
+                (ExportFormat::Json, ExportFormat::Json)
+                    | (ExportFormat::Csv, ExportFormat::Csv)
+                    | (ExportFormat::Xml, ExportFormat::Xml)
+                    | (ExportFormat::Pdf, ExportFormat::Pdf)
+            )
         })
     }
 }

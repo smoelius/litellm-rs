@@ -24,10 +24,12 @@ mod tests {
 
     #[test]
     fn test_provider_config_validation() {
-        let mut config = ProviderConfig::default();
-        config.name = "test".to_string();
-        config.provider_type = "openai".to_string();
-        config.api_key = "test-key".to_string();
+        let mut config = ProviderConfig {
+            name: "test".to_string(),
+            provider_type: "openai".to_string(),
+            api_key: "test-key".to_string(),
+            ..Default::default()
+        };
 
         assert!(config.validate().is_ok());
 
@@ -41,8 +43,10 @@ mod tests {
 
     #[test]
     fn test_auth_config_validation() {
-        let mut config = AuthConfig::default();
-        config.jwt_secret = "a-very-long-secret-key-for-testing-purposes".to_string();
+        let mut config = AuthConfig {
+            jwt_secret: "a-very-long-secret-key-for-testing-purposes".to_string(),
+            ..Default::default()
+        };
         assert!(config.validate().is_ok());
 
         config.jwt_secret = "short".to_string();
@@ -110,11 +114,13 @@ mod tests {
 
     #[test]
     fn test_provider_config_ssrf_validation() {
-        let mut config = ProviderConfig::default();
-        config.name = "test".to_string();
-        config.provider_type = "openai".to_string();
-        config.api_key = "test-key".to_string();
-        config.base_url = Some("http://localhost:8080".to_string());
+        let mut config = ProviderConfig {
+            name: "test".to_string(),
+            provider_type: "openai".to_string(),
+            api_key: "test-key".to_string(),
+            base_url: Some("http://localhost:8080".to_string()),
+            ..Default::default()
+        };
 
         // Should fail with localhost
         assert!(config.validate().is_err());

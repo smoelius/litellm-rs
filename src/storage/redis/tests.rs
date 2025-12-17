@@ -1,7 +1,5 @@
 //! Redis module tests
 
-#![cfg(test)]
-
 use super::pool::RedisPool;
 use crate::config::RedisConfig;
 
