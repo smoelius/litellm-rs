@@ -292,7 +292,11 @@ impl GeminiClient {
             }
         }
 
-        if !generation_config.as_object().unwrap().is_empty() {
+        // Only add generationConfig if it has values (safely check if object is non-empty)
+        if generation_config
+            .as_object()
+            .is_some_and(|obj| !obj.is_empty())
+        {
             gemini_request["generationConfig"] = generation_config;
         }
 
@@ -512,19 +516,21 @@ impl GeminiClient {
                 thinking_usage: None,
         });
 
+        // Use current timestamp, defaulting to 0 if system time is before UNIX_EPOCH
+        let now = std::time::SystemTime::now();
+        let nanos = now
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let secs = now
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs() as i64)
+            .unwrap_or(0);
+
         Ok(ChatResponse {
-            id: format!(
-                "gemini-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ),
+            id: format!("gemini-{}", nanos),
             object: "chat.completion".to_string(),
-            created: std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs() as i64,
+            created: secs,
             model: request.model.clone(),
             choices,
             usage,

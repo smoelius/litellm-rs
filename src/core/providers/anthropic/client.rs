@@ -148,11 +148,21 @@ impl AnthropicClient {
             headers.insert("anthropic-version", version_header);
         }
 
-        // Content type
-        headers.insert("Content-Type", "application/json".parse().unwrap());
+        // Content type - static string guaranteed to be valid
+        headers.insert(
+            "Content-Type",
+            "application/json"
+                .parse()
+                .expect("static header value is valid"),
+        );
 
-        // User agent
-        headers.insert("User-Agent", "LiteLLM-Rust/1.0".parse().unwrap());
+        // User agent - static string guaranteed to be valid
+        headers.insert(
+            "User-Agent",
+            "LiteLLM-Rust/1.0"
+                .parse()
+                .expect("static header value is valid"),
+        );
 
         // Custom headers
         for (key, value) in &self.config.custom_headers {
