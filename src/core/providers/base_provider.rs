@@ -6,6 +6,7 @@
 use reqwest::{Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -154,8 +155,11 @@ impl BaseHttpClient {
 }
 
 /// Common header builder
+///
+/// Uses `Cow<'static, str>` for header keys to avoid allocation for static header names
+/// while still supporting dynamic header names when needed.
 pub struct HeaderBuilder {
-    headers: HashMap<String, String>,
+    headers: HashMap<Cow<'static, str>, String>,
 }
 
 impl Default for HeaderBuilder {
@@ -175,47 +179,52 @@ impl HeaderBuilder {
     /// Add authorization header (Bearer token)
     pub fn with_bearer_token(mut self, token: &str) -> Self {
         self.headers
-            .insert("Authorization".to_string(), format!("Bearer {}", token));
+            .insert(Cow::Borrowed("Authorization"), format!("Bearer {}", token));
         self
     }
 
-    /// Add API key header (X-API-Key)
+    /// Add API key header with custom header name
+    /// Note: header_name is owned because it may be dynamic
     pub fn with_api_key(mut self, key: &str, header_name: &str) -> Self {
         self.headers
-            .insert(header_name.to_string(), key.to_string());
+            .insert(Cow::Owned(header_name.to_string()), key.to_string());
         self
     }
 
     /// Add content type
     pub fn with_content_type(mut self, content_type: &str) -> Self {
         self.headers
-            .insert("Content-Type".to_string(), content_type.to_string());
+            .insert(Cow::Borrowed("Content-Type"), content_type.to_string());
         self
     }
 
     /// Add user agent
     pub fn with_user_agent(mut self, agent: &str) -> Self {
         self.headers
-            .insert("User-Agent".to_string(), agent.to_string());
+            .insert(Cow::Borrowed("User-Agent"), agent.to_string());
         self
     }
 
     /// Add custom headers
     pub fn with_custom_headers(mut self, headers: HashMap<String, String>) -> Self {
-        self.headers.extend(headers);
+        self.headers
+            .extend(headers.into_iter().map(|(k, v)| (Cow::Owned(k), v)));
         self
     }
 
     /// Add organization ID (for providers that support it)
     pub fn with_organization(mut self, org_id: &str) -> Self {
         self.headers
-            .insert("OpenAI-Organization".to_string(), org_id.to_string());
+            .insert(Cow::Borrowed("OpenAI-Organization"), org_id.to_string());
         self
     }
 
-    /// Build the headers
+    /// Build the headers as HashMap<String, String> for compatibility
     pub fn build(self) -> HashMap<String, String> {
         self.headers
+            .into_iter()
+            .map(|(k, v)| (k.into_owned(), v))
+            .collect()
     }
 
     /// Build as reqwest HeaderMap
