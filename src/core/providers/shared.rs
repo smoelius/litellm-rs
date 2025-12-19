@@ -438,10 +438,13 @@ pub mod test_utils {
         ChatMessage {
             role,
             content: Some(MessageContent::Text(content.to_string())),
+                thinking: None,
             name: None,
             tool_calls: None,
             tool_call_id: None,
+            thinking: None,
             function_call: None,
+            thinking: None,
         }
     }
 
@@ -453,6 +456,7 @@ pub mod test_utils {
             total_tokens: prompt + completion,
             completion_tokens_details: None,
             prompt_tokens_details: None,
+            thinking_usage: None,
         }
     }
 }
@@ -486,6 +490,7 @@ mod tests {
             total_tokens: 1500,
             completion_tokens_details: None,
             prompt_tokens_details: None,
+            thinking_usage: None,
         };
         let cost = calculator.calculate_cost(&usage);
         assert_eq!(cost, 0.02); // 0.01 + 0.01

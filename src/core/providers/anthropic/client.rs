@@ -541,6 +541,7 @@ impl AnthropicClient {
             } else {
                 Some(crate::core::types::MessageContent::Text(message_content))
             },
+                thinking: None,
             name: None,
             tool_calls: if tool_calls.is_empty() {
                 None
@@ -587,6 +588,7 @@ impl AnthropicClient {
                     .unwrap_or(0)) as u32,
             completion_tokens_details: None,
             prompt_tokens_details: None,
+            thinking_usage: None,
         });
 
         Ok(ChatResponse {

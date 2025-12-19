@@ -143,6 +143,7 @@ pub struct ChatRequest {
     pub messages: Vec<Message>,
     /// Request options
     pub options: ChatOptions,
+            thinking: None,
 }
 
 /// Chat options

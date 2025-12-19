@@ -241,8 +241,11 @@ impl OpenAIStreamParser {
             .unwrap_or(ChatDelta {
                 role: None,
                 content: None,
-                tool_calls: None,
+                thinking: None,
+                    tool_calls: None,
+                thinking: None,
                 function_call: None,
+                thinking: None,
             });
 
         let finish_reason = choice

@@ -111,6 +111,7 @@ impl AzureAIChatHandler {
             message: ChatMessage {
                 role: MessageRole::Assistant,
                 content: Some(MessageContent::Text(content)),
+                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,
@@ -132,6 +133,7 @@ impl AzureAIChatHandler {
                 total_tokens: 30,
                 prompt_tokens_details: None,
                 completion_tokens_details: None,
+                thinking_usage: None,
             }),
             system_fingerprint: None,
         })
@@ -160,8 +162,11 @@ impl AzureAIChatHandler {
                 delta: ChatDelta {
                     role: Some(MessageRole::Assistant),
                     content: response.first_content().map(|s| s.to_string()),
+                            thinking: None,
                     tool_calls: None,
-                    function_call: None,
+                    thinking: None,
+                function_call: None,
+                thinking: None,
                 },
                 finish_reason: Some(FinishReason::Stop),
                 logprobs: None,

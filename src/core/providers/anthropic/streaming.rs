@@ -167,8 +167,11 @@ impl AnthropicStream {
                         delta: ChatDelta {
                             role: Some(MessageRole::Assistant),
                             content: None,
+                            thinking: None,
                             tool_calls: None,
-                            function_call: None,
+                            thinking: None,
+                function_call: None,
+                thinking: None,
                         },
                         finish_reason: None,
                         logprobs: None,
@@ -195,8 +198,11 @@ impl AnthropicStream {
                         delta: ChatDelta {
                             role: None,
                             content: Some(content.to_string()),
+                            thinking: None,
                             tool_calls: None,
-                            function_call: None,
+                            thinking: None,
+                function_call: None,
+                thinking: None,
                         },
                         finish_reason: None,
                         logprobs: None,
@@ -218,6 +224,7 @@ impl AnthropicStream {
                         as u32,
                     completion_tokens_details: None,
                     prompt_tokens_details: None,
+                    thinking_usage: None,
                 });
 
                 let finish_reason = data
@@ -241,8 +248,11 @@ impl AnthropicStream {
                         delta: ChatDelta {
                             role: None,
                             content: None,
+                            thinking: None,
                             tool_calls: None,
-                            function_call: None,
+                            thinking: None,
+                function_call: None,
+                thinking: None,
                         },
                         finish_reason,
                         logprobs: None,
@@ -344,6 +354,7 @@ impl StreamUtils {
             } else {
                 Some(crate::core::types::MessageContent::Text(final_content))
             },
+            thinking: None,
             name: None,
             tool_calls: None,
             tool_call_id: None,

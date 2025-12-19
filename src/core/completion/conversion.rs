@@ -33,7 +33,10 @@ pub fn convert_to_chat_completion_request(
         function_call: None,
         logprobs: options.logprobs,
         top_logprobs: options.top_logprobs,
-        extra_params: options.extra_params,
+        thinking: None,
+        thinking: None,
+            extra_params: options.extra_params,
+            thinking: None,
     })
 }
 
@@ -67,5 +70,6 @@ pub fn convert_usage(usage: &crate::core::types::Usage) -> Usage {
         total_tokens: usage.total_tokens,
         prompt_tokens_details: None,
         completion_tokens_details: None,
+        thinking_usage: usage.thinking_usage.clone(),
     }
 }

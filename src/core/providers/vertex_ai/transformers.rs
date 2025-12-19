@@ -249,6 +249,7 @@ impl GeminiTransformer {
             total_tokens: usage_metadata["totalTokenCount"].as_u64().unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+                thinking_usage: None,
         });
 
         Ok(ChatResponse {
@@ -261,6 +262,7 @@ impl GeminiTransformer {
                 message: ChatMessage {
                     role: MessageRole::Assistant,
                     content: message_content,
+                thinking: None,
                     name: None,
                     tool_calls: None,
                     function_call: None,
@@ -500,6 +502,7 @@ impl PartnerModelTransformer {
                 total_tokens: 0, // Will be calculated
                 prompt_tokens_details: None,
                 completion_tokens_details: None,
+                thinking_usage: None,
             })
         } else {
             None
@@ -511,6 +514,7 @@ impl PartnerModelTransformer {
             total_tokens: 0,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+                thinking_usage: None,
         });
 
         if usage.total_tokens == 0 {
@@ -527,6 +531,7 @@ impl PartnerModelTransformer {
                 message: ChatMessage {
                     role: MessageRole::Assistant,
                     content: message_content,
+                thinking: None,
                     name: None,
                     tool_calls: None,
                     function_call: None,

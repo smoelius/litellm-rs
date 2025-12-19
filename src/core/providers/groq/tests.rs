@@ -114,7 +114,9 @@ mod tests {
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,
-                    function_call: None,
+                    thinking: None,
+            function_call: None,
+            thinking: None,
                 }],
                 stream: true,
                 ..Default::default()

@@ -477,10 +477,13 @@ impl GeminiClient {
                 message: crate::core::types::requests::ChatMessage {
                     role: MessageRole::Assistant,
                     content: Some(MessageContent::Text(message_content)),
+                thinking: None,
                     name: None,
                     tool_calls: None,
                     tool_call_id: None,
-                    function_call: None,
+                    thinking: None,
+            function_call: None,
+            thinking: None,
                 },
                 finish_reason: Some(match finish_reason {
                     "stop" => crate::core::types::responses::FinishReason::Stop,
@@ -508,6 +511,7 @@ impl GeminiClient {
                 .unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+                thinking_usage: None,
         });
 
         Ok(ChatResponse {
@@ -566,7 +570,9 @@ mod tests {
             name: None,
             tool_calls: None,
             tool_call_id: None,
+            thinking: None,
             function_call: None,
+            thinking: None,
         };
 
         let parts = client.transform_message_content(&message).unwrap();

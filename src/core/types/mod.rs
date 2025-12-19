@@ -18,6 +18,7 @@ pub mod content;
 pub mod embedding;
 pub mod image;
 pub mod message;
+pub mod thinking;
 pub mod tools;
 
 // Backward compatibility re-export modules
@@ -44,6 +45,7 @@ pub use content::*;
 pub use embedding::*;
 pub use image::*;
 pub use message::*;
+pub use thinking::*;
 pub use tools::*;
 
 // Re-export from remaining original files

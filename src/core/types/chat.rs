@@ -2,6 +2,7 @@
 
 use super::content::ContentPart;
 use super::message::{MessageContent, MessageRole};
+use super::thinking::{ThinkingConfig, ThinkingContent};
 use super::tools::{FunctionCall, ResponseFormat, Tool, ToolCall, ToolChoice};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -14,6 +15,15 @@ pub struct ChatMessage {
     /// Message content
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<MessageContent>,
+    /// Thinking/reasoning content (from thinking-enabled models)
+    ///
+    /// This field contains the model's thinking process when using:
+    /// - OpenAI o1/o3/o4 series (reasoning)
+    /// - Anthropic Claude with extended thinking
+    /// - DeepSeek R1/Reasoner (reasoning_content)
+    /// - Gemini with thinking mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingContent>,
     /// Name of message sender
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -33,11 +43,25 @@ impl Default for ChatMessage {
         Self {
             role: MessageRole::User,
             content: None,
+            thinking: None,
             name: None,
             tool_calls: None,
             tool_call_id: None,
+            thinking: None,
             function_call: None,
         }
+    }
+}
+
+impl ChatMessage {
+    /// Check if message has thinking content
+    pub fn has_thinking(&self) -> bool {
+        self.thinking.is_some()
+    }
+
+    /// Get thinking content as text (if available)
+    pub fn thinking_text(&self) -> Option<&str> {
+        self.thinking.as_ref().and_then(|t| t.as_text())
     }
 }
 
@@ -108,6 +132,15 @@ pub struct ChatRequest {
     /// Number of top logprobs to return
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u32>,
+    /// Thinking/reasoning configuration
+    ///
+    /// Enable and configure thinking mode for supported models:
+    /// - OpenAI o1/o3/o4 series
+    /// - Anthropic Claude with extended thinking
+    /// - DeepSeek R1/Reasoner
+    /// - Gemini with thinking mode
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingConfig>,
     /// Additional provider-specific parameters
     #[serde(flatten)]
     pub extra_params: HashMap<String, serde_json::Value>,
@@ -127,6 +160,7 @@ impl ChatRequest {
         self.messages.push(ChatMessage {
             role,
             content: Some(content.into()),
+            thinking: None,
             name: None,
             tool_calls: None,
             tool_call_id: None,
@@ -171,6 +205,25 @@ impl ChatRequest {
     /// Add tools
     pub fn with_tools(mut self, tools: Vec<Tool>) -> Self {
         self.tools = Some(tools);
+        self
+    }
+
+    /// Enable thinking/reasoning mode
+    ///
+    /// # Example
+    /// ```ignore
+    /// let request = ChatRequest::new("openrouter/deepseek/deepseek-r1")
+    ///     .add_user_message("Solve this problem step by step")
+    ///     .with_thinking(ThinkingConfig::high_effort());
+    /// ```
+    pub fn with_thinking(mut self, thinking: ThinkingConfig) -> Self {
+        self.thinking = Some(thinking);
+        self
+    }
+
+    /// Enable thinking with default configuration
+    pub fn enable_thinking(mut self) -> Self {
+        self.thinking = Some(ThinkingConfig::medium_effort());
         self
     }
 

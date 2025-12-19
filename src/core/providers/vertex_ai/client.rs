@@ -786,6 +786,7 @@ impl LLMProvider for VertexAIProvider {
                 total_tokens: input_tokens + output_tokens,
                 prompt_tokens_details: None,
                 completion_tokens_details: None,
+                thinking_usage: None,
             }
         });
 
@@ -799,10 +800,13 @@ impl LLMProvider for VertexAIProvider {
                 message: crate::core::types::requests::ChatMessage {
                     role: crate::core::types::requests::MessageRole::Assistant,
                     content: Some(crate::core::types::requests::MessageContent::Text(content)),
+                thinking: None,
                     name: None,
                     tool_calls: None, // Handle
                     tool_call_id: None,
-                    function_call: None,
+                    thinking: None,
+            function_call: None,
+            thinking: None,
                 },
                 finish_reason: candidate
                     .get("finishReason")

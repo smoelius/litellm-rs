@@ -433,8 +433,11 @@ impl SSETransformer for AnthropicTransformer {
                 let delta = ChatDelta {
                     role: None,
                     content: Some(text.to_string()),
+                    thinking: None,
                     tool_calls: None,
-                    function_call: None,
+                    thinking: None,
+                function_call: None,
+                thinking: None,
                 };
 
                 let choice = ChatStreamChoice {

@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::super::thinking::ThinkingUsage;
+
 /// Usage statistics
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Usage {
@@ -21,6 +23,14 @@ pub struct Usage {
     /// Completion token details
     #[serde(skip_serializing_if = "Option::is_none")]
     pub completion_tokens_details: Option<CompletionTokensDetails>,
+
+    /// Thinking/reasoning usage statistics
+    ///
+    /// Contains detailed breakdown of thinking tokens and costs
+    /// for thinking-enabled models (OpenAI o-series, Claude thinking,
+    /// DeepSeek R1, Gemini thinking).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_usage: Option<ThinkingUsage>,
 }
 
 impl Usage {
@@ -31,7 +41,27 @@ impl Usage {
             total_tokens: prompt_tokens + completion_tokens,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+            thinking_usage: None,
         }
+    }
+
+    /// Create usage with thinking statistics
+    pub fn with_thinking(mut self, thinking: ThinkingUsage) -> Self {
+        self.thinking_usage = Some(thinking);
+        self
+    }
+
+    /// Get thinking tokens count (convenience method)
+    pub fn thinking_tokens(&self) -> Option<u32> {
+        self.thinking_usage
+            .as_ref()
+            .and_then(|t| t.thinking_tokens)
+            .or_else(|| {
+                // Fallback to completion_tokens_details.reasoning_tokens
+                self.completion_tokens_details
+                    .as_ref()
+                    .and_then(|d| d.reasoning_tokens)
+            })
     }
 }
 

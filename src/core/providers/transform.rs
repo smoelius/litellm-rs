@@ -32,6 +32,7 @@ pub struct ChatRequest {
     pub user: Option<String>,
     pub extra_headers: Option<HashMap<String, String>>,
     pub extra_body: Option<Map<String, Value>>,
+            thinking: None,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -352,6 +352,7 @@ impl AzureChatHandler {
                             _ => MessageRole::Assistant,
                         },
                         content,
+                        thinking: None,
                         name: message["name"].as_str().map(|s| s.to_string()),
                         function_call: message["function_call"].as_object().and_then(|_| {
                             serde_json::from_value(message["function_call"].clone()).ok()
@@ -380,6 +381,7 @@ impl AzureChatHandler {
             total_tokens: u["total_tokens"].as_u64().unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+                thinking_usage: None,
         });
 
         let timestamp = response["created"].as_i64().unwrap_or_else(|| {

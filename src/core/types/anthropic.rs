@@ -4,9 +4,11 @@ use super::chat::ChatRequest;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Thinking configuration
+/// Anthropic-specific thinking configuration (legacy)
+///
+/// Note: For the unified thinking config, use `crate::core::types::thinking::ThinkingConfig`
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ThinkingConfig {
+pub struct AnthropicThinkingConfig {
     /// Enable thinking mode
     pub enabled: bool,
 }
@@ -52,7 +54,7 @@ pub struct AnthropicRequestParams {
     pub metadata: Option<AnthropicMetadata>,
     /// Thinking configuration
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub thinking: Option<ThinkingConfig>,
+    pub thinking: Option<AnthropicThinkingConfig>,
     /// Computer use configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub computer_use: Option<ComputerToolConfig>,
@@ -82,4 +84,5 @@ pub struct AnthropicChatRequest {
     pub base: ChatRequest,
     #[serde(flatten)]
     pub anthropic_params: AnthropicRequestParams,
+            thinking: None,
 }

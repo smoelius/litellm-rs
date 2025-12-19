@@ -171,6 +171,7 @@ impl GeminiSSEParser {
                         .unwrap_or(0) as u32,
                     prompt_tokens_details: None,
                     completion_tokens_details: None,
+                thinking_usage: None,
                 });
 
                 if choices.is_empty() && usage.is_none() {

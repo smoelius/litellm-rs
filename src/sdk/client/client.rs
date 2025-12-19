@@ -110,6 +110,7 @@ impl LLMClient {
                 content: Some(Content::Text("Hi".to_string())),
                 name: None,
                 tool_calls: None,
+            thinking: None,
             }],
             options: ChatOptions {
                 max_tokens: Some(1),

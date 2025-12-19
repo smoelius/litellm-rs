@@ -399,6 +399,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -424,6 +425,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -449,6 +451,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -474,6 +477,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -500,6 +504,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -522,6 +527,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -544,6 +550,7 @@ impl LLMProvider for BedrockProvider {
                     message: ChatMessage {
                         role: MessageRole::Assistant,
                         content: Some(MessageContent::Text(content)),
+                thinking: None,
                         name: None,
                         function_call: None,
                         tool_calls: None,
@@ -576,6 +583,7 @@ impl LLMProvider for BedrockProvider {
                     total_tokens: 0, // Will be calculated below
                     prompt_tokens_details: None,
                     completion_tokens_details: None,
+                thinking_usage: None,
                 })
             }
             BedrockModelFamily::TitanText => {
@@ -589,6 +597,7 @@ impl LLMProvider for BedrockProvider {
                                     total_tokens: 0, // Will be calculated below
                                     prompt_tokens_details: None,
                                     completion_tokens_details: None,
+                thinking_usage: None,
                                 })
                             })
                         })

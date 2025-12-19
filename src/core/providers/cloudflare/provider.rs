@@ -250,6 +250,7 @@ impl LLMProvider for CloudflareProvider {
                 message: crate::core::types::requests::ChatMessage {
                     role: crate::core::types::requests::MessageRole::Assistant,
                     content: Some(crate::core::types::requests::MessageContent::Text(content)),
+                thinking: None,
                     name: None,
                     function_call: None,
                     tool_calls: None,
@@ -304,6 +305,7 @@ impl LLMProvider for CloudflareProvider {
                 message: crate::core::types::requests::ChatMessage {
                     role: crate::core::types::requests::MessageRole::Assistant,
                     content: Some(crate::core::types::requests::MessageContent::Text(content)),
+                thinking: None,
                     name: None,
                     function_call: None,
                     tool_calls: None,
@@ -441,10 +443,12 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,
                 tool_call_id: None,
+            thinking: None,
             }],
             temperature: Some(0.7),
             max_tokens: Some(100),

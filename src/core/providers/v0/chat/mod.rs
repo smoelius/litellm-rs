@@ -25,6 +25,7 @@ pub struct V0ChatRequest {
     /// Tool choice configuration
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<serde_json::Value>,
+            thinking: None,
 }
 
 /// V0 Message structure
@@ -195,6 +196,7 @@ impl V0ChatHandler {
             tool_choice: request
                 .tool_choice
                 .map(|tc| serde_json::to_value(tc).unwrap_or_default()),
+            thinking: None,
         })
     }
 
@@ -279,6 +281,7 @@ impl V0ChatHandler {
             total_tokens: usage.total_tokens as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
+                thinking_usage: None,
         });
 
         Ok(ChatResponse {

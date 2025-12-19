@@ -184,6 +184,7 @@ impl OpenAICompletionTransformer {
                 total_tokens: usage.total_tokens,
                 prompt_tokens_details: None,
                 completion_tokens_details: None,
+                thinking_usage: None,
             }),
             system_fingerprint: None, // Not available in OpenAI completions API
         })

@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 use super::super::requests::MessageRole;
+use super::super::thinking::ThinkingDelta;
 
 /// Streaming delta content
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -15,6 +16,14 @@ pub struct ChatDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content: Option<String>,
 
+    /// Thinking/reasoning delta (for thinking-enabled models)
+    ///
+    /// When streaming from thinking models, thinking content may arrive
+    /// before or alongside the main content. Use this field to track
+    /// the model's reasoning process in real-time.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking: Option<ThinkingDelta>,
+
     /// Tool call delta
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<Vec<ToolCallDelta>>,
@@ -22,6 +31,18 @@ pub struct ChatDelta {
     /// Function call delta (backward compatibility)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_call: Option<FunctionCallDelta>,
+}
+
+impl ChatDelta {
+    /// Check if this delta contains thinking content
+    pub fn has_thinking(&self) -> bool {
+        self.thinking.is_some()
+    }
+
+    /// Get thinking content if present
+    pub fn thinking_content(&self) -> Option<&str> {
+        self.thinking.as_ref().and_then(|t| t.content.as_deref())
+    }
 }
 
 /// Tool call delta

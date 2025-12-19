@@ -57,6 +57,7 @@ impl OpenAIRequestTransformer {
             parallel_tool_calls: request.parallel_tool_calls,
             response_format,
             seed: request.seed,
+            thinking: None,
         })
     }
 

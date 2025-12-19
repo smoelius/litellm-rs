@@ -11,6 +11,7 @@ mod tests {
         let message = ChatMessage {
             role: MessageRole::User,
             content: Some(MessageContent::Text("test".to_string())),
+                thinking: None,
             name: None,
             tool_calls: None,
             tool_call_id: None,
