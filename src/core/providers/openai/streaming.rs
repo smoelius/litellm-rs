@@ -38,7 +38,8 @@ impl Stream for OpenAIStream {
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match self.inner.as_mut().poll_next(cx) {
             Poll::Ready(Some(Ok(bytes))) => {
-                let chunk_str = match String::from_utf8(bytes.to_vec()) {
+                // Use std::str::from_utf8 for zero-copy UTF-8 validation
+                let chunk_str = match std::str::from_utf8(&bytes) {
                     Ok(s) => s,
                     Err(e) => {
                         return Poll::Ready(Some(Err(OpenAIError::Other {
@@ -48,7 +49,7 @@ impl Stream for OpenAIStream {
                     }
                 };
 
-                match self.parser.parse_chunk(&chunk_str) {
+                match self.parser.parse_chunk(chunk_str) {
                     Ok(Some(chunk)) => Poll::Ready(Some(Ok(chunk))),
                     Ok(None) => {
                         // No complete chunk yet, continue polling

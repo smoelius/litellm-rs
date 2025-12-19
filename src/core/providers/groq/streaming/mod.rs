@@ -66,9 +66,9 @@ impl Stream for GroqStream {
             // Need more data
             match self.inner.poll_next_unpin(cx) {
                 Poll::Ready(Some(Ok(bytes))) => {
-                    // Add new data to buffer
-                    if let Ok(text) = String::from_utf8(bytes.to_vec()) {
-                        self.buffer.push_str(&text);
+                    // Add new data to buffer using zero-copy UTF-8 validation
+                    if let Ok(text) = std::str::from_utf8(&bytes) {
+                        self.buffer.push_str(text);
                     }
                 }
                 Poll::Ready(Some(Err(e))) => {

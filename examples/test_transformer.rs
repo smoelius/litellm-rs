@@ -2,7 +2,7 @@
 //!
 //! Run with: cargo run --example test_transformer --all-features
 
-use litellm_rs::core::providers::openai::models::{OpenAIChatResponse, OpenAIChoice, OpenAIMessage, OpenAIUsage};
+use litellm_rs::core::providers::openai::models::OpenAIChatResponse;
 use litellm_rs::core::providers::openai::transformer::OpenAIResponseTransformer;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

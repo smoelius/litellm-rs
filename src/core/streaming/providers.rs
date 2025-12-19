@@ -3,6 +3,13 @@
 use crate::utils::error::{GatewayError, Result};
 use futures::stream::{BoxStream, StreamExt};
 
+/// Helper to convert bytes to UTF-8 string efficiently
+/// Validates UTF-8 in-place before allocating, avoiding allocation on error
+#[inline]
+fn bytes_to_utf8_string(bytes: &[u8]) -> std::result::Result<String, std::str::Utf8Error> {
+    std::str::from_utf8(bytes).map(|s| s.to_owned())
+}
+
 /// OpenAI streaming implementation
 pub struct OpenAIStreaming;
 
@@ -13,7 +20,7 @@ impl OpenAIStreaming {
             chunk_result
                 .map_err(|e| GatewayError::Network(e.to_string()))
                 .and_then(|chunk| {
-                    String::from_utf8(chunk.to_vec())
+                    bytes_to_utf8_string(&chunk)
                         .map_err(|e| GatewayError::Parsing(e.to_string()))
                 })
         });
@@ -32,7 +39,7 @@ impl AnthropicStreaming {
             chunk_result
                 .map_err(|e| GatewayError::network(e.to_string()))
                 .and_then(|chunk| {
-                    String::from_utf8(chunk.to_vec())
+                    bytes_to_utf8_string(&chunk)
                         .map_err(|e| GatewayError::internal(format!("Parsing error: {}", e)))
                 })
         });
@@ -51,7 +58,7 @@ impl GenericStreaming {
             chunk_result
                 .map_err(|e| GatewayError::network(e.to_string()))
                 .and_then(|chunk| {
-                    String::from_utf8(chunk.to_vec())
+                    bytes_to_utf8_string(&chunk)
                         .map_err(|e| GatewayError::internal(format!("Parsing error: {}", e)))
                 })
         });
