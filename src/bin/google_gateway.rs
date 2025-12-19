@@ -113,7 +113,6 @@ pub struct ChatRequest {
     pub temperature: Option<f32>,
     pub max_tokens: Option<u32>,
     pub stream: Option<bool>,
-            thinking: None,
 }
 
 /// Message structure

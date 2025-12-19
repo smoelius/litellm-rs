@@ -52,20 +52,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "You are a helpful assistant running on Cloudflare's global network."
                         .to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(
                     "What are the benefits of edge computing? Keep it brief.".to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
         ],
         temperature: Some(0.7),
@@ -100,10 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: Some(MessageContent::Text(
                 "Write a haiku about cloud computing.".to_string(),
             )),
-            name: None,
-            function_call: None,
-            tool_calls: None,
-            tool_call_id: None,
+            ..Default::default()
         }],
         temperature: Some(0.8),
         max_tokens: Some(100),
@@ -138,10 +129,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             content: Some(MessageContent::Text(
                 "Write a Python function that calculates the factorial of a number.".to_string(),
             )),
-            name: None,
-            function_call: None,
-            tool_calls: None,
-            tool_call_id: None,
+            ..Default::default()
         }],
         temperature: Some(0.3),
         max_tokens: Some(200),

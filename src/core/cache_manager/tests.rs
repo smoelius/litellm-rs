@@ -17,7 +17,6 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello".to_string())),
-                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,
@@ -63,7 +62,6 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello".to_string())),
-                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,
@@ -78,7 +76,6 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello".to_string())),
-                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,

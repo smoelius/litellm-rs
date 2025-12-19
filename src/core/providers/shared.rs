@@ -438,13 +438,7 @@ pub mod test_utils {
         ChatMessage {
             role,
             content: Some(MessageContent::Text(content.to_string())),
-                thinking: None,
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-            thinking: None,
-            function_call: None,
-            thinking: None,
+            ..Default::default()
         }
     }
 

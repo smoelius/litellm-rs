@@ -16,6 +16,7 @@ use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::ChatRequest,
     responses::{ChatChunk, ChatResponse},
+    thinking::ThinkingContent,
 };
 
 use super::config::OpenRouterConfig;
@@ -269,10 +270,37 @@ impl OpenRouterProvider {
                     _ => crate::core::types::responses::FinishReason::Stop, // Default fallback
                 });
 
+            // Parse message but handle reasoning/thinking separately
+            let mut chat_message: crate::core::types::ChatMessage =
+                serde_json::from_value(message.clone())
+                    .map_err(|e| ProviderError::response_parsing("openrouter", e.to_string()))?;
+
+            // Extract reasoning/thinking content from the raw message
+            // OpenRouter/DeepSeek uses "reasoning" or "reasoning_content" fields
+            if chat_message.thinking.is_none() {
+                let thinking = message
+                    .get("reasoning_content")
+                    .and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty())
+                    .or_else(|| {
+                        message
+                            .get("reasoning")
+                            .and_then(|v| v.as_str())
+                            .filter(|s| !s.is_empty())
+                    })
+                    .map(|text| ThinkingContent::Text {
+                        text: text.to_string(),
+                        signature: None,
+                    });
+
+                if thinking.is_some() {
+                    chat_message.thinking = thinking;
+                }
+            }
+
             response_choices.push(crate::core::types::responses::ChatChoice {
                 index: index as u32,
-                message: serde_json::from_value(message.clone())
-                    .map_err(|e| ProviderError::response_parsing("openrouter", e.to_string()))?,
+                message: chat_message,
                 finish_reason,
                 logprobs: None,
             });

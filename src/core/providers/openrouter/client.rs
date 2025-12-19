@@ -204,7 +204,7 @@ impl OpenRouterProvider {
         Self::new(config).await
     }
 
-    /// Request
+    /// Execute HTTP request
     async fn execute_request<T: serde::de::DeserializeOwned>(
         &self,
         endpoint: &str,
@@ -292,13 +292,11 @@ impl LLMProvider for OpenRouterProvider {
         request: ChatRequest,
         _context: RequestContext,
     ) -> Result<ChatResponse, Self::Error> {
-        // Request
-        // TODO: Convert HashMap extra_params to OpenRouterExtraParams
+        // Transform request to OpenAI format
         let openai_request = OpenRouterRequestTransformer::transform_request(
             request, None, // Using None for now - will implement proper conversion later
         )?;
 
-        // Request
         let body = serde_json::to_value(openai_request)?;
         debug!(
             provider = "openrouter",
@@ -306,18 +304,17 @@ impl LLMProvider for OpenRouterProvider {
             "Sending request to OpenRouter API"
         );
 
-        // Request
+        // Execute request
         let response: crate::core::providers::openai::models::OpenAIChatResponse =
             self.execute_request("chat/completions", body).await?;
 
-        // Debug log the raw response
         debug!(
             provider = "openrouter",
             response = ?response,
             "Raw response received from OpenRouter"
         );
 
-        // Response
+        // Transform response
         OpenRouterResponseTransformer::transform_response(response)
     }
 

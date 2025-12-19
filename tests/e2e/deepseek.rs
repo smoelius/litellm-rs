@@ -19,10 +19,7 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(content.to_string())),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                function_call: None,
+                ..Default::default()
             }],
             max_tokens: Some(100),
             temperature: Some(0.0),
@@ -128,19 +125,13 @@ mod tests {
                         "You are a helpful assistant that responds in exactly one word."
                             .to_string(),
                     )),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                    function_call: None,
-                },
+                ..Default::default()
+            },
                 ChatMessage {
                     role: MessageRole::User,
                     content: Some(MessageContent::Text("What is 2+2?".to_string())),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                    function_call: None,
-                },
+                ..Default::default()
+            },
             ],
             max_tokens: Some(10),
             temperature: Some(0.0),

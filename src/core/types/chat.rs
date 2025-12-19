@@ -47,7 +47,6 @@ impl Default for ChatMessage {
             name: None,
             tool_calls: None,
             tool_call_id: None,
-            thinking: None,
             function_call: None,
         }
     }
@@ -161,10 +160,7 @@ impl ChatRequest {
             role,
             content: Some(content.into()),
             thinking: None,
-            name: None,
-            tool_calls: None,
-            tool_call_id: None,
-            function_call: None,
+            ..Default::default()
         });
         self
     }

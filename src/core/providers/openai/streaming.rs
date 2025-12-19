@@ -234,6 +234,7 @@ impl OpenAIStreamParser {
                 ChatDelta {
                     role,
                     content,
+                    thinking: None,
                     tool_calls,
                     function_call,
                 }
@@ -242,10 +243,8 @@ impl OpenAIStreamParser {
                 role: None,
                 content: None,
                 thinking: None,
-                    tool_calls: None,
-                thinking: None,
+                tool_calls: None,
                 function_call: None,
-                thinking: None,
             });
 
         let finish_reason = choice

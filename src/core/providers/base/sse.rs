@@ -435,9 +435,7 @@ impl SSETransformer for AnthropicTransformer {
                     content: Some(text.to_string()),
                     thinking: None,
                     tool_calls: None,
-                    thinking: None,
-                function_call: None,
-                thinking: None,
+                    function_call: None,
                 };
 
                 let choice = ChatStreamChoice {

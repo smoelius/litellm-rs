@@ -70,20 +70,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: Some(MessageContent::Text(
                     "You are a helpful assistant that speaks concisely.".to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(
                     "What is Rust programming language in one sentence?".to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
         ],
         temperature: Some(0.7),
@@ -131,10 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         content: Some(MessageContent::Text(
             "Count from 1 to 5 slowly.".to_string(),
         )),
-        name: None,
-        function_call: None,
-        tool_calls: None,
-        tool_call_id: None,
+        ..Default::default()
     }];
 
     println!("🔄 Starting streaming request...\n");
@@ -189,40 +180,28 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: Some(MessageContent::Text(
                     "You are a Rust programming expert.".to_string()
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(
                     "What is ownership in Rust?".to_string()
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::Assistant,
                 content: Some(MessageContent::Text(
                     "Ownership is Rust's memory management system where each value has a single owner, and when the owner goes out of scope, the value is dropped.".to_string()
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(
                     "Can you give me a simple code example?".to_string()
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
         ],
         temperature: Some(0.5),

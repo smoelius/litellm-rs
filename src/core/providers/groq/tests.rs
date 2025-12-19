@@ -111,12 +111,7 @@ mod tests {
                     content: Some(crate::core::types::requests::MessageContent::Text(
                         "Hello".to_string(),
                     )),
-                    name: None,
-                    tool_calls: None,
-                    tool_call_id: None,
-                    thinking: None,
-            function_call: None,
-            thinking: None,
+                    ..Default::default()
                 }],
                 stream: true,
                 ..Default::default()

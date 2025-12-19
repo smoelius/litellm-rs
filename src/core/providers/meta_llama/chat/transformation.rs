@@ -320,6 +320,7 @@ impl LlamaChatTransformation {
         Ok(ChatMessage {
             role,
             content,
+            thinking: None,
             name,
             tool_calls,
             tool_call_id,

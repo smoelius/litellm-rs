@@ -127,7 +127,6 @@ pub async fn handle_chat_completion_via_pool(
             total_tokens: 30,
             prompt_tokens_details: None,
             completion_tokens_details: None,
-                thinking_usage: None,
         }),
         system_fingerprint: Some(format!("fp_{}", uuid::Uuid::new_v4().simple())),
     };

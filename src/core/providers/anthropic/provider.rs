@@ -320,35 +320,10 @@ impl LLMProvider for AnthropicProvider {
             messages: vec![crate::core::types::ChatMessage {
                 role: crate::core::types::MessageRole::User,
                 content: Some(crate::core::types::MessageContent::Text("ping".to_string())),
-                thinking: None,
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             }],
             max_tokens: Some(1),
-            max_completion_tokens: None,
-            temperature: None,
-            top_p: None,
-            n: None,
-            stream: false,
-            stop: None,
-            presence_penalty: None,
-            frequency_penalty: None,
-            logit_bias: None,
-            logprobs: None,
-            top_logprobs: None,
-            user: None,
-            tools: None,
-            tool_choice: None,
-            parallel_tool_calls: None,
-            response_format: None,
-            seed: None,
-            functions: None,
-            function_call: None,
-            extra_params: std::collections::HashMap::new(),
+            ..Default::default()
         };
 
         match self.client.chat(test_request).await {

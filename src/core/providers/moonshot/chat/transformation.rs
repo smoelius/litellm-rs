@@ -323,6 +323,7 @@ impl MoonshotChatTransformation {
         Ok(ChatMessage {
             role,
             content,
+            thinking: None,
             name,
             function_call,
             tool_calls,

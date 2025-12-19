@@ -163,24 +163,12 @@ mod tests {
             ChatMessage {
                 role: MessageRole::System,
                 content: Some(MessageContent::Text("You are helpful".to_string())),
-                thinking: None,
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello".to_string())),
-                thinking: None,
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             },
         ];
 

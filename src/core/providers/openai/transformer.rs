@@ -8,6 +8,7 @@ use crate::core::types::{
     ContentPart, FinishReason, FunctionCall, ImageUrl, LogProbs, MessageContent, MessageRole,
     ResponseFormat, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
 };
+use crate::core::types::thinking::ThinkingContent;
 use serde_json;
 
 use super::error::OpenAIError;
@@ -57,7 +58,6 @@ impl OpenAIRequestTransformer {
             parallel_tool_calls: request.parallel_tool_calls,
             response_format,
             seed: request.seed,
-            thinking: None,
         })
     }
 
@@ -102,6 +102,7 @@ impl OpenAIRequestTransformer {
                 .map(Self::transform_function_call_response),
             reasoning: None,
             reasoning_details: None,
+            reasoning_content: None,
         })
     }
 
@@ -305,46 +306,52 @@ impl OpenAIResponseTransformer {
             _ => MessageRole::User,
         };
 
-        let content = if let Some(reasoning) = &message.reasoning {
-            if !reasoning.is_empty() {
-                Some(MessageContent::Text(format!("[Reasoning]: {}", reasoning)))
-            } else {
-                None
-            }
-        } else {
-            match message.content {
-                Some(value) => {
-                    if value.is_null() {
+        // Extract thinking content from reasoning fields
+        // Priority: reasoning_content (DeepSeek) > reasoning (OpenAI)
+        let thinking = message
+            .reasoning_content
+            .as_ref()
+            .filter(|s| !s.is_empty())
+            .or(message.reasoning.as_ref().filter(|s| !s.is_empty()))
+            .map(|text| ThinkingContent::Text {
+                text: text.clone(),
+                signature: None,
+            });
+
+        // Parse content (don't include reasoning in content anymore)
+        let content = match message.content {
+            Some(value) => {
+                if value.is_null() {
+                    None
+                } else if let Some(text) = value.as_str() {
+                    if text.is_empty() {
                         None
-                    } else if let Some(text) = value.as_str() {
-                        if text.is_empty() {
-                            None
-                        } else {
-                            Some(MessageContent::Text(text.to_string()))
-                        }
-                    } else if let Some(array) = value.as_array() {
-                        let parts: Vec<OpenAIContentPart> =
-                            serde_json::from_value(serde_json::Value::Array(array.clone()))
-                                .map_err(|e| OpenAIError::ResponseParsing {
-                                    provider: "openai",
-                                    message: format!("Failed to parse content parts: {}", e),
-                                })?;
-                        let content_parts = parts
-                            .into_iter()
-                            .map(Self::transform_content_part_response)
-                            .collect::<Result<Vec<_>, _>>()?;
-                        Some(MessageContent::Parts(content_parts))
                     } else {
-                        None
+                        Some(MessageContent::Text(text.to_string()))
                     }
+                } else if let Some(array) = value.as_array() {
+                    let parts: Vec<OpenAIContentPart> =
+                        serde_json::from_value(serde_json::Value::Array(array.clone()))
+                            .map_err(|e| OpenAIError::ResponseParsing {
+                                provider: "openai",
+                                message: format!("Failed to parse content parts: {}", e),
+                            })?;
+                    let content_parts = parts
+                        .into_iter()
+                        .map(Self::transform_content_part_response)
+                        .collect::<Result<Vec<_>, _>>()?;
+                    Some(MessageContent::Parts(content_parts))
+                } else {
+                    None
                 }
-                None => None,
             }
+            None => None,
         };
 
         Ok(ChatMessage {
             role,
             content,
+            thinking,
             name: message.name,
             tool_calls: message.tool_calls.map(|calls| {
                 calls
@@ -371,6 +378,7 @@ impl OpenAIResponseTransformer {
                 _ => MessageRole::Assistant,
             }),
             content: delta.content,
+            thinking: None,
             tool_calls: None,
             function_call: None,
         })
@@ -423,6 +431,7 @@ impl OpenAIResponseTransformer {
             prompt_tokens: usage.prompt_tokens,
             completion_tokens: usage.completion_tokens,
             total_tokens: usage.total_tokens,
+            thinking_usage: None,
             prompt_tokens_details: usage.prompt_tokens_details.map(|details| {
                 crate::core::types::PromptTokensDetails {
                     cached_tokens: details.cached_tokens,

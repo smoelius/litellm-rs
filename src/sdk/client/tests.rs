@@ -53,7 +53,6 @@ mod tests {
             model: "claude-3-sonnet-20240229".to_string(),
             messages: vec![],
             options: ChatOptions::default(),
-            thinking: None,
         };
 
         let provider = client.select_provider(&request).await.unwrap();

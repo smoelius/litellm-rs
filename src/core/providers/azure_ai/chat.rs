@@ -408,6 +408,7 @@ impl AzureAIChatUtils {
         let message = ChatMessage {
             role,
             content: Some(content),
+            thinking: None,
             name: message_data["name"].as_str().map(|s| s.to_string()),
             function_call: None, // TODO: Handle function calls
             tool_calls: None,    // TODO: Handle tool calls
@@ -501,6 +502,7 @@ impl AzureAIChatUtils {
                         delta: crate::core::types::responses::ChatDelta {
                             role: None,
                             content: choice["delta"]["content"].as_str().map(|s| s.to_string()),
+                            thinking: None,
                             function_call: None,
                             tool_calls: None,
                         },

@@ -1031,7 +1031,6 @@ pub struct OpenAIChatRequest {
     pub logprobs: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub top_logprobs: Option<u32>,
-            thinking: None,
 }
 
 /// OpenAI Message
@@ -1052,6 +1051,9 @@ pub struct OpenAIMessage {
     pub reasoning: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reasoning_details: Option<serde_json::Value>,
+    /// DeepSeek reasoning content field
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_content: Option<String>,
 }
 
 /// OpenAI Tool

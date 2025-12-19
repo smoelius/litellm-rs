@@ -50,20 +50,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "You are a helpful assistant that can access web information when needed."
                         .to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(
                     "What is xAI and what are Grok models? Keep it brief.".to_string(),
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
         ],
         temperature: Some(0.7),
@@ -112,10 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 content: Some(MessageContent::Text(
                     "Solve this step by step: If a train travels 120 miles in 2 hours, and then 180 miles in 3 hours, what is its average speed for the entire journey?".to_string()
                 )),
-                name: None,
-                function_call: None,
-                tool_calls: None,
-                tool_call_id: None,
+                ..Default::default()
             },
         ],
         temperature: Some(0.3),

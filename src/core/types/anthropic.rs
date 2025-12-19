@@ -84,5 +84,4 @@ pub struct AnthropicChatRequest {
     pub base: ChatRequest,
     #[serde(flatten)]
     pub anthropic_params: AnthropicRequestParams,
-            thinking: None,
 }

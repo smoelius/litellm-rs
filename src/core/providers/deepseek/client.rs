@@ -148,9 +148,7 @@ mod tests {
                 name: None,
                 tool_calls: None,
                 tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                function_call: None,
             }],
             temperature: Some(0.7),
             max_tokens: Some(100),
@@ -172,6 +170,7 @@ mod tests {
             function_call: None,
             logprobs: None,
             top_logprobs: None,
+            thinking: None,
             extra_params: HashMap::new(),
         };
 

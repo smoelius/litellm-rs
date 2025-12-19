@@ -199,7 +199,6 @@ impl StreamingHandler {
             total_tokens,
             prompt_tokens_details: None,
             completion_tokens_details: None,
-                thinking_usage: None,
         };
 
         let final_chunk = ChatCompletionChunk {

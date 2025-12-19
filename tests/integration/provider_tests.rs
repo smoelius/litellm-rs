@@ -120,10 +120,7 @@ mod tests {
                 content: Some(MessageContent::Text(
                     "Say 'Hello' and nothing else".to_string(),
                 )),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                function_call: None,
+                ..Default::default()
             }],
             max_tokens: Some(10),
             ..Default::default()

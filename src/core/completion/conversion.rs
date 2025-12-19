@@ -34,9 +34,7 @@ pub fn convert_to_chat_completion_request(
         logprobs: options.logprobs,
         top_logprobs: options.top_logprobs,
         thinking: None,
-        thinking: None,
-            extra_params: options.extra_params,
-            thinking: None,
+        extra_params: options.extra_params,
     })
 }
 

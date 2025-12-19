@@ -136,6 +136,7 @@ impl GeminiSSEParser {
                         } else {
                             Some(delta_content)
                         },
+                        thinking: None,
                         function_call: None,
                         tool_calls: None,
                     };
@@ -171,7 +172,7 @@ impl GeminiSSEParser {
                         .unwrap_or(0) as u32,
                     prompt_tokens_details: None,
                     completion_tokens_details: None,
-                thinking_usage: None,
+                    thinking_usage: None,
                 });
 
                 if choices.is_empty() && usage.is_none() {
@@ -209,6 +210,7 @@ impl GeminiSSEParser {
                         delta: ChatDelta {
                             role: None,
                             content: None,
+                            thinking: None,
                             function_call: None,
                             tool_calls: None,
                         },

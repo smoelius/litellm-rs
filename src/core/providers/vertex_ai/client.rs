@@ -800,13 +800,11 @@ impl LLMProvider for VertexAIProvider {
                 message: crate::core::types::requests::ChatMessage {
                     role: crate::core::types::requests::MessageRole::Assistant,
                     content: Some(crate::core::types::requests::MessageContent::Text(content)),
-                thinking: None,
+                    thinking: None,
                     name: None,
                     tool_calls: None, // Handle
                     tool_call_id: None,
-                    thinking: None,
-            function_call: None,
-            thinking: None,
+                    function_call: None,
                 },
                 finish_reason: candidate
                     .get("finishReason")

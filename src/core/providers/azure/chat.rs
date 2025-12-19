@@ -421,6 +421,7 @@ impl AzureChatHandler {
                             _ => MessageRole::Assistant,
                         }),
                         content: choice["delta"]["content"].as_str().map(|s| s.to_string()),
+                        thinking: None,
                         function_call: choice["delta"]["function_call"].as_object().and_then(
                             |_| {
                                 serde_json::from_value(choice["delta"]["function_call"].clone())

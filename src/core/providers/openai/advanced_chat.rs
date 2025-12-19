@@ -170,7 +170,6 @@ pub struct AdvancedChatRequest {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<HashMap<String, serde_json::Value>>,
-            thinking: None,
 }
 
 /// Advanced chat response with reasoning and structured output
@@ -612,7 +611,6 @@ mod tests {
             response_format: Some(StructuredOutput {
                 output_type: StructuredOutputType::JsonObject,
                 json_schema: None,
-            thinking: None,
             }),
             reasoning: None,
             prediction: None,

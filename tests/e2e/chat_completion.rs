@@ -24,10 +24,7 @@ mod tests {
             messages: vec![ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text(content.to_string())),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                function_call: None,
+                ..Default::default()
             }],
             max_tokens: Some(50),
             ..Default::default()

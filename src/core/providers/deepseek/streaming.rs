@@ -125,6 +125,7 @@ impl DeepSeekStreamParser {
             delta: ChatDelta {
                 role,
                 content,
+                thinking: None,
                 function_call: None,
                 tool_calls: None,
             },

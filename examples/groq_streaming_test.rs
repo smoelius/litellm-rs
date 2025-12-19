@@ -21,10 +21,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "Hello! This is a test response from Groq's ultra-fast LPU inference engine."
                         .to_string(),
                 )),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                function_call: None,
+                ..Default::default()
             },
             finish_reason: None,
             logprobs: None,

@@ -12,7 +12,6 @@ impl LLMClient {
             model: String::new(), // Will be set by load balancer
             messages,
             options: ChatOptions::default(),
-            thinking: None,
         };
 
         self.chat_with_options(request).await

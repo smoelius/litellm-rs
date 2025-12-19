@@ -273,8 +273,6 @@ impl LLMProvider for GeminiProvider {
             function_call: None,
             thinking: None,
             extra_params: std::collections::HashMap::new(),
-            thinking: None,
-            thinking: None,
         };
 
         self.client
@@ -344,13 +342,7 @@ impl LLMProvider for GeminiProvider {
             messages: vec![crate::core::types::ChatMessage {
                 role: crate::core::types::MessageRole::User,
                 content: Some(crate::core::types::MessageContent::Text("Hi".to_string())),
-                thinking: None,
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             }],
             temperature: Some(0.1),
             max_tokens: Some(5),
@@ -372,6 +364,7 @@ impl LLMProvider for GeminiProvider {
             seed: None,
             functions: None,
             function_call: None,
+            thinking: None,
             extra_params: std::collections::HashMap::new(),
         };
 
@@ -467,8 +460,6 @@ mod tests {
             top_logprobs: None,
             thinking: None,
             extra_params: std::collections::HashMap::new(),
-            thinking: None,
-            thinking: None,
         };
 
         assert!(provider.validate_request(&empty_request).is_err());
@@ -481,12 +472,7 @@ mod tests {
                 content: Some(crate::core::types::requests::MessageContent::Text(
                     "Hello".to_string(),
                 )),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             }],
             temperature: Some(3.0), // Out of range
             max_tokens: None,
@@ -508,6 +494,7 @@ mod tests {
             function_call: None,
             logprobs: None,
             top_logprobs: None,
+            thinking: None,
             extra_params: std::collections::HashMap::new(),
         };
 

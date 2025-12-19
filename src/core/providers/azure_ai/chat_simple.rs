@@ -162,11 +162,9 @@ impl AzureAIChatHandler {
                 delta: ChatDelta {
                     role: Some(MessageRole::Assistant),
                     content: response.first_content().map(|s| s.to_string()),
-                            thinking: None,
                     tool_calls: None,
+                    function_call: None,
                     thinking: None,
-                function_call: None,
-                thinking: None,
                 },
                 finish_reason: Some(FinishReason::Stop),
                 logprobs: None,

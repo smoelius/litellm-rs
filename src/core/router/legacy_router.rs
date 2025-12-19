@@ -168,12 +168,7 @@ impl Router {
                 content: Some(crate::core::types::requests::MessageContent::Text(
                     request.prompt,
                 )),
-                name: None,
-                tool_calls: None,
-                tool_call_id: None,
-                thinking: None,
-            function_call: None,
-            thinking: None,
+                ..Default::default()
             }],
             temperature: request.temperature,
             max_tokens: request.max_tokens,
@@ -195,6 +190,7 @@ impl Router {
             function_call: None,
             logprobs: None,
             top_logprobs: None,
+            thinking: None,
             extra_params: HashMap::new(),
         };
 

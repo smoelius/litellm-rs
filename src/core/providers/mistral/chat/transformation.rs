@@ -297,6 +297,7 @@ impl MistralChatTransformation {
             function_call,
             tool_calls,
             tool_call_id,
+            thinking: None,
         })
     }
 

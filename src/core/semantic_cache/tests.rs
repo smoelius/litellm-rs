@@ -37,7 +37,6 @@ mod tests {
             ChatMessage {
                 role: MessageRole::User,
                 content: Some(MessageContent::Text("Hello world".to_string())),
-                thinking: None,
                 name: None,
                 function_call: None,
                 tool_calls: None,
