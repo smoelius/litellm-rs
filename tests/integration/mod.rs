@@ -9,3 +9,4 @@ pub mod error_handling_tests;
 pub mod provider_factory_tests;
 pub mod provider_tests;
 pub mod router_tests;
+pub mod types_tests;
