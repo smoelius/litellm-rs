@@ -3,7 +3,7 @@
 //! Unified client following the new provider architecture
 
 use async_trait::async_trait;
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::pin::Pin;
@@ -28,7 +28,6 @@ use super::{
     image_variations::{OpenAIImageVariationsRequest, OpenAIImageVariationsUtils},
     models::{OpenAIModelRegistry, get_openai_registry},
     realtime::{OpenAIRealtimeUtils, RealtimeSessionConfig},
-    streaming::OpenAIStream,
     vector_stores::{OpenAIVectorStoreRequest, OpenAIVectorStoreUtils},
 };
 
@@ -183,13 +182,9 @@ impl OpenAIProvider {
             message: e.to_string(),
         })?;
 
-        // Convert the stream to the expected type
-        let stream = response.bytes_stream().map(|result| {
-            result.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send + Sync>)
-        });
-
-        // Wrap in OpenAI-specific stream handler
-        Ok(Box::pin(OpenAIStream::new(Box::pin(stream))))
+        // Create OpenAI-specific stream handler using unified SSE parser
+        let stream = response.bytes_stream();
+        Ok(Box::pin(super::streaming::create_openai_stream(stream)))
     }
 
     /// Transform ChatRequest to OpenAI API format

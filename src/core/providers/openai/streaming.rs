@@ -1,387 +1,147 @@
 //! OpenAI Streaming Response Handler
 //!
-//! Server-Sent Events (SSE) stream processing for OpenAI API
+//! Uses the unified SSE parser for consistent streaming across providers.
 
+use bytes::Bytes;
 use futures::Stream;
-use serde_json::Value;
 use std::pin::Pin;
-use std::task::{Context, Poll};
-use tracing::warn;
 
 use super::error::OpenAIError;
+use crate::core::providers::base::sse::{OpenAICompatibleTransformer, UnifiedSSEStream};
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::responses::ChatChunk;
 
-// Type alias for complex stream type
-type ByteStream = Pin<
-    Box<dyn Stream<Item = Result<bytes::Bytes, Box<dyn std::error::Error + Send + Sync>>> + Send>,
+/// OpenAI uses OpenAI-compatible SSE format (naturally)
+pub type OpenAIStream = UnifiedSSEStream<
+    Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>,
+    OpenAICompatibleTransformer,
 >;
 
-/// OpenAI streaming response handler
-pub struct OpenAIStream {
-    inner: ByteStream,
-    parser: OpenAIStreamParser,
+/// Helper function to create OpenAI stream
+pub fn create_openai_stream(
+    stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
+) -> OpenAIStream {
+    let transformer = OpenAICompatibleTransformer::new("openai");
+    UnifiedSSEStream::new(Box::pin(stream), transformer)
 }
 
-impl OpenAIStream {
-    /// Create new OpenAI stream
-    pub fn new(stream: ByteStream) -> Self {
+/// Wrapper stream that converts ProviderError to OpenAIError for backward compatibility
+pub struct OpenAIStreamCompat {
+    inner: OpenAIStream,
+}
+
+impl OpenAIStreamCompat {
+    pub fn new(stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static) -> Self {
         Self {
-            inner: stream,
-            parser: OpenAIStreamParser::new(),
+            inner: create_openai_stream(stream),
         }
     }
 }
 
-impl Stream for OpenAIStream {
+impl Stream for OpenAIStreamCompat {
     type Item = Result<ChatChunk, OpenAIError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.inner.as_mut().poll_next(cx) {
-            Poll::Ready(Some(Ok(bytes))) => {
-                // Use std::str::from_utf8 for zero-copy UTF-8 validation
-                let chunk_str = match std::str::from_utf8(&bytes) {
-                    Ok(s) => s,
-                    Err(e) => {
-                        return Poll::Ready(Some(Err(OpenAIError::Other {
-                            provider: "openai",
-                            message: format!("Invalid UTF-8 in stream chunk: {}", e),
-                        })));
-                    }
-                };
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        use std::pin::Pin;
+        use std::task::Poll;
 
-                match self.parser.parse_chunk(chunk_str) {
-                    Ok(Some(chunk)) => Poll::Ready(Some(Ok(chunk))),
-                    Ok(None) => {
-                        // No complete chunk yet, continue polling
-                        cx.waker().wake_by_ref();
-                        Poll::Pending
-                    }
-                    Err(e) => Poll::Ready(Some(Err(e))),
-                }
-            }
-            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(OpenAIError::Other {
-                provider: "openai",
-                message: format!("Stream error: {}", e),
-            }))),
-            Poll::Ready(None) => {
-                // Stream ended
-                if self.parser.is_finished() {
-                    Poll::Ready(None)
-                } else {
-                    // Process any remaining buffered data
-                    match self.parser.finalize() {
-                        Ok(Some(chunk)) => Poll::Ready(Some(Ok(chunk))),
-                        Ok(None) => Poll::Ready(None),
-                        Err(e) => Poll::Ready(Some(Err(e))),
-                    }
-                }
-            }
+        match Pin::new(&mut self.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(chunk))) => Poll::Ready(Some(Ok(chunk))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(provider_error_to_openai(e)))),
+            Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
         }
     }
 }
 
-/// OpenAI Server-Sent Events parser
-pub struct OpenAIStreamParser {
-    buffer: String,
-    finished: bool,
-}
-
-impl OpenAIStreamParser {
-    /// Create new parser
-    pub fn new() -> Self {
-        Self {
-            buffer: String::new(),
-            finished: false,
-        }
-    }
-
-    /// Parse incoming chunk data
-    pub fn parse_chunk(&mut self, data: &str) -> Result<Option<ChatChunk>, OpenAIError> {
-        if self.finished {
-            return Ok(None);
-        }
-
-        // Add new data to buffer
-        self.buffer.push_str(data);
-
-        // Process complete lines
-        while let Some(line_end) = self.buffer.find('\n') {
-            let line = self.buffer[..line_end].trim_end_matches('\r').to_string();
-            self.buffer.drain(..=line_end);
-
-            // Skip empty lines and comments
-            if line.is_empty() || line.starts_with(':') {
-                continue;
-            }
-
-            // Parse SSE data lines
-            if let Some(data_content) = line.strip_prefix("data: ") {
-                if data_content.trim() == "[DONE]" {
-                    self.finished = true;
-                    return Ok(None);
-                }
-
-                // Parse JSON chunk
-                match self.parse_json_chunk(data_content) {
-                    Ok(chunk) => return Ok(Some(chunk)),
-                    Err(e) => {
-                        // Log parsing error but continue processing
-                        warn!(
-                            provider = "openai",
-                            error = %e,
-                            data = %data_content,
-                            "Failed to parse streaming chunk, continuing with next chunk"
-                        );
-                        continue;
-                    }
-                }
-            }
-        }
-
-        // No complete chunk available yet
-        Ok(None)
-    }
-
-    /// Parse JSON chunk data
-    fn parse_json_chunk(&self, data: &str) -> Result<ChatChunk, OpenAIError> {
-        let json_value: Value =
-            serde_json::from_str(data).map_err(|e| OpenAIError::ResponseParsing {
-                provider: "openai",
-                message: format!("Invalid JSON in stream: {}", e),
-            })?;
-
-        // Transform OpenAI streaming response to standard format
-        self.transform_streaming_chunk(json_value)
-    }
-
-    /// Transform OpenAI streaming chunk to standard ChatChunk format
-    fn transform_streaming_chunk(&self, chunk: Value) -> Result<ChatChunk, OpenAIError> {
-        let id = chunk
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        let object = chunk
-            .get("object")
-            .and_then(|v| v.as_str())
-            .unwrap_or("chat.completion.chunk")
-            .to_string();
-
-        let created = chunk.get("created").and_then(|v| v.as_i64()).unwrap_or(0);
-
-        let model = chunk
-            .get("model")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        let choices = chunk
-            .get("choices")
-            .and_then(|v| v.as_array())
-            .map(|choices| {
-                choices
-                    .iter()
-                    .filter_map(|choice| self.transform_choice(choice).ok())
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        Ok(ChatChunk {
-            id,
-            object,
-            created,
-            model,
-            choices,
-            system_fingerprint: None, // Not always available in streaming
-            usage: None,              // Usage typically provided in last chunk
-        })
-    }
-
-    /// Transform individual choice in streaming response
-    fn transform_choice(
-        &self,
-        choice: &Value,
-    ) -> Result<crate::core::types::responses::ChatStreamChoice, OpenAIError> {
-        use crate::core::types::responses::{ChatDelta, ChatStreamChoice};
-
-        let index = choice.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
-
-        let delta = choice
-            .get("delta")
-            .map(|delta| {
-                let role = delta
-                    .get("role")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| match s {
-                        "system" => Some(crate::core::types::requests::MessageRole::System),
-                        "user" => Some(crate::core::types::requests::MessageRole::User),
-                        "assistant" => Some(crate::core::types::requests::MessageRole::Assistant),
-                        "tool" => Some(crate::core::types::requests::MessageRole::Tool),
-                        "function" => Some(crate::core::types::requests::MessageRole::Function),
-                        _ => None,
-                    });
-
-                let content = delta
-                    .get("content")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string());
-
-                // TODO: Handle tool_calls properly
-                let tool_calls = None;
-                let function_call = None;
-
-                ChatDelta {
-                    role,
-                    content,
-                    thinking: None,
-                    tool_calls,
-                    function_call,
-                }
-            })
-            .unwrap_or(ChatDelta {
-                role: None,
-                content: None,
-                thinking: None,
-                tool_calls: None,
-                function_call: None,
-            });
-
-        let finish_reason = choice
-            .get("finish_reason")
-            .and_then(|v| v.as_str())
-            .and_then(|s| match s {
-                "stop" => Some(crate::core::types::responses::FinishReason::Stop),
-                "length" => Some(crate::core::types::responses::FinishReason::Length),
-                "content_filter" => {
-                    Some(crate::core::types::responses::FinishReason::ContentFilter)
-                }
-                "function_call" => Some(crate::core::types::responses::FinishReason::FunctionCall),
-                "tool_calls" => Some(crate::core::types::responses::FinishReason::ToolCalls),
-                _ => None,
-            });
-
-        Ok(ChatStreamChoice {
-            index,
-            delta,
-            finish_reason,
-            logprobs: None, // OpenAI may include this in future
-        })
-    }
-
-    /// Check if parsing is finished
-    pub fn is_finished(&self) -> bool {
-        self.finished
-    }
-
-    /// Finalize parsing and return any remaining chunk
-    pub fn finalize(&mut self) -> Result<Option<ChatChunk>, OpenAIError> {
-        if !self.buffer.is_empty() && !self.finished {
-            // Try to parse any remaining data
-            let remaining = self.buffer.trim().to_string();
-            if !remaining.is_empty() {
-                if let Some(data_content) = remaining.strip_prefix("data: ") {
-                    if data_content.trim() != "[DONE]" {
-                        self.buffer.clear();
-                        return self.parse_json_chunk(data_content).map(Some);
-                    }
-                }
-            }
-        }
-        Ok(None)
-    }
-}
-
-impl Default for OpenAIStreamParser {
-    fn default() -> Self {
-        Self::new()
+/// Convert ProviderError to OpenAIError
+fn provider_error_to_openai(e: ProviderError) -> OpenAIError {
+    match e {
+        ProviderError::ResponseParsing { message, .. } => OpenAIError::ResponseParsing {
+            provider: "openai",
+            message,
+        },
+        ProviderError::Network { message, .. } => OpenAIError::Other {
+            provider: "openai",
+            message,
+        },
+        _ => OpenAIError::Other {
+            provider: "openai",
+            message: e.to_string(),
+        },
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures::{StreamExt, stream};
-
-    #[test]
-    fn test_parser_creation() {
-        let parser = OpenAIStreamParser::new();
-        assert!(!parser.is_finished());
-    }
+    use crate::core::providers::base::sse::UnifiedSSEParser;
+    use futures::StreamExt;
 
     #[test]
     fn test_sse_parsing() {
-        let mut parser = OpenAIStreamParser::new();
+        let transformer = OpenAICompatibleTransformer::new("openai");
+        let mut parser = UnifiedSSEParser::new(transformer);
 
-        let test_data = r#"data: {"id":"chatcmpl-123","object":"chat.completion.chunk","created":1234567890,"model":"gpt-4","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+        let test_data = b"data: {\"id\":\"chatcmpl-123\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\n";
 
-"#;
-
-        let result = parser.parse_chunk(test_data);
+        let result = parser.process_bytes(test_data);
         assert!(result.is_ok());
 
-        if let Ok(Some(chunk)) = result {
-            assert_eq!(chunk.id, "chatcmpl-123");
-            assert_eq!(chunk.model, "gpt-4");
-            assert_eq!(chunk.choices.len(), 1);
-            assert_eq!(chunk.choices[0].delta.content, Some("Hello".to_string()));
-        } else {
-            panic!("Expected successful parsing");
-        }
+        let chunks = result.unwrap();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].id, "chatcmpl-123");
+        assert_eq!(chunks[0].model, "gpt-4");
+        assert_eq!(chunks[0].choices.len(), 1);
+        assert_eq!(
+            chunks[0].choices[0].delta.content,
+            Some("Hello".to_string())
+        );
     }
 
     #[test]
     fn test_done_message() {
-        let mut parser = OpenAIStreamParser::new();
+        let transformer = OpenAICompatibleTransformer::new("openai");
+        let mut parser = UnifiedSSEParser::new(transformer);
 
-        let done_data = "data: [DONE]\n\n";
-        let result = parser.parse_chunk(done_data);
+        let done_data = b"data: [DONE]\n\n";
+        let result = parser.process_bytes(done_data);
 
         assert!(result.is_ok());
-        assert!(result.unwrap().is_none());
-        assert!(parser.is_finished());
-    }
-
-    #[test]
-    fn test_invalid_json() {
-        let mut parser = OpenAIStreamParser::new();
-
-        let invalid_data = "data: {invalid json}\n\n";
-        let result = parser.parse_chunk(invalid_data);
-
-        // Should handle invalid JSON gracefully
-        assert!(result.is_ok());
+        // [DONE] should not produce any chunks
+        assert!(result.unwrap().is_empty());
     }
 
     #[test]
     fn test_incremental_parsing() {
-        let mut parser = OpenAIStreamParser::new();
+        let transformer = OpenAICompatibleTransformer::new("openai");
+        let mut parser = UnifiedSSEParser::new(transformer);
 
         // Send data in parts
-        let part1 = "data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\"";
-        let part2 = ",\"created\":123,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n";
+        let part1 = b"data: {\"id\":\"test\",\"object\":\"chat.completion.chunk\"";
+        let part2 = b",\"created\":123,\"model\":\"gpt-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hi\"},\"finish_reason\":null}]}\n\n";
 
         // First part should not produce a chunk
-        let result1 = parser.parse_chunk(part1);
+        let result1 = parser.process_bytes(part1);
         assert!(result1.is_ok());
-        assert!(result1.unwrap().is_none());
+        assert!(result1.unwrap().is_empty());
 
         // Second part should complete the chunk
-        let result2 = parser.parse_chunk(part2);
+        let result2 = parser.process_bytes(part2);
         assert!(result2.is_ok());
 
-        if let Ok(Some(chunk)) = result2 {
-            assert_eq!(chunk.id, "test");
-            assert_eq!(chunk.choices[0].delta.content, Some("Hi".to_string()));
-        } else {
-            panic!("Expected successful parsing of complete chunk");
-        }
+        let chunks = result2.unwrap();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].id, "test");
+        assert_eq!(chunks[0].choices[0].delta.content, Some("Hi".to_string()));
     }
 
     #[tokio::test]
     async fn test_stream_wrapper() {
-        use bytes::Bytes;
+        use futures::stream;
 
         // Create a mock byte stream
         let data = vec![
@@ -391,10 +151,8 @@ mod tests {
             Ok(Bytes::from("data: [DONE]\n\n")),
         ];
 
-        let mock_stream = stream::iter(data)
-            .map(|item| item.map_err(|e: Box<dyn std::error::Error + Send + Sync>| e));
-
-        let mut openai_stream = OpenAIStream::new(Box::pin(mock_stream));
+        let mock_stream = stream::iter(data);
+        let mut openai_stream = create_openai_stream(mock_stream);
 
         // Should produce one chunk
         let first_chunk = openai_stream.next().await;
@@ -405,7 +163,7 @@ mod tests {
             assert_eq!(chunk.choices[0].delta.content, Some("Hello".to_string()));
         }
 
-        // Should end after [DONE]
+        // Stream should end after [DONE]
         let second_chunk = openai_stream.next().await;
         assert!(second_chunk.is_none());
     }

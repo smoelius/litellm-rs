@@ -18,7 +18,6 @@ use crate::core::types::{
     responses::{ChatChunk, ChatResponse},
 };
 
-use super::streaming::DeepSeekStream;
 use super::{DeepSeekClient, DeepSeekConfig, DeepSeekErrorMapper};
 
 #[derive(Debug, Clone)]
@@ -200,12 +199,9 @@ impl LLMProvider for DeepSeekProvider {
             ));
         }
 
-        // Create
-        let byte_stream = response.bytes_stream();
-        let stream = Box::pin(byte_stream);
-        let deepseek_stream = DeepSeekStream::new(stream);
-
-        Ok(Box::pin(deepseek_stream))
+        // Create DeepSeek stream using unified SSE parser
+        let stream = response.bytes_stream();
+        Ok(Box::pin(super::streaming::create_deepseek_stream(stream)))
     }
 
     async fn health_check(&self) -> HealthStatus {

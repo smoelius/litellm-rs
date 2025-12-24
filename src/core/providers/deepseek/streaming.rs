@@ -1,225 +1,41 @@
 //! DeepSeek Streaming Support
 //!
-//! Implementation
+//! Uses the unified SSE parser for consistent streaming across providers.
 
+use bytes::Bytes;
 use futures::Stream;
-use serde_json::Value;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 
-use crate::core::providers::unified_provider::ProviderError;
-use crate::core::types::responses::ChatChunk;
+use crate::core::providers::base::sse::{OpenAICompatibleTransformer, UnifiedSSEStream};
 
-/// Response
-pub struct DeepSeekStreamParser {
-    buffer: String,
-}
+/// DeepSeek uses OpenAI-compatible SSE format
+pub type DeepSeekStream = UnifiedSSEStream<
+    Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>,
+    OpenAICompatibleTransformer,
+>;
 
-impl Default for DeepSeekStreamParser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DeepSeekStreamParser {
-    pub fn new() -> Self {
-        Self {
-            buffer: String::new(),
-        }
-    }
-
-    /// Handle
-    pub fn process_chunk(&mut self, chunk: &[u8]) -> Result<Vec<ChatChunk>, ProviderError> {
-        let chunk_str = std::str::from_utf8(chunk).map_err(|e| {
-            ProviderError::response_parsing("deepseek", format!("Invalid UTF-8: {}", e))
-        })?;
-
-        self.buffer.push_str(chunk_str);
-        let mut results = Vec::new();
-
-        // Handle
-        while let Some(newline_pos) = self.buffer.find('\n') {
-            let line = self.buffer[..newline_pos].trim().to_string();
-            self.buffer.drain(..=newline_pos);
-
-            if line.is_empty() {
-                continue;
-            }
-
-            // Handle
-            if let Some(data) = line.strip_prefix("data: ") {
-                if data == "[DONE]" {
-                    break;
-                }
-
-                match self.parse_sse_data(data) {
-                    Ok(Some(chunk)) => results.push(chunk),
-                    Ok(None) => continue,
-                    Err(e) => return Err(e),
-                }
-            }
-        }
-
-        Ok(results)
-    }
-
-    /// Parse SSE data as ChatChunk
-    fn parse_sse_data(&self, data: &str) -> Result<Option<ChatChunk>, ProviderError> {
-        let json: Value = serde_json::from_str(data).map_err(|e| {
-            ProviderError::response_parsing("deepseek", format!("Invalid JSON: {}", e))
-        })?;
-
-        // Response
-        if let Some(choices) = json.get("choices").and_then(|c| c.as_array()) {
-            if let Some(choice) = choices.first() {
-                if let Some(delta) = choice.get("delta") {
-                    return Ok(Some(self.create_chat_chunk(&json, delta)?));
-                }
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Create
-    fn create_chat_chunk(
-        &self,
-        response: &Value,
-        delta: &Value,
-    ) -> Result<ChatChunk, ProviderError> {
-        use crate::core::types::requests::MessageRole;
-        use crate::core::types::responses::{ChatDelta, ChatStreamChoice, FinishReason};
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let content = delta
-            .get("content")
-            .and_then(|c| c.as_str())
-            .map(|s| s.to_string());
-
-        let role = delta
-            .get("role")
-            .and_then(|r| r.as_str())
-            .and_then(|r| match r {
-                "assistant" => Some(MessageRole::Assistant),
-                "user" => Some(MessageRole::User),
-                "system" => Some(MessageRole::System),
-                _ => None,
-            });
-
-        let finish_reason = response
-            .get("choices")
-            .and_then(|c| c.as_array())
-            .and_then(|arr| arr.first())
-            .and_then(|choice| choice.get("finish_reason"))
-            .and_then(|fr| fr.as_str())
-            .and_then(|s| match s {
-                "stop" => Some(FinishReason::Stop),
-                "length" => Some(FinishReason::Length),
-                "content_filter" => Some(FinishReason::ContentFilter),
-                "tool_calls" => Some(FinishReason::ToolCalls),
-                _ => None,
-            });
-
-        let choice = ChatStreamChoice {
-            index: 0,
-            delta: ChatDelta {
-                role,
-                content,
-                thinking: None,
-                function_call: None,
-                tool_calls: None,
-            },
-            finish_reason,
-            logprobs: None,
-        };
-
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-
-        Ok(ChatChunk {
-            id: response
-                .get("id")
-                .and_then(|id| id.as_str())
-                .unwrap_or("unknown")
-                .to_string(),
-            object: "chat.completion.chunk".to_string(),
-            created: timestamp as i64,
-            model: response
-                .get("model")
-                .and_then(|m| m.as_str())
-                .unwrap_or("deepseek")
-                .to_string(),
-            choices: vec![choice],
-            usage: None,
-            system_fingerprint: None,
-        })
-    }
-}
-
-/// Response
-pub struct DeepSeekStream {
-    inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
-    parser: DeepSeekStreamParser,
-}
-
-impl DeepSeekStream {
-    pub fn new(
-        stream: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
-    ) -> Self {
-        Self {
-            inner: stream,
-            parser: DeepSeekStreamParser::new(),
-        }
-    }
-}
-
-impl Stream for DeepSeekStream {
-    type Item = Result<ChatChunk, ProviderError>;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        match self.inner.as_mut().poll_next(cx) {
-            Poll::Ready(Some(Ok(chunk))) => {
-                match self.parser.process_chunk(&chunk) {
-                    Ok(chunks) => {
-                        if chunks.is_empty() {
-                            // No complete chunk, continue waiting for more data
-                            cx.waker().wake_by_ref();
-                            Poll::Pending
-                        } else if let Some(chunk) = chunks.into_iter().next() {
-                            // Handle first chunk
-                            Poll::Ready(Some(Ok(chunk)))
-                        } else {
-                            // Shouldn't reach here since we checked is_empty, but handle gracefully
-                            cx.waker().wake_by_ref();
-                            Poll::Pending
-                        }
-                    }
-                    Err(e) => Poll::Ready(Some(Err(e))),
-                }
-            }
-            Poll::Ready(Some(Err(e))) => {
-                Poll::Ready(Some(Err(ProviderError::network("deepseek", e.to_string()))))
-            }
-            Poll::Ready(None) => Poll::Ready(None),
-            Poll::Pending => Poll::Pending,
-        }
-    }
+/// Helper function to create DeepSeek stream
+pub fn create_deepseek_stream(
+    stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
+) -> DeepSeekStream {
+    let transformer = OpenAICompatibleTransformer::new("deepseek");
+    UnifiedSSEStream::new(Box::pin(stream), transformer)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::providers::base::sse::UnifiedSSEParser;
+    use futures::StreamExt;
 
     #[test]
     fn test_sse_parsing() {
-        let mut parser = DeepSeekStreamParser::new();
+        let transformer = OpenAICompatibleTransformer::new("deepseek");
+        let mut parser = UnifiedSSEParser::new(transformer);
 
-        let test_data = r#"data: {"id":"chatcmpl-test","object":"chat.completion.chunk","created":1640995200,"model":"deepseek-chat","choices":[{"index":0,"delta":{"role":"assistant","content":"Hello"},"finish_reason":null}]}
-"#;
+        let test_data = b"data: {\"id\":\"chatcmpl-test\",\"object\":\"chat.completion.chunk\",\"created\":1640995200,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hello\"},\"finish_reason\":null}]}\n\n";
 
-        let result = parser.process_chunk(test_data.as_bytes()).unwrap();
+        let result = parser.process_bytes(test_data).unwrap();
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0].choices[0].delta.content,
@@ -229,10 +45,37 @@ mod tests {
 
     #[test]
     fn test_done_message() {
-        let mut parser = DeepSeekStreamParser::new();
+        let transformer = OpenAICompatibleTransformer::new("deepseek");
+        let mut parser = UnifiedSSEParser::new(transformer);
 
-        let test_data = "data: [DONE]\n";
-        let result = parser.process_chunk(test_data.as_bytes()).unwrap();
-        assert_eq!(result.len(), 0);
+        let test_data = b"data: [DONE]\n\n";
+        let result = parser.process_bytes(test_data).unwrap();
+        // [DONE] should not produce any chunks
+        assert!(result.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_deepseek_stream() {
+        use futures::stream;
+
+        let test_data = vec![
+            Ok(Bytes::from(
+                "data: {\"id\":\"test-1\",\"object\":\"chat.completion.chunk\",\"created\":1234567890,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"finish_reason\":null}]}\n\n",
+            )),
+            Ok(Bytes::from("data: [DONE]\n\n")),
+        ];
+
+        let mock_stream = stream::iter(test_data);
+        let mut deepseek_stream = create_deepseek_stream(mock_stream);
+
+        // First chunk
+        let chunk1 = deepseek_stream.next().await;
+        assert!(chunk1.is_some());
+        let chunk1 = chunk1.unwrap().unwrap();
+        assert_eq!(chunk1.choices[0].delta.content.as_ref().unwrap(), "Hello");
+
+        // Stream should end after [DONE]
+        let end = deepseek_stream.next().await;
+        assert!(end.is_none());
     }
 }

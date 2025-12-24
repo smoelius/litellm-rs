@@ -1,45 +1,39 @@
 //! Streaming Module for Groq
 //!
-//! Handles streaming chat completions with support for fake streaming when
-//! response_format is used (Groq limitation).
+//! Uses the unified SSE parser for consistent streaming across providers.
+//! Also provides fake streaming support when response_format is used (Groq limitation).
 
 use super::error::GroqError;
+use crate::core::providers::base::sse::{OpenAICompatibleTransformer, UnifiedSSEStream};
 use crate::core::types::requests::{MessageContent, MessageRole};
 use crate::core::types::responses::{ChatChunk, ChatDelta, ChatResponse, ChatStreamChoice};
-use futures::{Stream, StreamExt};
+use bytes::Bytes;
+use futures::Stream;
 use std::pin::Pin;
-use std::task::{Context, Poll};
 
-/// Groq SSE stream implementation
+/// Groq uses OpenAI-compatible SSE format
+pub type GroqStreamInner = UnifiedSSEStream<
+    Pin<Box<dyn Stream<Item = Result<Bytes, reqwest::Error>> + Send>>,
+    OpenAICompatibleTransformer,
+>;
+
+/// Helper function to create Groq stream
+pub fn create_groq_stream(
+    stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static,
+) -> GroqStreamInner {
+    let transformer = OpenAICompatibleTransformer::new("groq");
+    UnifiedSSEStream::new(Box::pin(stream), transformer)
+}
+
+/// Wrapper stream that converts ProviderError to GroqError for backward compatibility
 pub struct GroqStream {
-    inner: Pin<Box<dyn Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send>>,
-    buffer: String,
+    inner: GroqStreamInner,
 }
 
 impl GroqStream {
-    pub fn new(
-        stream: impl Stream<Item = Result<bytes::Bytes, reqwest::Error>> + Send + 'static,
-    ) -> Self {
+    pub fn new(stream: impl Stream<Item = Result<Bytes, reqwest::Error>> + Send + 'static) -> Self {
         Self {
-            inner: Box::pin(stream),
-            buffer: String::new(),
-        }
-    }
-
-    /// Parse SSE data into ChatChunk
-    fn parse_sse_data(&self, data: &str) -> Option<ChatChunk> {
-        // Skip empty data or [DONE] signal
-        if data.is_empty() || data == "[DONE]" {
-            return None;
-        }
-
-        // Parse JSON
-        match serde_json::from_str::<ChatChunk>(data) {
-            Ok(chunk) => Some(chunk),
-            Err(e) => {
-                tracing::warn!("Failed to parse SSE chunk: {}, data: {}", e, data);
-                None
-            }
+            inner: create_groq_stream(stream),
         }
     }
 }
@@ -47,39 +41,20 @@ impl GroqStream {
 impl Stream for GroqStream {
     type Item = Result<ChatChunk, GroqError>;
 
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        loop {
-            // Check if we have a complete SSE message in the buffer
-            if let Some(pos) = self.buffer.find("\n\n") {
-                let message = self.buffer.drain(..pos + 2).collect::<String>();
+    fn poll_next(
+        mut self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        use std::pin::Pin;
+        use std::task::Poll;
 
-                // Parse SSE message
-                if let Some(data_line) = message.lines().find(|line| line.starts_with("data: ")) {
-                    let data = &data_line[6..]; // Skip "data: " prefix
-                    if let Some(chunk) = self.parse_sse_data(data) {
-                        return Poll::Ready(Some(Ok(chunk)));
-                    }
-                }
-                continue; // Try next message in buffer
+        match Pin::new(&mut self.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(chunk))) => Poll::Ready(Some(Ok(chunk))),
+            Poll::Ready(Some(Err(e))) => {
+                Poll::Ready(Some(Err(GroqError::StreamingError(e.to_string()))))
             }
-
-            // Need more data
-            match self.inner.poll_next_unpin(cx) {
-                Poll::Ready(Some(Ok(bytes))) => {
-                    // Add new data to buffer using zero-copy UTF-8 validation
-                    if let Ok(text) = std::str::from_utf8(&bytes) {
-                        self.buffer.push_str(text);
-                    }
-                }
-                Poll::Ready(Some(Err(e))) => {
-                    return Poll::Ready(Some(Err(GroqError::StreamingError(e.to_string()))));
-                }
-                Poll::Ready(None) => {
-                    // Stream ended
-                    return Poll::Ready(None);
-                }
-                Poll::Pending => return Poll::Pending,
-            }
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
         }
     }
 }
