@@ -3,7 +3,8 @@
 use crate::core::models::openai::{EmbeddingRequest, EmbeddingResponse};
 use crate::core::models::RequestContext;
 use crate::core::providers::ProviderRegistry;
-use crate::server::routes::ApiResponse;
+use crate::core::types::{EmbeddingInput, EmbeddingRequest as CoreEmbeddingRequest};
+use crate::server::routes::errors;
 use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
@@ -25,25 +26,88 @@ pub async fn embeddings(
     let context = get_request_context(&req)?;
 
     // Route request through the core router
-    // TODO: Implement proper embedding routing through ProviderRegistry
     match handle_embedding_via_pool(&state.router, request.into_inner(), context).await {
         Ok(response) => Ok(HttpResponse::Ok().json(response)),
         Err(e) => {
             error!("Embedding error: {}", e);
-            Ok(HttpResponse::InternalServerError()
-                .json(ApiResponse::<()>::error("Error".to_string())))
+            Ok(errors::gateway_error_to_response(e))
         }
     }
 }
 
 /// Handle embedding via provider pool
 pub async fn handle_embedding_via_pool(
-    _pool: &ProviderRegistry,
-    _request: EmbeddingRequest,
+    pool: &ProviderRegistry,
+    request: EmbeddingRequest,
     _context: RequestContext,
 ) -> Result<EmbeddingResponse, GatewayError> {
-    // TODO: Implement actual embedding routing via ProviderRegistry
-    Err(GatewayError::internal(
-        "Embedding routing not implemented yet",
-    ))
+    // Convert OpenAI format request to core format
+    let input = match &request.input {
+        serde_json::Value::String(s) => EmbeddingInput::Text(s.clone()),
+        serde_json::Value::Array(arr) => {
+            let texts: Vec<String> = arr
+                .iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect();
+            EmbeddingInput::Array(texts)
+        }
+        _ => {
+            return Err(GatewayError::validation(
+                "Invalid input: expected string or array of strings",
+            ))
+        }
+    };
+
+    let core_request = CoreEmbeddingRequest {
+        model: request.model.clone(),
+        input,
+        user: request.user,
+        encoding_format: None,
+        dimensions: None,
+        task_type: None,
+    };
+
+    // Convert RequestContext to core type
+    let core_context = crate::core::types::RequestContext::new();
+
+    // Find a provider that supports embeddings
+    let provider = pool
+        .get_provider("openai")
+        .or_else(|| pool.get_provider("azure"))
+        .ok_or_else(|| GatewayError::internal("No provider available for embeddings"))?;
+
+    // Call the provider's embedding method
+    let core_response = provider
+        .embedding(core_request, core_context)
+        .await
+        .map_err(|e| GatewayError::internal(format!("Embedding error: {}", e)))?;
+
+    // Convert core response to OpenAI format
+    let response = EmbeddingResponse {
+        object: core_response.object,
+        data: core_response
+            .data
+            .into_iter()
+            .map(|d| crate::core::models::openai::EmbeddingObject {
+                object: d.object,
+                embedding: d.embedding.into_iter().map(|f| f as f64).collect(),
+                index: d.index,
+            })
+            .collect(),
+        model: core_response.model,
+        usage: crate::core::models::openai::EmbeddingUsage {
+            prompt_tokens: core_response
+                .usage
+                .as_ref()
+                .map(|u| u.prompt_tokens)
+                .unwrap_or(0),
+            total_tokens: core_response
+                .usage
+                .as_ref()
+                .map(|u| u.total_tokens)
+                .unwrap_or(0),
+        },
+    };
+
+    Ok(response)
 }

@@ -12,7 +12,7 @@ use tracing::{debug, info};
 use super::config::XAIConfig;
 use super::error::{XAIError, XAIErrorMapper};
 use super::model_info::{calculate_cost_with_reasoning, get_available_models, get_model_info};
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
+use crate::core::providers::base::{header, GlobalPoolManager, HttpMethod};
 use crate::core::traits::{ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
@@ -103,11 +103,11 @@ impl XAIProvider {
     ) -> Result<serde_json::Value, XAIError> {
         let url = format!("{}{}", self.config.get_api_base(), endpoint);
 
-        let mut headers = Vec::new();
+        let mut headers = Vec::with_capacity(2);
         if let Some(api_key) = self.config.get_api_key() {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_key)));
+            headers.push(header("Authorization", format!("Bearer {}", api_key)));
         }
-        headers.push(("Content-Type".to_string(), "application/json".to_string()));
+        headers.push(header("Content-Type", "application/json".to_string()));
 
         let response = self
             .pool_manager
@@ -410,9 +410,9 @@ impl LLMProvider for XAIProvider {
     async fn health_check(&self) -> HealthStatus {
         // Simple health check - try to get models list
         let url = format!("{}/models", self.config.get_api_base());
-        let mut headers = Vec::new();
+        let mut headers = Vec::with_capacity(1);
         if let Some(api_key) = self.config.get_api_key() {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_key)));
+            headers.push(header("Authorization", format!("Bearer {}", api_key)));
         }
 
         match self

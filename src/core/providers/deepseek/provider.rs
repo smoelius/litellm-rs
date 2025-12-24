@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod, get_pricing_db};
+use crate::core::providers::base::{header, header_owned, GlobalPoolManager, HeaderPair, HttpMethod, get_pricing_db};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
@@ -30,16 +30,16 @@ pub struct DeepSeekProvider {
 
 impl DeepSeekProvider {
     /// Generate headers for DeepSeek API requests
-    fn get_request_headers(&self) -> Vec<(String, String)> {
-        let mut headers = Vec::new();
+    fn get_request_headers(&self) -> Vec<HeaderPair> {
+        let mut headers = Vec::with_capacity(2);
 
         if let Some(api_key) = &self.config.base.api_key {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_key)));
+            headers.push(header("Authorization", format!("Bearer {}", api_key)));
         }
 
         // Add custom headers
         for (key, value) in &self.config.base.headers {
-            headers.push((key.clone(), value.clone()));
+            headers.push(header_owned(key.clone(), value.clone()));
         }
 
         headers

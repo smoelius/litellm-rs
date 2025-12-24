@@ -6,6 +6,7 @@
 use bytes::Bytes;
 use futures::Stream;
 use serde_json::Value;
+use std::collections::VecDeque;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -124,30 +125,38 @@ impl<T: SSETransformer> UnifiedSSEParser<T> {
     }
 
     /// Process raw bytes into SSE events
+    ///
+    /// Optimized to minimize allocations:
+    /// - Uses `from_utf8_lossy` which returns `Cow<str>` (borrowed when valid UTF-8)
+    /// - Processes lines without collecting into intermediate Vec<String>
+    /// - Only allocates for incomplete lines that need to be buffered
     pub fn process_bytes(&mut self, bytes: &[u8]) -> Result<Vec<ChatChunk>, ProviderError> {
+        // Append new bytes to buffer - from_utf8_lossy avoids allocation for valid UTF-8
         let text = String::from_utf8_lossy(bytes);
         self.buffer.push_str(&text);
 
         let mut chunks = Vec::new();
-        let mut lines: Vec<String> = self.buffer.lines().map(|s| s.to_string()).collect();
 
-        // Keep incomplete line in buffer
-        if !self.buffer.ends_with('\n') {
-            if let Some(last_line) = lines.pop() {
-                self.buffer = last_line;
-            } else {
-                self.buffer.clear();
-            }
-        } else {
-            self.buffer.clear();
-        }
+        // Find the last newline position
+        let last_newline = self.buffer.rfind('\n');
 
-        // Process complete lines
-        for line in lines {
-            if let Some(chunk) = self.process_line(&line)? {
-                chunks.push(chunk);
+        if let Some(pos) = last_newline {
+            // Extract complete part and remaining incomplete part
+            let complete_part = self.buffer[..=pos].to_string();
+            let incomplete_part = self.buffer[pos + 1..].to_string();
+
+            // Update buffer with incomplete part before processing
+            // (This avoids borrow issues)
+            self.buffer = incomplete_part;
+
+            // Process complete lines
+            for line in complete_part.lines() {
+                if let Some(chunk) = self.process_line(line)? {
+                    chunks.push(chunk);
+                }
             }
         }
+        // If no newline found, keep buffering (no action needed)
 
         Ok(chunks)
     }
@@ -214,6 +223,8 @@ impl<T: SSETransformer> UnifiedSSEParser<T> {
 }
 
 /// Streaming wrapper that uses UnifiedSSEParser
+///
+/// Uses `VecDeque` for buffered chunks to enable O(1) pop_front instead of O(n) Vec::remove(0).
 pub struct UnifiedSSEStream<S, T>
 where
     S: Stream<Item = Result<Bytes, reqwest::Error>> + Send + Unpin,
@@ -221,7 +232,7 @@ where
 {
     inner: S,
     parser: UnifiedSSEParser<T>,
-    chunk_buffer: Vec<ChatChunk>,
+    chunk_buffer: VecDeque<ChatChunk>,
 }
 
 impl<S, T> UnifiedSSEStream<S, T>
@@ -233,7 +244,7 @@ where
         Self {
             inner: stream,
             parser: UnifiedSSEParser::new(transformer),
-            chunk_buffer: Vec::new(),
+            chunk_buffer: VecDeque::new(),
         }
     }
 }
@@ -248,9 +259,9 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
 
-        // Return buffered chunks first
-        if !this.chunk_buffer.is_empty() {
-            return Poll::Ready(Some(Ok(this.chunk_buffer.remove(0))));
+        // Return buffered chunks first - O(1) with VecDeque
+        if let Some(chunk) = this.chunk_buffer.pop_front() {
+            return Poll::Ready(Some(Ok(chunk)));
         }
 
         // Poll inner stream for more data
@@ -264,9 +275,9 @@ where
                             Poll::Pending
                         } else {
                             // Buffer chunks and return first one
-                            this.chunk_buffer = chunks;
-                            if !this.chunk_buffer.is_empty() {
-                                Poll::Ready(Some(Ok(this.chunk_buffer.remove(0))))
+                            this.chunk_buffer.extend(chunks);
+                            if let Some(chunk) = this.chunk_buffer.pop_front() {
+                                Poll::Ready(Some(Ok(chunk)))
                             } else {
                                 cx.waker().wake_by_ref();
                                 Poll::Pending

@@ -679,6 +679,24 @@ impl ProviderError {
         }
     }
 
+    /// Create an error with request context for better debugging.
+    ///
+    /// Returns a `ContextualError` that wraps this error with additional request information.
+    ///
+    /// # Example
+    /// ```ignore
+    /// let err = ProviderError::network("openai", "Connection refused")
+    ///     .with_context("req-123", Some("gpt-4"));
+    /// ```
+    pub fn with_context(self, request_id: impl Into<String>, model: Option<&str>) -> ContextualError {
+        ContextualError {
+            inner: self,
+            request_id: request_id.into(),
+            model: model.map(|s| s.to_string()),
+            timestamp: chrono::Utc::now(),
+        }
+    }
+
     /// Get HTTP status code for this error
     pub fn http_status(&self) -> u16 {
         match self {
@@ -1063,5 +1081,141 @@ impl ProviderErrorTrait for ProviderError {
             provider: "unknown",
             feature: feature.to_string(),
         }
+    }
+}
+
+/// Error with request context for better debugging and logging.
+///
+/// Wraps a `ProviderError` with additional context like request ID and model,
+/// making it easier to trace errors in production logs.
+#[derive(Debug, Clone)]
+pub struct ContextualError {
+    /// The underlying provider error
+    pub inner: ProviderError,
+    /// Request ID for tracing
+    pub request_id: String,
+    /// Model that was being used (if applicable)
+    pub model: Option<String>,
+    /// When the error occurred
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+}
+
+impl std::fmt::Display for ContextualError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[request_id={}] {}",
+            self.request_id, self.inner
+        )?;
+        if let Some(model) = &self.model {
+            write!(f, " (model: {})", model)?;
+        }
+        Ok(())
+    }
+}
+
+impl std::error::Error for ContextualError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.inner)
+    }
+}
+
+impl ContextualError {
+    /// Get the underlying provider error
+    pub fn inner(&self) -> &ProviderError {
+        &self.inner
+    }
+
+    /// Get the request ID
+    pub fn request_id(&self) -> &str {
+        &self.request_id
+    }
+
+    /// Get the model if available
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
+    }
+
+    /// Check if this error is retryable
+    pub fn is_retryable(&self) -> bool {
+        self.inner.is_retryable()
+    }
+
+    /// Get retry delay in seconds
+    pub fn retry_delay(&self) -> Option<u64> {
+        self.inner.retry_delay()
+    }
+
+    /// Get HTTP status code
+    pub fn http_status(&self) -> u16 {
+        self.inner.http_status()
+    }
+
+    /// Get the provider name
+    pub fn provider(&self) -> &'static str {
+        self.inner.provider()
+    }
+
+    /// Convert to a JSON-serializable error response
+    pub fn to_error_response(&self) -> serde_json::Value {
+        serde_json::json!({
+            "error": {
+                "message": self.inner.to_string(),
+                "type": format!("{:?}", std::mem::discriminant(&self.inner)),
+                "code": self.http_status(),
+                "request_id": self.request_id,
+                "model": self.model,
+                "provider": self.provider(),
+                "retryable": self.is_retryable(),
+                "retry_after": self.retry_delay(),
+            }
+        })
+    }
+}
+
+impl From<ContextualError> for ProviderError {
+    fn from(err: ContextualError) -> Self {
+        err.inner
+    }
+}
+
+#[cfg(test)]
+mod contextual_error_tests {
+    use super::*;
+
+    #[test]
+    fn test_contextual_error_display() {
+        let err = ProviderError::network("openai", "Connection refused")
+            .with_context("req-12345", Some("gpt-4"));
+
+        let display = format!("{}", err);
+        assert!(display.contains("req-12345"));
+        assert!(display.contains("Connection refused"));
+        assert!(display.contains("gpt-4"));
+    }
+
+    #[test]
+    fn test_contextual_error_methods() {
+        let err = ProviderError::rate_limit("anthropic", Some(60))
+            .with_context("req-abc", None);
+
+        assert!(err.is_retryable());
+        assert_eq!(err.retry_delay(), Some(60));
+        assert_eq!(err.http_status(), 429);
+        assert_eq!(err.provider(), "anthropic");
+        assert_eq!(err.request_id(), "req-abc");
+        assert!(err.model().is_none());
+    }
+
+    #[test]
+    fn test_to_error_response() {
+        let err = ProviderError::authentication("openai", "Invalid API key")
+            .with_context("req-xyz", Some("gpt-4-turbo"));
+
+        let response = err.to_error_response();
+        assert_eq!(response["error"]["request_id"], "req-xyz");
+        assert_eq!(response["error"]["model"], "gpt-4-turbo");
+        assert_eq!(response["error"]["code"], 401);
+        assert_eq!(response["error"]["provider"], "openai");
     }
 }

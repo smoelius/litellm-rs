@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
+use crate::core::providers::base::{header, header_owned, GlobalPoolManager, HeaderPair, HttpMethod};
 use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
@@ -45,24 +45,26 @@ pub struct OpenAIProvider {
 
 impl OpenAIProvider {
     /// Generate headers for OpenAI API requests
-    fn get_request_headers(&self) -> Vec<(String, String)> {
-        let mut headers = Vec::new();
+    ///
+    /// Uses `HeaderPair` with Cow for static keys to avoid allocations.
+    fn get_request_headers(&self) -> Vec<HeaderPair> {
+        let mut headers = Vec::with_capacity(4); // Pre-allocate for typical case
 
         if let Some(api_key) = &self.config.base.api_key {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_key)));
+            headers.push(header("Authorization", format!("Bearer {}", api_key)));
         }
 
         if let Some(org) = &self.config.organization {
-            headers.push(("OpenAI-Organization".to_string(), org.clone()));
+            headers.push(header("OpenAI-Organization", org.clone()));
         }
 
         if let Some(project) = &self.config.project {
-            headers.push(("OpenAI-Project".to_string(), project.clone()));
+            headers.push(header("OpenAI-Project", project.clone()));
         }
 
-        // Add custom headers
+        // Add custom headers (both key and value are dynamic)
         for (key, value) in &self.config.base.headers {
-            headers.push((key.clone(), value.clone()));
+            headers.push(header_owned(key.clone(), value.clone()));
         }
 
         headers
@@ -76,25 +78,8 @@ impl OpenAIProvider {
             message: e.to_string(),
         })?;
 
-        // Create HTTP client with OpenAI-specific headers
-        let mut headers = HashMap::new();
-
-        if let Some(api_key) = &config.base.api_key {
-            headers.insert("Authorization".to_string(), format!("Bearer {}", api_key));
-        }
-
-        if let Some(org) = &config.organization {
-            headers.insert("OpenAI-Organization".to_string(), org.clone());
-        }
-
-        if let Some(project) = &config.project {
-            headers.insert("OpenAI-Project".to_string(), project.clone());
-        }
-
-        // Add custom headers
-        for (key, value) in &config.base.headers {
-            headers.insert(key.clone(), value.clone());
-        }
+        // Note: Headers are now built per-request in get_request_headers()
+        // This avoids redundant HashMap allocation during initialization.
 
         let pool_manager =
             Arc::new(GlobalPoolManager::new().map_err(|e| OpenAIError::Network {

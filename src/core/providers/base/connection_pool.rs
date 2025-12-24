@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -5,6 +6,23 @@ use reqwest::Client;
 use serde_json;
 
 use crate::core::providers::unified_provider::ProviderError;
+
+/// Type alias for HTTP headers using Cow to avoid allocations for static strings.
+///
+/// Use `Cow::Borrowed("Header-Name")` for static strings and `Cow::Owned(value)` for dynamic values.
+pub type HeaderPair = (Cow<'static, str>, Cow<'static, str>);
+
+/// Helper to create a header from static key and dynamic value.
+#[inline]
+pub fn header(key: &'static str, value: String) -> HeaderPair {
+    (Cow::Borrowed(key), Cow::Owned(value))
+}
+
+/// Helper to create a header from both dynamic key and value.
+#[inline]
+pub fn header_owned(key: String, value: String) -> HeaderPair {
+    (Cow::Owned(key), Cow::Owned(value))
+}
 
 #[derive(Debug, Clone)]
 pub enum HttpMethod {
@@ -66,11 +84,14 @@ impl GlobalPoolManager {
     }
 
     /// Execute an HTTP request
+    ///
+    /// Uses `HeaderPair` (Cow-based) for headers to avoid allocations for static strings.
+    /// Use `header("Key", value)` for static keys or `header_owned(key, value)` for dynamic keys.
     pub async fn execute_request(
         &self,
         url: &str,
         method: HttpMethod,
-        headers: Vec<(String, String)>,
+        headers: Vec<HeaderPair>,
         body: Option<serde_json::Value>,
     ) -> Result<reqwest::Response, ProviderError> {
         let client = self.pool.client();
@@ -82,9 +103,9 @@ impl GlobalPoolManager {
             HttpMethod::DELETE => client.delete(url),
         };
 
-        // Add headers
+        // Add headers - Cow allows zero-copy for static strings
         for (key, value) in headers {
-            request_builder = request_builder.header(&key, &value);
+            request_builder = request_builder.header(key.as_ref(), value.as_ref());
         }
 
         // Add body if present

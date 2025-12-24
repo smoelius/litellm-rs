@@ -250,21 +250,23 @@ impl Default for GeminiConfig {
 impl ProviderConfig for GeminiConfig {
     fn validate(&self) -> Result<(), String> {
         if self.use_vertex_ai {
-            // Vertex AI validation
-            if self.project_id.is_none() || self.project_id.as_ref().unwrap().is_empty() {
-                return Err("Project ID is required for Vertex AI".to_string());
+            // Vertex AI validation - use pattern matching to avoid unwrap
+            match &self.project_id {
+                Some(id) if !id.is_empty() => {}
+                _ => return Err("Project ID is required for Vertex AI".to_string()),
             }
 
-            if self.location.is_none() || self.location.as_ref().unwrap().is_empty() {
-                return Err("Location is required for Vertex AI".to_string());
+            match &self.location {
+                Some(loc) if !loc.is_empty() => {}
+                _ => return Err("Location is required for Vertex AI".to_string()),
             }
         } else {
-            // Google AI Studio validation
-            if self.api_key.is_none() || self.api_key.as_ref().unwrap().is_empty() {
-                return Err("API key is required for Google AI Studio".to_string());
-            }
+            // Google AI Studio validation - use pattern matching
+            let api_key = match &self.api_key {
+                Some(key) if !key.is_empty() => key,
+                _ => return Err("API key is required for Google AI Studio".to_string()),
+            };
 
-            let api_key = self.api_key.as_ref().unwrap();
             if api_key.len() < 20 {
                 return Err("API key appears to be too short".to_string());
             }

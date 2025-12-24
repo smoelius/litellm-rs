@@ -1,8 +1,14 @@
 //! Text completions endpoint (legacy)
+//!
+//! This endpoint converts legacy text completions to chat completions format
+//! since most modern providers only support chat completions.
 
+use crate::core::completion::{completion, CompletionOptions};
 use crate::core::models::openai::{CompletionRequest, CompletionResponse};
 use crate::core::models::RequestContext;
 use crate::core::providers::ProviderRegistry;
+use crate::core::types::{ChatMessage, MessageContent, MessageRole};
+use crate::server::routes::errors;
 use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
@@ -13,6 +19,7 @@ use super::context::get_request_context;
 /// Text completions endpoint (legacy)
 ///
 /// OpenAI-compatible text completions API for backward compatibility.
+/// Internally converts to chat completions format.
 pub async fn completions(
     state: web::Data<AppState>,
     req: HttpRequest,
@@ -24,26 +31,85 @@ pub async fn completions(
     let context = get_request_context(&req)?;
 
     // Route request through the core router
-    // TODO: Implement proper completion routing through ProviderRegistry
     match handle_completion_via_pool(&state.router, request.into_inner(), context).await {
         Ok(response) => Ok(HttpResponse::Ok().json(response)),
         Err(e) => {
             error!("Text completion error: {}", e);
-            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Internal server error"
-            })))
+            Ok(errors::gateway_error_to_response(e))
         }
     }
 }
 
 /// Handle completion via provider pool
+///
+/// Converts legacy text completion request to chat completion format
 pub async fn handle_completion_via_pool(
     _pool: &ProviderRegistry,
-    _request: CompletionRequest,
+    request: CompletionRequest,
     _context: RequestContext,
 ) -> Result<CompletionResponse, GatewayError> {
-    // TODO: Implement actual completion routing via ProviderRegistry
-    Err(GatewayError::internal(
-        "Text completion routing not implemented yet",
-    ))
+    // Convert prompt to chat message
+    let messages = vec![ChatMessage {
+        role: MessageRole::User,
+        content: Some(MessageContent::Text(request.prompt.clone())),
+        thinking: None,
+        name: None,
+        tool_calls: None,
+        tool_call_id: None,
+        function_call: None,
+    }];
+
+    // Build completion options
+    let options = CompletionOptions {
+        temperature: request.temperature.map(|t| t as f32),
+        max_tokens: request.max_tokens,
+        top_p: request.top_p.map(|t| t as f32),
+        frequency_penalty: request.frequency_penalty.map(|f| f as f32),
+        presence_penalty: request.presence_penalty.map(|p| p as f32),
+        stop: request.stop,
+        stream: false,
+        user: request.user,
+        n: request.n,
+        ..Default::default()
+    };
+
+    // Call completion API
+    let response = completion(&request.model, messages, Some(options))
+        .await
+        .map_err(|e| GatewayError::internal(format!("Completion error: {}", e)))?;
+
+    // Convert chat completion response to text completion format
+    let text = response
+        .choices
+        .first()
+        .and_then(|c| c.message.content.as_ref())
+        .map(|c| c.to_string())
+        .unwrap_or_default();
+
+    // Convert finish reason to string
+    let finish_reason = response
+        .choices
+        .first()
+        .and_then(|c| c.finish_reason.as_ref())
+        .map(|fr| format!("{:?}", fr).to_lowercase());
+
+    Ok(CompletionResponse {
+        id: response.id,
+        object: "text_completion".to_string(),
+        created: response.created as u64,
+        model: response.model,
+        choices: vec![crate::core::models::openai::CompletionChoice {
+            text,
+            index: 0,
+            logprobs: None,
+            finish_reason,
+        }],
+        usage: response.usage.map(|u| crate::core::models::openai::Usage {
+            prompt_tokens: u.prompt_tokens,
+            completion_tokens: u.completion_tokens,
+            total_tokens: u.total_tokens,
+            prompt_tokens_details: None,
+            completion_tokens_details: None,
+        }),
+    })
 }

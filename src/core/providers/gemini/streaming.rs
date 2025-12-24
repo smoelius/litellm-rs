@@ -3,6 +3,7 @@
 //! Independent streaming response processing, supporting SSE parsing and real-time data transformation
 
 use std::pin::Pin;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use futures::{Stream, StreamExt};
 use pin_project_lite::pin_project;
@@ -16,6 +17,26 @@ use crate::core::types::{
 };
 
 use super::error::gemini_stream_error;
+
+/// Get current timestamp in seconds since UNIX_EPOCH.
+/// Returns 0 if system time is somehow before UNIX_EPOCH (should never happen).
+#[inline]
+fn current_timestamp_secs() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() as i64)
+        .unwrap_or(0)
+}
+
+/// Get current timestamp in nanoseconds for unique ID generation.
+/// Returns 0 if system time is somehow before UNIX_EPOCH (should never happen).
+#[inline]
+fn current_timestamp_nanos() -> u128 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0)
+}
 
 /// SSE event types
 #[derive(Debug, Clone)]
@@ -182,10 +203,7 @@ impl GeminiSSEParser {
                 Ok(Some(ChatChunk {
                     id: chunk_id.to_string(),
                     object: "chat.completion.chunk".to_string(),
-                    created: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs() as i64,
+                    created: current_timestamp_secs(),
                     model: model.to_string(),
                     choices,
                     usage,
@@ -200,10 +218,7 @@ impl GeminiSSEParser {
                 Ok(Some(ChatChunk {
                     id: chunk_id.to_string(),
                     object: "chat.completion.chunk".to_string(),
-                    created: std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs() as i64,
+                    created: current_timestamp_secs(),
                     model: model.to_string(),
                     choices: vec![ChatStreamChoice {
                         index: 0,
@@ -238,13 +253,7 @@ pin_project! {
 impl GeminiStream {
     /// Create from response
     pub fn from_response(response: Response, model: String) -> Self {
-        let chunk_id = format!(
-            "gemini-stream-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
+        let chunk_id = format!("gemini-stream-{}", current_timestamp_nanos());
 
         let stream = futures::stream::unfold(
             (response.bytes_stream(), String::new(), chunk_id, model),

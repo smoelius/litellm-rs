@@ -91,12 +91,17 @@ impl Router {
     ) -> Result<ChatResponse> {
         let start_time = Instant::now();
 
+        // Wrap request and context in Arc to avoid cloning on each retry
+        // This is especially important for large message arrays
+        let request = Arc::new(request);
+        let context = Arc::new(context);
+
         // Execute request with retry policy
         let result = self
             .retry_policy
             .execute(|| {
-                let request = request.clone();
-                let context = context.clone();
+                let request = Arc::clone(&request);
+                let context = Arc::clone(&context);
                 let load_balancer = self.load_balancer.clone();
 
                 async move {
@@ -105,9 +110,10 @@ impl Router {
                         .select_provider(&request.model, &context)
                         .await?;
 
-                    // Execute request
+                    // Clone only when needed for the actual API call
+                    // The provider API requires owned values
                     provider
-                        .chat_completion(request, context)
+                        .chat_completion((*request).clone(), (*context).clone())
                         .await
                         .map_err(|e| {
                             crate::utils::error::GatewayError::Provider(
@@ -321,10 +327,13 @@ impl Router {
 
     /// List all available models
     pub async fn list_models(&self) -> Result<Vec<ModelInfo>> {
-        let mut all_models = Vec::new();
-
         // Collect models from all providers
         let providers = self.providers.read().await;
+
+        // Pre-estimate capacity: assume ~10 models per provider on average
+        let estimated_capacity = providers.len() * 10;
+        let mut all_models = Vec::with_capacity(estimated_capacity);
+
         for provider in providers.values() {
             let models = provider.list_models();
             all_models.extend(models.iter().cloned());

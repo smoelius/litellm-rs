@@ -12,7 +12,7 @@ use tracing::debug;
 use super::config::CloudflareConfig;
 use super::error::{CloudflareError, CloudflareErrorMapper};
 use super::model_info::{calculate_cost, get_available_models, get_model_info};
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
+use crate::core::providers::base::{header, GlobalPoolManager, HttpMethod};
 use crate::core::traits::{ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
@@ -114,11 +114,11 @@ impl CloudflareProvider {
             endpoint
         );
 
-        let mut headers = Vec::new();
+        let mut headers = Vec::with_capacity(2);
         if let Some(api_token) = self.config.get_api_token() {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_token)));
+            headers.push(header("Authorization", format!("Bearer {}", api_token)));
         }
-        headers.push(("Content-Type".to_string(), "application/json".to_string()));
+        headers.push(header("Content-Type", "application/json".to_string()));
 
         let response = self
             .pool_manager
@@ -361,9 +361,9 @@ impl LLMProvider for CloudflareProvider {
             account_id
         );
 
-        let mut headers = Vec::new();
+        let mut headers = Vec::with_capacity(1);
         if let Some(api_token) = self.config.get_api_token() {
-            headers.push(("Authorization".to_string(), format!("Bearer {}", api_token)));
+            headers.push(header("Authorization", format!("Bearer {}", api_token)));
         }
 
         match self

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{GlobalPoolManager, HttpMethod};
+use crate::core::providers::base::{header, GlobalPoolManager, HeaderPair, HttpMethod};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
@@ -33,20 +33,17 @@ pub struct OpenRouterProvider {
 
 impl OpenRouterProvider {
     /// Generate headers for OpenRouter API requests
-    fn get_request_headers(&self) -> Vec<(String, String)> {
-        let mut headers = Vec::new();
+    fn get_request_headers(&self) -> Vec<HeaderPair> {
+        let mut headers = Vec::with_capacity(3);
 
-        headers.push((
-            "Authorization".to_string(),
-            format!("Bearer {}", self.config.api_key),
-        ));
+        headers.push(header("Authorization", format!("Bearer {}", self.config.api_key)));
 
         if let Some(site_url) = &self.config.site_url {
-            headers.push(("HTTP-Referer".to_string(), site_url.clone()));
+            headers.push(header("HTTP-Referer", site_url.clone()));
         }
 
         if let Some(site_name) = &self.config.site_name {
-            headers.push(("X-Title".to_string(), site_name.clone()));
+            headers.push(header("X-Title", site_name.clone()));
         }
 
         headers

@@ -25,7 +25,8 @@ impl BatchProcessor {
             .await?
             .ok_or_else(|| GatewayError::NotFound("Batch request not found".to_string()))?;
 
-        let mut results = Vec::new();
+        // Pre-allocate results vector based on request count
+        let mut results = Vec::with_capacity(batch_request.requests.len());
         let mut completed = 0;
         let mut failed = 0;
 

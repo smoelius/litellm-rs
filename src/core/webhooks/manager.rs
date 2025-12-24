@@ -103,7 +103,8 @@ impl WebhookManager {
         };
 
         let mut data = self.data.write().await;
-        let mut deliveries = Vec::new();
+        // Pre-allocate with estimated capacity (most events go to few webhooks)
+        let mut deliveries = Vec::with_capacity(data.webhooks.len().min(8));
 
         // Find webhooks subscribed to this event type
         for (webhook_id, config) in data.webhooks.iter() {
