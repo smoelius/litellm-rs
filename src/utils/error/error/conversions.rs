@@ -3,67 +3,36 @@
 use super::types::GatewayError;
 use crate::core::providers::unified_provider::ProviderError;
 
-// Add conversion from core::providers::unified_provider::ProviderError
-impl From<crate::core::providers::unified_provider::ProviderError> for GatewayError {
-    fn from(err: crate::core::providers::unified_provider::ProviderError) -> Self {
+// Conversion from unified ProviderError to GatewayError
+impl From<ProviderError> for GatewayError {
+    fn from(err: ProviderError) -> Self {
         match err {
-            crate::core::providers::unified_provider::ProviderError::Authentication {
-                message,
-                ..
-            } => GatewayError::Auth(message),
-            crate::core::providers::unified_provider::ProviderError::RateLimit {
-                message, ..
-            } => GatewayError::RateLimit(message),
-            crate::core::providers::unified_provider::ProviderError::ModelNotFound {
-                model,
-                ..
-            } => GatewayError::NotFound(format!("Model not found: {}", model)),
-            crate::core::providers::unified_provider::ProviderError::InvalidRequest {
-                message,
-                ..
-            } => GatewayError::BadRequest(message),
-            crate::core::providers::unified_provider::ProviderError::Network {
-                message, ..
-            } => GatewayError::network(message),
-            crate::core::providers::unified_provider::ProviderError::ProviderUnavailable {
-                message,
-                ..
-            } => GatewayError::ProviderUnavailable(message),
-            crate::core::providers::unified_provider::ProviderError::NotSupported {
-                feature,
-                provider,
-            } => GatewayError::NotImplemented(format!(
-                "Feature '{}' not supported by {}",
-                feature, provider
-            )),
-            crate::core::providers::unified_provider::ProviderError::NotImplemented {
-                feature,
-                provider,
-            } => GatewayError::NotImplemented(format!(
-                "Feature '{}' not implemented for {}",
-                feature, provider
-            )),
-            crate::core::providers::unified_provider::ProviderError::Configuration {
-                message,
-                ..
-            } => GatewayError::Config(message),
-            crate::core::providers::unified_provider::ProviderError::Serialization {
-                message,
-                ..
-            } => GatewayError::parsing(message),
-            crate::core::providers::unified_provider::ProviderError::Timeout {
-                message, ..
-            } => GatewayError::Timeout(message),
-            crate::core::providers::unified_provider::ProviderError::QuotaExceeded {
-                message,
-                ..
-            } => GatewayError::BadRequest(format!("Quota exceeded: {}", message)),
-            crate::core::providers::unified_provider::ProviderError::Other { message, .. } => {
-                GatewayError::Internal(message)
+            ProviderError::Authentication { message, .. } => GatewayError::Auth(message),
+            ProviderError::RateLimit { message, .. } => GatewayError::RateLimit(message),
+            ProviderError::ModelNotFound { model, .. } => {
+                GatewayError::NotFound(format!("Model not found: {}", model))
             }
+            ProviderError::InvalidRequest { message, .. } => GatewayError::BadRequest(message),
+            ProviderError::Network { message, .. } => GatewayError::network(message),
+            ProviderError::ProviderUnavailable { message, .. } => {
+                GatewayError::ProviderUnavailable(message)
+            }
+            ProviderError::NotSupported { feature, provider } => GatewayError::NotImplemented(
+                format!("Feature '{}' not supported by {}", feature, provider),
+            ),
+            ProviderError::NotImplemented { feature, provider } => GatewayError::NotImplemented(
+                format!("Feature '{}' not implemented for {}", feature, provider),
+            ),
+            ProviderError::Configuration { message, .. } => GatewayError::Config(message),
+            ProviderError::Serialization { message, .. } => GatewayError::parsing(message),
+            ProviderError::Timeout { message, .. } => GatewayError::Timeout(message),
+            ProviderError::QuotaExceeded { message, .. } => {
+                GatewayError::BadRequest(format!("Quota exceeded: {}", message))
+            }
+            ProviderError::Other { message, .. } => GatewayError::Internal(message),
 
             // Enhanced error variants mapping
-            crate::core::providers::unified_provider::ProviderError::ContextLengthExceeded {
+            ProviderError::ContextLengthExceeded {
                 max,
                 actual,
                 provider,
@@ -71,15 +40,13 @@ impl From<crate::core::providers::unified_provider::ProviderError> for GatewayEr
                 "Context length exceeded for {}: max {} tokens, got {} tokens",
                 provider, max, actual
             )),
-            crate::core::providers::unified_provider::ProviderError::ContentFiltered {
-                reason,
-                provider,
-                ..
+            ProviderError::ContentFiltered {
+                reason, provider, ..
             } => GatewayError::BadRequest(format!(
                 "Content filtered by {} safety systems: {}",
                 provider, reason
             )),
-            crate::core::providers::unified_provider::ProviderError::ApiError {
+            ProviderError::ApiError {
                 status,
                 message,
                 provider,
@@ -90,21 +57,13 @@ impl From<crate::core::providers::unified_provider::ProviderError> for GatewayEr
                 400..=499 => GatewayError::BadRequest(format!("{}: {}", provider, message)),
                 _ => GatewayError::Internal(format!("{}: {}", provider, message)),
             },
-            crate::core::providers::unified_provider::ProviderError::TokenLimitExceeded {
-                message,
-                provider,
-            } => GatewayError::BadRequest(format!(
-                "Token limit exceeded for {}: {}",
-                provider, message
-            )),
-            crate::core::providers::unified_provider::ProviderError::FeatureDisabled {
-                feature,
-                provider,
-            } => GatewayError::NotImplemented(format!(
-                "Feature '{}' disabled for {}",
-                feature, provider
-            )),
-            crate::core::providers::unified_provider::ProviderError::DeploymentError {
+            ProviderError::TokenLimitExceeded { message, provider } => GatewayError::BadRequest(
+                format!("Token limit exceeded for {}: {}", provider, message),
+            ),
+            ProviderError::FeatureDisabled { feature, provider } => {
+                GatewayError::NotImplemented(format!("Feature '{}' disabled for {}", feature, provider))
+            }
+            ProviderError::DeploymentError {
                 deployment,
                 message,
                 provider,
@@ -112,14 +71,11 @@ impl From<crate::core::providers::unified_provider::ProviderError> for GatewayEr
                 "Azure deployment '{}' error for {}: {}",
                 deployment, provider, message
             )),
-            crate::core::providers::unified_provider::ProviderError::ResponseParsing {
-                message,
-                provider,
-            } => GatewayError::parsing(format!(
+            ProviderError::ResponseParsing { message, provider } => GatewayError::parsing(format!(
                 "Failed to parse {} response: {}",
                 provider, message
             )),
-            crate::core::providers::unified_provider::ProviderError::RoutingError {
+            ProviderError::RoutingError {
                 attempted_providers,
                 message,
                 provider,
@@ -127,7 +83,7 @@ impl From<crate::core::providers::unified_provider::ProviderError> for GatewayEr
                 "Routing error from {}: tried {:?}, final error: {}",
                 provider, attempted_providers, message
             )),
-            crate::core::providers::unified_provider::ProviderError::TransformationError {
+            ProviderError::TransformationError {
                 from_format,
                 to_format,
                 message,
@@ -155,6 +111,3 @@ impl From<crate::core::providers::unified_provider::ProviderError> for GatewayEr
         }
     }
 }
-
-// AnthropicProviderError is now replaced by unified ProviderError
-// The conversion is handled by the unified ProviderError From implementations
