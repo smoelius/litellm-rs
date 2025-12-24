@@ -310,4 +310,202 @@ mod tests {
             _ => panic!("Expected Internal error"),
         }
     }
+
+    #[test]
+    fn test_invalid_request_conversion() {
+        let provider_err = ProviderError::InvalidRequest {
+            provider: "openai",
+            message: "Invalid parameters".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        assert!(matches!(gateway_err, GatewayError::BadRequest(_)));
+    }
+
+    #[test]
+    fn test_network_error_conversion() {
+        let provider_err = ProviderError::Network {
+            provider: "anthropic",
+            message: "Connection refused".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        // Network errors become Network variant
+        match gateway_err {
+            GatewayError::Network { .. } => {}
+            _ => panic!("Expected Network error"),
+        }
+    }
+
+    #[test]
+    fn test_provider_unavailable_conversion() {
+        let provider_err = ProviderError::ProviderUnavailable {
+            provider: "openai",
+            message: "Service down".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        assert!(matches!(gateway_err, GatewayError::ProviderUnavailable(_)));
+    }
+
+    #[test]
+    fn test_not_supported_conversion() {
+        let provider_err = ProviderError::NotSupported {
+            provider: "groq",
+            feature: "embeddings".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::NotImplemented(msg) => {
+                assert!(msg.contains("embeddings"));
+                assert!(msg.contains("not supported"));
+            }
+            _ => panic!("Expected NotImplemented error"),
+        }
+    }
+
+    #[test]
+    fn test_serialization_error_conversion() {
+        let provider_err = ProviderError::Serialization {
+            provider: "openai",
+            message: "Invalid JSON".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::Parsing { .. } => {}
+            _ => panic!("Expected Parsing error"),
+        }
+    }
+
+    #[test]
+    fn test_quota_exceeded_conversion() {
+        let provider_err = ProviderError::QuotaExceeded {
+            provider: "anthropic",
+            message: "Monthly limit reached".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::BadRequest(msg) => assert!(msg.contains("Quota exceeded")),
+            _ => panic!("Expected BadRequest error"),
+        }
+    }
+
+    #[test]
+    fn test_other_error_conversion() {
+        let provider_err = ProviderError::Other {
+            provider: "unknown",
+            message: "Unknown error".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        assert!(matches!(gateway_err, GatewayError::Internal(_)));
+    }
+
+    #[test]
+    fn test_content_filtered_conversion() {
+        let provider_err = ProviderError::ContentFiltered {
+            provider: "openai",
+            reason: "Violence detected".to_string(),
+            policy_violations: None,
+            potentially_retryable: Some(false),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::BadRequest(msg) => {
+                assert!(msg.contains("Content filtered"));
+                assert!(msg.contains("Violence detected"));
+            }
+            _ => panic!("Expected BadRequest error"),
+        }
+    }
+
+    #[test]
+    fn test_token_limit_exceeded_conversion() {
+        let provider_err = ProviderError::TokenLimitExceeded {
+            provider: "anthropic",
+            message: "Max tokens exceeded".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::BadRequest(msg) => assert!(msg.contains("Token limit exceeded")),
+            _ => panic!("Expected BadRequest error"),
+        }
+    }
+
+    #[test]
+    fn test_feature_disabled_conversion() {
+        let provider_err = ProviderError::FeatureDisabled {
+            provider: "azure",
+            feature: "streaming".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::NotImplemented(msg) => {
+                assert!(msg.contains("streaming"));
+                assert!(msg.contains("disabled"));
+            }
+            _ => panic!("Expected NotImplemented error"),
+        }
+    }
+
+    #[test]
+    fn test_deployment_error_conversion() {
+        let provider_err = ProviderError::DeploymentError {
+            provider: "azure",
+            deployment: "gpt4-deployment".to_string(),
+            message: "Deployment not found".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::NotFound(msg) => {
+                assert!(msg.contains("gpt4-deployment"));
+                assert!(msg.contains("Azure deployment"));
+            }
+            _ => panic!("Expected NotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_response_parsing_conversion() {
+        let provider_err = ProviderError::ResponseParsing {
+            provider: "openai",
+            message: "Unexpected format".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::Parsing { .. } => {}
+            _ => panic!("Expected Parsing error"),
+        }
+    }
+
+    #[test]
+    fn test_transformation_error_conversion() {
+        let provider_err = ProviderError::TransformationError {
+            provider: "anthropic",
+            from_format: "anthropic".to_string(),
+            to_format: "openai".to_string(),
+            message: "Format mismatch".to_string(),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::Internal(msg) => {
+                assert!(msg.contains("Transformation error"));
+                assert!(msg.contains("anthropic"));
+            }
+            _ => panic!("Expected Internal error"),
+        }
+    }
+
+    #[test]
+    fn test_cancelled_error_conversion() {
+        let provider_err = ProviderError::Cancelled {
+            provider: "openai",
+            operation_type: "chat_completion".to_string(),
+            cancellation_reason: Some("User cancelled".to_string()),
+        };
+        let gateway_err: GatewayError = provider_err.into();
+        match gateway_err {
+            GatewayError::BadRequest(msg) => {
+                assert!(msg.contains("cancelled"));
+                assert!(msg.contains("chat_completion"));
+            }
+            _ => panic!("Expected BadRequest error"),
+        }
+    }
 }
