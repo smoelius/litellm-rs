@@ -7,6 +7,7 @@
 use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
 use actix_web::{HttpResponse, Result as ActixResult, web};
+use std::borrow::Cow;
 
 use tracing::{debug, error};
 
@@ -30,9 +31,9 @@ pub async fn health_check(_state: web::Data<AppState>) -> ActixResult<HttpRespon
     debug!("Health check requested");
 
     let health_status = HealthStatus {
-        status: "healthy".to_string(),
+        status: Cow::Borrowed("healthy"),
         timestamp: chrono::Utc::now(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        version: Cow::Borrowed(env!("CARGO_PKG_VERSION")),
     };
 
     Ok(HttpResponse::Ok().json(ApiResponse::success(health_status)))
@@ -83,12 +84,12 @@ async fn detailed_health_check(state: web::Data<AppState>) -> ActixResult<HttpRe
 
     let detailed_status = DetailedHealthStatus {
         status: if storage_health.overall && provider_health.healthy_providers > 0 {
-            "healthy".to_string()
+            Cow::Borrowed("healthy")
         } else {
-            "degraded".to_string()
+            Cow::Borrowed("degraded")
         },
         timestamp: chrono::Utc::now(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
+        version: Cow::Borrowed(env!("CARGO_PKG_VERSION")),
         uptime_seconds: get_uptime_seconds(),
         storage: storage_health,
         providers: provider_health,
@@ -106,14 +107,16 @@ async fn system_status(state: web::Data<AppState>) -> ActixResult<HttpResponse> 
     debug!("System status requested");
 
     let system_status = SystemStatus {
-        service_name: "Rust LiteLLM Gateway".to_string(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        build_time: env!("BUILD_TIME").to_string(),
-        git_hash: env!("GIT_HASH").to_string(),
-        rust_version: env!("RUST_VERSION").to_string(),
+        service_name: Cow::Borrowed("Rust LiteLLM Gateway"),
+        version: Cow::Borrowed(env!("CARGO_PKG_VERSION")),
+        build_time: Cow::Borrowed(env!("BUILD_TIME")),
+        git_hash: Cow::Borrowed(env!("GIT_HASH")),
+        rust_version: Cow::Borrowed(env!("RUST_VERSION")),
         uptime_seconds: get_uptime_seconds(),
         timestamp: chrono::Utc::now(),
-        environment: std::env::var("ENVIRONMENT").unwrap_or_else(|_| "development".to_string()),
+        environment: std::env::var("ENVIRONMENT")
+            .map(Cow::Owned)
+            .unwrap_or(Cow::Borrowed("development")),
         config: SystemConfig {
             server_host: state.config.server().host.clone(),
             server_port: state.config.server().port,
@@ -134,10 +137,10 @@ async fn version_info() -> HttpResponse {
     debug!("Version info requested");
 
     let version_info = VersionInfo {
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        build_time: env!("BUILD_TIME").to_string(),
-        git_hash: env!("GIT_HASH").to_string(),
-        rust_version: env!("RUST_VERSION").to_string(),
+        version: Cow::Borrowed(env!("CARGO_PKG_VERSION")),
+        build_time: Cow::Borrowed(env!("BUILD_TIME")),
+        git_hash: Cow::Borrowed(env!("GIT_HASH")),
+        rust_version: Cow::Borrowed(env!("RUST_VERSION")),
         features: get_enabled_features(),
     };
 
@@ -183,17 +186,17 @@ gateway_providers_total {}
 /// Basic health status
 #[derive(Debug, Clone, serde::Serialize)]
 struct HealthStatus {
-    status: String,
+    status: Cow<'static, str>,
     timestamp: chrono::DateTime<chrono::Utc>,
-    version: String,
+    version: Cow<'static, str>,
 }
 
 /// Detailed health status
 #[derive(Debug, Clone, serde::Serialize)]
 struct DetailedHealthStatus {
-    status: String,
+    status: Cow<'static, str>,
     timestamp: chrono::DateTime<chrono::Utc>,
-    version: String,
+    version: Cow<'static, str>,
     uptime_seconds: u64,
     storage: crate::storage::StorageHealthStatus,
     providers: ProviderHealthStatus,
@@ -213,7 +216,7 @@ struct ProviderHealthStatus {
 #[derive(Debug, Clone, serde::Serialize)]
 struct ProviderHealth {
     name: String,
-    status: String,
+    status: Cow<'static, str>,
     response_time_ms: Option<u64>,
     last_check: chrono::DateTime<chrono::Utc>,
     error_message: Option<String>,
@@ -222,14 +225,14 @@ struct ProviderHealth {
 /// System status information
 #[derive(Debug, Clone, serde::Serialize)]
 struct SystemStatus {
-    service_name: String,
-    version: String,
-    build_time: String,
-    git_hash: String,
-    rust_version: String,
+    service_name: Cow<'static, str>,
+    version: Cow<'static, str>,
+    build_time: Cow<'static, str>,
+    git_hash: Cow<'static, str>,
+    rust_version: Cow<'static, str>,
     uptime_seconds: u64,
     timestamp: chrono::DateTime<chrono::Utc>,
-    environment: String,
+    environment: Cow<'static, str>,
     config: SystemConfig,
 }
 
@@ -247,11 +250,11 @@ struct SystemConfig {
 /// Version information
 #[derive(Debug, Clone, serde::Serialize)]
 struct VersionInfo {
-    version: String,
-    build_time: String,
-    git_hash: String,
-    rust_version: String,
-    features: Vec<String>,
+    version: Cow<'static, str>,
+    build_time: Cow<'static, str>,
+    git_hash: Cow<'static, str>,
+    rust_version: Cow<'static, str>,
+    features: Vec<Cow<'static, str>>,
 }
 
 /// Check provider health
@@ -266,7 +269,7 @@ async fn check_provider_health(
 
         // TODO: Implement actual provider health checks
         // For now, assume all providers are healthy
-        let status = "healthy".to_string();
+        let status: Cow<'static, str> = Cow::Borrowed("healthy");
         let response_time = start_time.elapsed().as_millis() as u64;
 
         if status == "healthy" {
@@ -313,20 +316,20 @@ fn get_cpu_usage() -> f64 {
 }
 
 /// Get enabled features
-fn get_enabled_features() -> Vec<String> {
+fn get_enabled_features() -> Vec<Cow<'static, str>> {
     let mut features = Vec::new();
 
     #[cfg(feature = "enterprise")]
-    features.push("enterprise".to_string());
+    features.push(Cow::Borrowed("enterprise"));
 
     #[cfg(feature = "analytics")]
-    features.push("analytics".to_string());
+    features.push(Cow::Borrowed("analytics"));
 
     #[cfg(feature = "vector-db")]
-    features.push("vector-db".to_string());
+    features.push(Cow::Borrowed("vector-db"));
 
     if features.is_empty() {
-        features.push("standard".to_string());
+        features.push(Cow::Borrowed("standard"));
     }
 
     features
@@ -339,9 +342,9 @@ mod tests {
     #[test]
     fn test_health_status_creation() {
         let status = HealthStatus {
-            status: "healthy".to_string(),
+            status: Cow::Borrowed("healthy"),
             timestamp: chrono::Utc::now(),
-            version: "1.0.0".to_string(),
+            version: Cow::Borrowed("1.0.0"),
         };
 
         assert_eq!(status.status, "healthy");
@@ -363,11 +366,11 @@ mod tests {
     #[test]
     fn test_version_info() {
         let version_info = VersionInfo {
-            version: "1.0.0".to_string(),
-            build_time: "2024-01-01T00:00:00Z".to_string(),
-            git_hash: "abc123".to_string(),
-            rust_version: "1.75.0".to_string(),
-            features: vec!["standard".to_string()],
+            version: Cow::Borrowed("1.0.0"),
+            build_time: Cow::Borrowed("2024-01-01T00:00:00Z"),
+            git_hash: Cow::Borrowed("abc123"),
+            rust_version: Cow::Borrowed("1.75.0"),
+            features: vec![Cow::Borrowed("standard")],
         };
 
         assert_eq!(version_info.version, "1.0.0");
@@ -384,7 +387,7 @@ mod tests {
         assert!(
             features
                 .iter()
-                .any(|f| valid_features.contains(&f.as_str()))
+                .any(|f| valid_features.contains(&f.as_ref()))
         );
     }
 }

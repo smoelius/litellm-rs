@@ -47,7 +47,7 @@ pub async fn chat_completions(
     // Check if streaming is requested
     if request.stream.unwrap_or(false) {
         // Handle streaming request
-        handle_streaming_chat_completion(state.get_ref().clone(), request.into_inner(), context)
+        handle_streaming_chat_completion(state.get_ref(), request.into_inner(), context)
             .await
     } else {
         // Handle non-streaming request
@@ -64,7 +64,7 @@ pub async fn chat_completions(
 
 /// Handle streaming chat completion
 async fn handle_streaming_chat_completion(
-    _state: AppState,
+    _state: &AppState,
     request: ChatCompletionRequest,
     _context: RequestContext,
 ) -> ActixResult<HttpResponse> {
