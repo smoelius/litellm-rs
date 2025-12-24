@@ -259,6 +259,8 @@ pub fn get_interned_string(s: &str) -> Option<Arc<str>> {
 mod tests {
     use super::*;
 
+    // ==================== StringPool Tests ====================
+
     #[test]
     fn test_string_pool() {
         let pool = StringPool::new();
@@ -273,6 +275,91 @@ mod tests {
 
         assert_eq!(pool.len(), 2);
     }
+
+    #[test]
+    fn test_string_pool_default() {
+        let pool = StringPool::default();
+        assert!(pool.is_empty());
+        assert_eq!(pool.len(), 0);
+    }
+
+    #[test]
+    fn test_string_pool_get() {
+        let pool = StringPool::new();
+
+        // Not interned yet
+        assert!(pool.get("test").is_none());
+
+        // Intern it
+        pool.intern("test");
+
+        // Now it should be found
+        assert!(pool.get("test").is_some());
+        assert_eq!(pool.get("test").unwrap().as_ref(), "test");
+    }
+
+    #[test]
+    fn test_string_pool_usage_count() {
+        let pool = StringPool::new();
+
+        // Not interned yet
+        assert_eq!(pool.get_usage_count("hello"), 0);
+
+        // Intern multiple times
+        pool.intern("hello");
+        assert_eq!(pool.get_usage_count("hello"), 1);
+
+        pool.intern("hello");
+        assert_eq!(pool.get_usage_count("hello"), 2);
+
+        pool.intern("hello");
+        assert_eq!(pool.get_usage_count("hello"), 3);
+    }
+
+    #[test]
+    fn test_string_pool_get_top_strings() {
+        let pool = StringPool::new();
+
+        // Intern with different frequencies
+        for _ in 0..5 {
+            pool.intern("frequent");
+        }
+        for _ in 0..3 {
+            pool.intern("medium");
+        }
+        pool.intern("rare");
+
+        let top = pool.get_top_strings(2);
+        assert_eq!(top.len(), 2);
+        assert_eq!(top[0].0.as_ref(), "frequent");
+        assert_eq!(top[0].1, 5);
+        assert_eq!(top[1].0.as_ref(), "medium");
+        assert_eq!(top[1].1, 3);
+    }
+
+    #[test]
+    fn test_string_pool_clear() {
+        let pool = StringPool::new();
+        pool.intern("hello");
+        pool.intern("world");
+
+        assert_eq!(pool.len(), 2);
+
+        pool.clear();
+        assert!(pool.is_empty());
+        assert_eq!(pool.len(), 0);
+    }
+
+    #[test]
+    fn test_string_pool_is_empty() {
+        let pool = StringPool::new();
+        assert!(pool.is_empty());
+
+        pool.intern("test");
+        assert!(!pool.is_empty());
+    }
+
+    // ==================== SmartString Tests ====================
 
     #[test]
     fn test_smart_string() {
@@ -301,6 +388,100 @@ mod tests {
     }
 
     #[test]
+    fn test_smart_string_as_cow() {
+        let s1 = SmartString::from_static("static");
+        let s2 = SmartString::from_owned("owned".to_string());
+        let s3 = SmartString::from_shared(Arc::from("shared"));
+
+        assert_eq!(s1.as_cow().as_ref(), "static");
+        assert_eq!(s2.as_cow().as_ref(), "owned");
+        assert_eq!(s3.as_cow().as_ref(), "shared");
+    }
+
+    #[test]
+    fn test_smart_string_into_string() {
+        let s1 = SmartString::from_static("static");
+        let s2 = SmartString::from_owned("owned".to_string());
+        let s3 = SmartString::from_shared(Arc::from("shared"));
+
+        assert_eq!(s1.into_string(), "static");
+        assert_eq!(s2.into_string(), "owned");
+        assert_eq!(s3.into_string(), "shared");
+    }
+
+    #[test]
+    fn test_smart_string_len_is_empty() {
+        let empty = SmartString::from_static("");
+        let non_empty = SmartString::from_static("hello");
+
+        assert_eq!(empty.len(), 0);
+        assert!(empty.is_empty());
+
+        assert_eq!(non_empty.len(), 5);
+        assert!(!non_empty.is_empty());
+    }
+
+    #[test]
+    fn test_smart_string_from_traits() {
+        // Test From<&'static str>
+        let s1: SmartString = "static".into();
+        assert_eq!(s1.as_str(), "static");
+
+        // Test From<String>
+        let s2: SmartString = String::from("owned").into();
+        assert_eq!(s2.as_str(), "owned");
+
+        // Test From<Arc<str>>
+        let arc: Arc<str> = Arc::from("shared");
+        let s3: SmartString = arc.into();
+        assert_eq!(s3.as_str(), "shared");
+    }
+
+    #[test]
+    fn test_smart_string_as_ref() {
+        let s = SmartString::from_static("test");
+        let r: &str = s.as_ref();
+        assert_eq!(r, "test");
+    }
+
+    #[test]
+    fn test_smart_string_display() {
+        let s = SmartString::from_static("display test");
+        assert_eq!(format!("{}", s), "display test");
+    }
+
+    #[test]
+    fn test_smart_string_clone() {
+        let s1 = SmartString::from_static("static");
+        let s2 = SmartString::from_owned("owned".to_string());
+        let s3 = SmartString::from_shared(Arc::from("shared"));
+
+        let s1_clone = s1.clone();
+        let s2_clone = s2.clone();
+        let s3_clone = s3.clone();
+
+        assert_eq!(s1, s1_clone);
+        assert_eq!(s2, s2_clone);
+        assert_eq!(s3, s3_clone);
+    }
+
+    #[test]
+    fn test_smart_string_partial_eq_str() {
+        let s = SmartString::from_static("test");
+        assert!(s == "test");
+        assert!(s != "other");
+    }
+
+    #[test]
+    fn test_smart_string_partial_eq_ref_str() {
+        let s = SmartString::from_static("test");
+        let r: &str = "test";
+        assert!(s == r);
+    }
+
+    // ==================== Global Pool Tests ====================
+
+    #[test]
     fn test_global_string_pool() {
         let s1 = intern_string("global_test");
         let s2 = intern_string("global_test");
@@ -311,7 +492,17 @@ mod tests {
         assert!(s3.is_some());
         assert!(Arc::ptr_eq(&s1, &s3.unwrap()));
 
-        let s4 = get_interned_string("not_found");
+        let s4 = get_interned_string("not_found_unique_123");
         assert!(s4.is_none());
+    }
+
+    #[test]
+    fn test_intern_string_different_strings() {
+        let s1 = intern_string("unique_string_1");
+        let s2 = intern_string("unique_string_2");
+
+        assert!(!Arc::ptr_eq(&s1, &s2));
+        assert_eq!(s1.as_ref(), "unique_string_1");
+        assert_eq!(s2.as_ref(), "unique_string_2");
     }
 }
