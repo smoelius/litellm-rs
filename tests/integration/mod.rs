@@ -4,5 +4,6 @@
 //! and test real system behavior without mocking.
 
 pub mod database_tests;
+pub mod provider_factory_tests;
 pub mod provider_tests;
 pub mod router_tests;
