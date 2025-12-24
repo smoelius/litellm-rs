@@ -68,9 +68,6 @@ impl LLMClient {
             crate::sdk::config::ProviderType::Google => {
                 self.call_google_api(provider, request).await
             }
-            // crate::sdk::config::ProviderType::Groq => {
-            //     self.call_groq_api(provider, request).await
-            // }
             _ => {
                 warn!(
                     "Provider type {:?} not fully implemented, using mock response",
@@ -247,18 +244,6 @@ impl LLMClient {
     ) -> Result<ChatResponse> {
         // Google API implementation placeholder
         warn!("Google API not fully implemented, using mock response");
-        self.create_mock_response(provider, &request.messages).await
-    }
-
-    /// Call Groq API
-    #[allow(dead_code)]
-    async fn call_groq_api(
-        &self,
-        provider: &crate::sdk::config::ProviderConfig,
-        request: ChatRequest,
-    ) -> Result<ChatResponse> {
-        // Groq API implementation placeholder
-        warn!("Groq API not fully implemented, using mock response");
         self.create_mock_response(provider, &request.messages).await
     }
 
