@@ -509,4 +509,61 @@ mod tests {
         let parsed: ThinkingContent = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, content);
     }
+
+    #[test]
+    fn test_thinking_content_text_with_signature() {
+        let content = ThinkingContent::text_with_signature("reasoning content", "sig123");
+        match content {
+            ThinkingContent::Text { text, signature } => {
+                assert_eq!(text, "reasoning content");
+                assert_eq!(signature, Some("sig123".to_string()));
+            }
+            _ => panic!("Expected Text variant"),
+        }
+    }
+
+    #[test]
+    fn test_thinking_config_with_param() {
+        let config = ThinkingConfig::new()
+            .with_param("custom_key", serde_json::json!("custom_value"));
+        assert!(config.extra_params.contains_key("custom_key"));
+    }
+
+    #[test]
+    fn test_thinking_config_medium_effort() {
+        let config = ThinkingConfig::medium_effort();
+        assert!(config.enabled);
+        assert_eq!(config.effort, Some(ThinkingEffort::Medium));
+        assert!(config.include_thinking);
+    }
+
+    #[test]
+    fn test_thinking_effort_as_str() {
+        assert_eq!(ThinkingEffort::Low.as_str(), "low");
+        assert_eq!(ThinkingEffort::Medium.as_str(), "medium");
+        assert_eq!(ThinkingEffort::High.as_str(), "high");
+    }
+
+    #[test]
+    fn test_thinking_effort_display() {
+        assert_eq!(format!("{}", ThinkingEffort::Low), "low");
+        assert_eq!(format!("{}", ThinkingEffort::Medium), "medium");
+        assert_eq!(format!("{}", ThinkingEffort::High), "high");
+    }
+
+    #[test]
+    fn test_thinking_capabilities_unsupported() {
+        let caps = ThinkingCapabilities::unsupported();
+        assert!(!caps.supports_thinking);
+        assert!(!caps.supports_streaming_thinking);
+        assert_eq!(caps.max_thinking_tokens, None);
+    }
+
+    #[test]
+    fn test_default_include_thinking() {
+        // Test the default function is called during deserialization
+        let json = r#"{"enabled": true}"#;
+        let config: ThinkingConfig = serde_json::from_str(json).unwrap();
+        assert!(config.include_thinking); // default should be true
+    }
 }
