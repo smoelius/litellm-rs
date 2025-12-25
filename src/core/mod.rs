@@ -4,6 +4,7 @@
 
 #![allow(dead_code)]
 
+pub mod a2a; // A2A (Agent-to-Agent) Protocol Gateway
 pub mod analytics;
 pub mod audio; // Audio API (transcription, translation, speech)
 // pub mod base_provider;  // Removed: unused dead code
