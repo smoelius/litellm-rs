@@ -172,3 +172,138 @@ impl ErrorMapper<CloudflareError> for CloudflareErrorMapper {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cloudflare_error_display() {
+        let err = CloudflareError::ApiError("test error".to_string());
+        assert_eq!(err.to_string(), "API error: test error");
+
+        let err = CloudflareError::AuthenticationError("invalid token".to_string());
+        assert_eq!(err.to_string(), "Authentication failed: invalid token");
+
+        let err = CloudflareError::WorkersAIError("workers error".to_string());
+        assert_eq!(err.to_string(), "Workers AI error: workers error");
+    }
+
+    #[test]
+    fn test_cloudflare_error_type() {
+        assert_eq!(CloudflareError::ApiError("".to_string()).error_type(), "api_error");
+        assert_eq!(CloudflareError::AuthenticationError("".to_string()).error_type(), "authentication_error");
+        assert_eq!(CloudflareError::RateLimitError("".to_string()).error_type(), "rate_limit_error");
+        assert_eq!(CloudflareError::InvalidRequestError("".to_string()).error_type(), "invalid_request_error");
+        assert_eq!(CloudflareError::ModelNotFoundError("".to_string()).error_type(), "model_not_found_error");
+        assert_eq!(CloudflareError::ServiceUnavailableError("".to_string()).error_type(), "service_unavailable_error");
+        assert_eq!(CloudflareError::ConfigurationError("".to_string()).error_type(), "configuration_error");
+        assert_eq!(CloudflareError::NetworkError("".to_string()).error_type(), "network_error");
+        assert_eq!(CloudflareError::QuotaExceededError("".to_string()).error_type(), "quota_exceeded_error");
+        assert_eq!(CloudflareError::WorkersAIError("".to_string()).error_type(), "workers_ai_error");
+    }
+
+    #[test]
+    fn test_cloudflare_error_is_retryable() {
+        assert!(CloudflareError::RateLimitError("".to_string()).is_retryable());
+        assert!(CloudflareError::ServiceUnavailableError("".to_string()).is_retryable());
+        assert!(CloudflareError::NetworkError("".to_string()).is_retryable());
+
+        assert!(!CloudflareError::ApiError("".to_string()).is_retryable());
+        assert!(!CloudflareError::AuthenticationError("".to_string()).is_retryable());
+        assert!(!CloudflareError::InvalidRequestError("".to_string()).is_retryable());
+    }
+
+    #[test]
+    fn test_cloudflare_error_retry_delay() {
+        assert_eq!(CloudflareError::RateLimitError("".to_string()).retry_delay(), Some(60));
+        assert_eq!(CloudflareError::ServiceUnavailableError("".to_string()).retry_delay(), Some(5));
+        assert_eq!(CloudflareError::NetworkError("".to_string()).retry_delay(), Some(2));
+        assert_eq!(CloudflareError::ApiError("".to_string()).retry_delay(), None);
+    }
+
+    #[test]
+    fn test_cloudflare_error_http_status() {
+        assert_eq!(CloudflareError::AuthenticationError("".to_string()).http_status(), 401);
+        assert_eq!(CloudflareError::RateLimitError("".to_string()).http_status(), 429);
+        assert_eq!(CloudflareError::InvalidRequestError("".to_string()).http_status(), 400);
+        assert_eq!(CloudflareError::ModelNotFoundError("".to_string()).http_status(), 404);
+        assert_eq!(CloudflareError::ServiceUnavailableError("".to_string()).http_status(), 503);
+        assert_eq!(CloudflareError::QuotaExceededError("".to_string()).http_status(), 429);
+        assert_eq!(CloudflareError::ApiError("".to_string()).http_status(), 500);
+    }
+
+    #[test]
+    fn test_cloudflare_error_factory_methods() {
+        let err = CloudflareError::not_supported("vision");
+        assert!(matches!(err, CloudflareError::InvalidRequestError(_)));
+
+        let err = CloudflareError::authentication_failed("bad token");
+        assert!(matches!(err, CloudflareError::AuthenticationError(_)));
+
+        let err = CloudflareError::rate_limited(Some(30));
+        assert!(matches!(err, CloudflareError::RateLimitError(_)));
+
+        let err = CloudflareError::rate_limited(None);
+        assert!(matches!(err, CloudflareError::RateLimitError(_)));
+
+        let err = CloudflareError::network_error("timeout");
+        assert!(matches!(err, CloudflareError::NetworkError(_)));
+
+        let err = CloudflareError::parsing_error("invalid json");
+        assert!(matches!(err, CloudflareError::ApiError(_)));
+
+        let err = CloudflareError::not_implemented("feature");
+        assert!(matches!(err, CloudflareError::InvalidRequestError(_)));
+    }
+
+    #[test]
+    fn test_cloudflare_error_to_provider_error() {
+        let err: ProviderError = CloudflareError::AuthenticationError("bad token".to_string()).into();
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+
+        let err: ProviderError = CloudflareError::RateLimitError("limit".to_string()).into();
+        assert!(matches!(err, ProviderError::RateLimit { .. }));
+
+        let err: ProviderError = CloudflareError::ModelNotFoundError("model".to_string()).into();
+        assert!(matches!(err, ProviderError::ModelNotFound { .. }));
+
+        let err: ProviderError = CloudflareError::ConfigurationError("config".to_string()).into();
+        assert!(matches!(err, ProviderError::Configuration { .. }));
+
+        let err: ProviderError = CloudflareError::NetworkError("network".to_string()).into();
+        assert!(matches!(err, ProviderError::Network { .. }));
+    }
+
+    #[test]
+    fn test_cloudflare_error_mapper() {
+        let mapper = CloudflareErrorMapper;
+
+        let err = mapper.map_http_error(400, "bad request");
+        assert!(matches!(err, CloudflareError::InvalidRequestError(_)));
+
+        let err = mapper.map_http_error(401, "");
+        assert!(matches!(err, CloudflareError::AuthenticationError(_)));
+
+        let err = mapper.map_http_error(403, "");
+        assert!(matches!(err, CloudflareError::AuthenticationError(_)));
+
+        let err = mapper.map_http_error(404, "");
+        assert!(matches!(err, CloudflareError::ModelNotFoundError(_)));
+
+        let err = mapper.map_http_error(429, "");
+        assert!(matches!(err, CloudflareError::RateLimitError(_)));
+
+        let err = mapper.map_http_error(500, "");
+        assert!(matches!(err, CloudflareError::ApiError(_)));
+
+        let err = mapper.map_http_error(502, "");
+        assert!(matches!(err, CloudflareError::ServiceUnavailableError(_)));
+
+        let err = mapper.map_http_error(503, "");
+        assert!(matches!(err, CloudflareError::ServiceUnavailableError(_)));
+
+        let err = mapper.map_http_error(418, "teapot");
+        assert!(matches!(err, CloudflareError::ApiError(_)));
+    }
+}

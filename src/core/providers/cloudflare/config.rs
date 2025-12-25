@@ -106,3 +106,165 @@ fn default_timeout() -> u64 {
 fn default_max_retries() -> u32 {
     3
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cloudflare_config_with_values() {
+        let config = CloudflareConfig {
+            account_id: Some("account-123".to_string()),
+            api_token: Some("token-xyz".to_string()),
+            api_base: Some("https://custom.cloudflare.com".to_string()),
+            timeout: 45,
+            max_retries: 5,
+            debug: true,
+        };
+
+        assert_eq!(config.account_id, Some("account-123".to_string()));
+        assert_eq!(config.api_token, Some("token-xyz".to_string()));
+        assert_eq!(config.timeout, 45);
+        assert_eq!(config.max_retries, 5);
+        assert!(config.debug);
+    }
+
+    #[test]
+    fn test_cloudflare_config_get_api_base_default() {
+        let config = CloudflareConfig {
+            account_id: Some("test".to_string()),
+            api_token: Some("test".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert_eq!(config.get_api_base(), "https://api.cloudflare.com/client/v4");
+    }
+
+    #[test]
+    fn test_cloudflare_config_get_api_base_custom() {
+        let config = CloudflareConfig {
+            account_id: Some("test".to_string()),
+            api_token: Some("test".to_string()),
+            api_base: Some("https://custom.cloudflare.com".to_string()),
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert_eq!(config.get_api_base(), "https://custom.cloudflare.com");
+    }
+
+    #[test]
+    fn test_cloudflare_config_get_account_id() {
+        let config = CloudflareConfig {
+            account_id: Some("my-account".to_string()),
+            api_token: Some("test".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert_eq!(config.get_account_id(), Some("my-account".to_string()));
+    }
+
+    #[test]
+    fn test_cloudflare_config_get_api_token() {
+        let config = CloudflareConfig {
+            account_id: Some("test".to_string()),
+            api_token: Some("my-token".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert_eq!(config.get_api_token(), Some("my-token".to_string()));
+    }
+
+    #[test]
+    fn test_cloudflare_config_provider_config_trait() {
+        let config = CloudflareConfig {
+            account_id: Some("account".to_string()),
+            api_token: Some("token".to_string()),
+            api_base: Some("https://custom.api.com".to_string()),
+            timeout: 60,
+            max_retries: 5,
+            debug: false,
+        };
+
+        assert_eq!(config.api_key(), Some("token"));
+        assert_eq!(config.api_base(), Some("https://custom.api.com"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(60));
+        assert_eq!(config.max_retries(), 5);
+    }
+
+    #[test]
+    fn test_cloudflare_config_validation_missing_account() {
+        let config = CloudflareConfig {
+            account_id: None,
+            api_token: Some("token".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_cloudflare_config_validation_missing_token() {
+        let config = CloudflareConfig {
+            account_id: Some("account".to_string()),
+            api_token: None,
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_cloudflare_config_validation_zero_timeout() {
+        let config = CloudflareConfig {
+            account_id: Some("account".to_string()),
+            api_token: Some("token".to_string()),
+            api_base: None,
+            timeout: 0,
+            max_retries: 3,
+            debug: false,
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_cloudflare_config_validation_success() {
+        let config = CloudflareConfig {
+            account_id: Some("account".to_string()),
+            api_token: Some("token".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_cloudflare_config_serialization() {
+        let config = CloudflareConfig {
+            account_id: Some("account-123".to_string()),
+            api_token: Some("token-xyz".to_string()),
+            api_base: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: true,
+        };
+
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["account_id"], "account-123");
+        assert_eq!(json["api_token"], "token-xyz");
+        assert_eq!(json["timeout"], 30);
+        assert_eq!(json["debug"], true);
+    }
+}
