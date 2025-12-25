@@ -179,3 +179,140 @@ pub fn create_openrouter_headers(
 
     headers
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openrouter_extra_params_default() {
+        let params = OpenRouterExtraParams::default();
+        assert!(params.transforms.is_none());
+        assert!(params.models.is_none());
+        assert!(params.route.is_none());
+        assert!(params.provider.is_none());
+    }
+
+    #[test]
+    fn test_openrouter_extra_params_with_values() {
+        let params = OpenRouterExtraParams {
+            transforms: Some(vec!["middle-out".to_string()]),
+            models: Some(vec!["gpt-4".to_string(), "claude-3".to_string()]),
+            route: Some("fallback".to_string()),
+            provider: Some("openai".to_string()),
+        };
+
+        assert_eq!(params.transforms.as_ref().unwrap().len(), 1);
+        assert_eq!(params.models.as_ref().unwrap().len(), 2);
+        assert_eq!(params.route, Some("fallback".to_string()));
+        assert_eq!(params.provider, Some("openai".to_string()));
+    }
+
+    #[test]
+    fn test_openrouter_extra_params_serialization() {
+        let params = OpenRouterExtraParams {
+            transforms: Some(vec!["middle-out".to_string()]),
+            models: None,
+            route: Some("fallback".to_string()),
+            provider: None,
+        };
+
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["transforms"], serde_json::json!(["middle-out"]));
+        assert_eq!(json["route"], "fallback");
+        assert!(json.get("models").is_none());
+        assert!(json.get("provider").is_none());
+    }
+
+    #[test]
+    fn test_openrouter_error_model() {
+        let json = r#"{
+            "message": "Rate limit exceeded",
+            "code": 429,
+            "type": "rate_limit_error"
+        }"#;
+
+        let error: OpenRouterErrorModel = serde_json::from_str(json).unwrap();
+        assert_eq!(error.message, "Rate limit exceeded");
+        assert_eq!(error.code, 429);
+        assert_eq!(error.error_type, Some("rate_limit_error".to_string()));
+    }
+
+    #[test]
+    fn test_should_keep_cache_control() {
+        assert!(OpenRouterRequestTransformer::should_keep_cache_control("anthropic/claude-3-opus"));
+        assert!(OpenRouterRequestTransformer::should_keep_cache_control("CLAUDE-3-sonnet"));
+        assert!(!OpenRouterRequestTransformer::should_keep_cache_control("openai/gpt-4"));
+        assert!(!OpenRouterRequestTransformer::should_keep_cache_control("meta-llama/llama-3"));
+    }
+
+    #[test]
+    fn test_create_openrouter_headers_basic() {
+        let headers = create_openrouter_headers("sk-test-key", None, None);
+
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer sk-test-key");
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+        assert!(headers.get("User-Agent").unwrap().contains("LiteLLM-RS"));
+        assert!(headers.get("HTTP-Referer").is_none());
+        assert!(headers.get("X-Title").is_none());
+    }
+
+    #[test]
+    fn test_create_openrouter_headers_with_referer() {
+        let headers = create_openrouter_headers("sk-test-key", Some("https://myapp.com"), None);
+
+        assert_eq!(headers.get("HTTP-Referer").unwrap(), "https://myapp.com");
+    }
+
+    #[test]
+    fn test_create_openrouter_headers_with_title() {
+        let headers = create_openrouter_headers("sk-test-key", None, Some("My App"));
+
+        assert_eq!(headers.get("X-Title").unwrap(), "My App");
+    }
+
+    #[test]
+    fn test_create_openrouter_headers_full() {
+        let headers = create_openrouter_headers("sk-test-key", Some("https://myapp.com"), Some("My App"));
+
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer sk-test-key");
+        assert_eq!(headers.get("HTTP-Referer").unwrap(), "https://myapp.com");
+        assert_eq!(headers.get("X-Title").unwrap(), "My App");
+        assert_eq!(headers.len(), 5);
+    }
+
+    #[test]
+    fn test_parse_error_with_valid_json() {
+        let error_body = r#"{"message": "Rate limit exceeded", "code": 429}"#;
+        let error = OpenRouterResponseTransformer::parse_error(error_body, 429);
+        assert!(matches!(error, OpenRouterError::RateLimit(_)));
+    }
+
+    #[test]
+    fn test_parse_error_auth() {
+        let error_body = r#"{"message": "Invalid API key", "code": 401}"#;
+        let error = OpenRouterResponseTransformer::parse_error(error_body, 401);
+        assert!(matches!(error, OpenRouterError::Authentication(_)));
+    }
+
+    #[test]
+    fn test_parse_error_invalid_request() {
+        let error_body = r#"{"message": "Invalid parameters", "code": 400}"#;
+        let error = OpenRouterResponseTransformer::parse_error(error_body, 400);
+        assert!(matches!(error, OpenRouterError::InvalidRequest(_)));
+    }
+
+    #[test]
+    fn test_parse_error_model_not_found() {
+        let error_body = r#"{"message": "Model gpt-5 not found", "code": 404}"#;
+        let error = OpenRouterResponseTransformer::parse_error(error_body, 404);
+        assert!(matches!(error, OpenRouterError::ModelNotFound(_)));
+    }
+
+    #[test]
+    fn test_parse_error_invalid_json() {
+        let error_body = "invalid json";
+        let error = OpenRouterResponseTransformer::parse_error(error_body, 500);
+        assert!(matches!(error, OpenRouterError::ApiError { .. }));
+    }
+}
