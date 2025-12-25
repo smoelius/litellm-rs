@@ -331,3 +331,290 @@ impl MistralChatTransformation {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_mistral_chat_transformation_new() {
+        let transformation = MistralChatTransformation::new();
+        let params = transformation.get_supported_params();
+        assert!(params.contains(&"messages".to_string()));
+        assert!(params.contains(&"model".to_string()));
+        assert!(params.contains(&"temperature".to_string()));
+        assert!(params.contains(&"safe_prompt".to_string()));
+    }
+
+    #[test]
+    fn test_mistral_chat_transformation_default() {
+        let transformation = MistralChatTransformation::default();
+        assert!(!transformation.get_supported_params().is_empty());
+    }
+
+    #[test]
+    fn test_normalize_model_name() {
+        let transformation = MistralChatTransformation::new();
+        assert_eq!(
+            transformation.normalize_model_name("mistral/mistral-large"),
+            "mistral-large"
+        );
+        assert_eq!(
+            transformation.normalize_model_name("mistralai/mistral-medium"),
+            "mistral-medium"
+        );
+        assert_eq!(
+            transformation.normalize_model_name("mistral-small"),
+            "mistral-small"
+        );
+    }
+
+    #[test]
+    fn test_transform_request_basic() {
+        let transformation = MistralChatTransformation::new();
+        let request = ChatRequest {
+            model: "mistral-large".to_string(),
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            ..Default::default()
+        };
+
+        let result = transformation.transform_request(request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["model"], "mistral-large");
+        assert!(value["messages"].is_array());
+        assert_eq!(value["safe_prompt"], true);
+    }
+
+    #[test]
+    fn test_transform_request_with_options() {
+        let transformation = MistralChatTransformation::new();
+        let request = ChatRequest {
+            model: "mistral-large".to_string(),
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            temperature: Some(0.5),
+            max_tokens: Some(100),
+            top_p: Some(0.5),
+            seed: Some(42),
+            stream: true,
+            ..Default::default()
+        };
+
+        let result = transformation.transform_request(request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["temperature"], 0.5);
+        assert_eq!(value["max_tokens"], 100);
+        assert_eq!(value["top_p"], 0.5);
+        assert_eq!(value["random_seed"], 42);
+        assert_eq!(value["stream"], true);
+    }
+
+    #[test]
+    fn test_transform_messages_roles() {
+        let transformation = MistralChatTransformation::new();
+        let messages = vec![
+            ChatMessage {
+                role: MessageRole::System,
+                content: Some(MessageContent::Text("System".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("User".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            ChatMessage {
+                role: MessageRole::Assistant,
+                content: Some(MessageContent::Text("Assistant".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            },
+            ChatMessage {
+                role: MessageRole::Tool,
+                content: Some(MessageContent::Text("Tool".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: Some("call_123".to_string()),
+            },
+        ];
+
+        let result = transformation.transform_messages(&messages);
+        let arr = result.as_array().unwrap();
+        assert_eq!(arr[0]["role"], "system");
+        assert_eq!(arr[1]["role"], "user");
+        assert_eq!(arr[2]["role"], "assistant");
+        assert_eq!(arr[3]["role"], "tool");
+        assert_eq!(arr[3]["tool_call_id"], "call_123");
+    }
+
+    #[test]
+    fn test_transform_response() {
+        let transformation = MistralChatTransformation::new();
+        let response = json!({
+            "id": "cmpl-123",
+            "object": "chat.completion",
+            "created": 1699000000,
+            "model": "mistral-large",
+            "choices": [{
+                "index": 0,
+                "message": {
+                    "role": "assistant",
+                    "content": "Hello!"
+                },
+                "finish_reason": "stop"
+            }],
+            "usage": {
+                "prompt_tokens": 10,
+                "completion_tokens": 5,
+                "total_tokens": 15
+            }
+        });
+
+        let result = transformation.transform_response(response);
+        assert!(result.is_ok());
+        let chat_response = result.unwrap();
+        assert_eq!(chat_response.id, "cmpl-123");
+        assert_eq!(chat_response.model, "mistral-large");
+        assert_eq!(chat_response.choices.len(), 1);
+        assert_eq!(chat_response.choices[0].finish_reason, Some(FinishReason::Stop));
+        assert!(chat_response.usage.is_some());
+        let usage = chat_response.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 10);
+        assert_eq!(usage.completion_tokens, 5);
+        assert_eq!(usage.total_tokens, 15);
+    }
+
+    #[test]
+    fn test_transform_response_finish_reasons() {
+        let transformation = MistralChatTransformation::new();
+
+        let test_cases = vec![
+            ("stop", FinishReason::Stop),
+            ("length", FinishReason::Length),
+            ("function_call", FinishReason::FunctionCall),
+            ("tool_calls", FinishReason::ToolCalls),
+            ("unknown", FinishReason::Stop),
+        ];
+
+        for (reason_str, expected) in test_cases {
+            let response = json!({
+                "choices": [{
+                    "index": 0,
+                    "message": { "role": "assistant", "content": "Hi" },
+                    "finish_reason": reason_str
+                }]
+            });
+
+            let result = transformation.transform_response(response).unwrap();
+            assert_eq!(result.choices[0].finish_reason, Some(expected));
+        }
+    }
+
+    #[test]
+    fn test_transform_response_missing_choices() {
+        let transformation = MistralChatTransformation::new();
+        let response = json!({
+            "id": "cmpl-123",
+            "model": "mistral-large"
+        });
+
+        let result = transformation.transform_response(response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transform_usage() {
+        let transformation = MistralChatTransformation::new();
+        let usage_value = json!({
+            "prompt_tokens": 100,
+            "completion_tokens": 50,
+            "total_tokens": 150
+        });
+
+        let usage = transformation.transform_usage(Some(&usage_value));
+        assert!(usage.is_some());
+        let u = usage.unwrap();
+        assert_eq!(u.prompt_tokens, 100);
+        assert_eq!(u.completion_tokens, 50);
+        assert_eq!(u.total_tokens, 150);
+    }
+
+    #[test]
+    fn test_transform_usage_none() {
+        let transformation = MistralChatTransformation::new();
+        let usage = transformation.transform_usage(None);
+        assert!(usage.is_none());
+    }
+
+    #[test]
+    fn test_transform_message_with_tool_calls() {
+        let transformation = MistralChatTransformation::new();
+        let message_value = json!({
+            "role": "assistant",
+            "content": null,
+            "tool_calls": [{
+                "id": "call_123",
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "arguments": "{\"location\": \"NYC\"}"
+                }
+            }]
+        });
+
+        let result = transformation.transform_message(Some(&message_value));
+        assert!(result.is_ok());
+        let msg = result.unwrap();
+        assert_eq!(msg.role, MessageRole::Assistant);
+        assert!(msg.tool_calls.is_some());
+    }
+
+    #[test]
+    fn test_get_supported_params() {
+        let transformation = MistralChatTransformation::new();
+        let params = transformation.get_supported_params();
+
+        assert!(params.contains(&"messages".to_string()));
+        assert!(params.contains(&"model".to_string()));
+        assert!(params.contains(&"max_tokens".to_string()));
+        assert!(params.contains(&"temperature".to_string()));
+        assert!(params.contains(&"top_p".to_string()));
+        assert!(params.contains(&"stream".to_string()));
+        assert!(params.contains(&"stop".to_string()));
+        assert!(params.contains(&"random_seed".to_string()));
+        assert!(params.contains(&"response_format".to_string()));
+        assert!(params.contains(&"tools".to_string()));
+        assert!(params.contains(&"tool_choice".to_string()));
+        assert!(params.contains(&"safe_prompt".to_string()));
+    }
+}
