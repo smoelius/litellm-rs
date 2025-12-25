@@ -2,8 +2,8 @@
 
 use super::billing::TeamBilling;
 use super::settings::TeamSettings;
-use crate::core::models::{Metadata, UsageStats};
 use crate::core::models::user::types::UserRateLimits;
+use crate::core::models::{Metadata, UsageStats};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

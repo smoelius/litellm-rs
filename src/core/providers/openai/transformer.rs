@@ -3,12 +3,12 @@
 //! Unified transformation layer for converting between unified LiteLLM types and OpenAI-specific formats
 
 use crate::core::traits::Transform;
+use crate::core::types::thinking::ThinkingContent;
 use crate::core::types::{
     ChatChoice, ChatChunk, ChatDelta, ChatMessage, ChatRequest, ChatResponse, ChatStreamChoice,
     ContentPart, FinishReason, FunctionCall, ImageUrl, LogProbs, MessageContent, MessageRole,
     ResponseFormat, TokenLogProb, Tool, ToolCall, ToolChoice, TopLogProb, Usage,
 };
-use crate::core::types::thinking::ThinkingContent;
 use serde_json;
 
 use super::error::OpenAIError;
@@ -330,12 +330,13 @@ impl OpenAIResponseTransformer {
                         Some(MessageContent::Text(text.to_string()))
                     }
                 } else if let Some(array) = value.as_array() {
-                    let parts: Vec<OpenAIContentPart> =
-                        serde_json::from_value(serde_json::Value::Array(array.clone()))
-                            .map_err(|e| OpenAIError::ResponseParsing {
-                                provider: "openai",
-                                message: format!("Failed to parse content parts: {}", e),
-                            })?;
+                    let parts: Vec<OpenAIContentPart> = serde_json::from_value(
+                        serde_json::Value::Array(array.clone()),
+                    )
+                    .map_err(|e| OpenAIError::ResponseParsing {
+                        provider: "openai",
+                        message: format!("Failed to parse content parts: {}", e),
+                    })?;
                     let content_parts = parts
                         .into_iter()
                         .map(Self::transform_content_part_response)

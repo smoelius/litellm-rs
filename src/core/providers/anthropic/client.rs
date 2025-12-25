@@ -551,7 +551,7 @@ impl AnthropicClient {
             } else {
                 Some(crate::core::types::MessageContent::Text(message_content))
             },
-                thinking: None,
+            thinking: None,
             name: None,
             tool_calls: if tool_calls.is_empty() {
                 None

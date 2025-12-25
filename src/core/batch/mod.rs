@@ -12,8 +12,8 @@ mod tests;
 
 // Re-export all public types
 pub use async_batch::{
-    batch_execute, AsyncBatchConfig, AsyncBatchError, AsyncBatchExecutor, AsyncBatchItemResult,
-    AsyncBatchSummary,
+    AsyncBatchConfig, AsyncBatchError, AsyncBatchExecutor, AsyncBatchItemResult, AsyncBatchSummary,
+    batch_execute,
 };
 pub use processor::core::BatchProcessor;
 pub use types::{

@@ -44,7 +44,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Message role: {}", choice.message.role);
         println!("Message content: {:?}", choice.message.content);
         println!("Message reasoning: {:?}", choice.message.reasoning);
-        println!("Message reasoning_content: {:?}", choice.message.reasoning_content);
+        println!(
+            "Message reasoning_content: {:?}",
+            choice.message.reasoning_content
+        );
     }
 
     // Transform to ChatResponse

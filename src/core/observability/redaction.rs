@@ -208,7 +208,10 @@ pub fn redact_json_value(value: &mut Value, config: &RedactionConfig) {
 }
 
 /// Redact sensitive headers from a list of header pairs
-pub fn redact_headers(headers: &[(String, String)], config: &RedactionConfig) -> Vec<(String, String)> {
+pub fn redact_headers(
+    headers: &[(String, String)],
+    config: &RedactionConfig,
+) -> Vec<(String, String)> {
     headers
         .iter()
         .map(|(key, value)| {
@@ -227,18 +230,12 @@ mod tests {
         let config = RedactionConfig::default();
 
         // Should redact
-        assert_eq!(
-            redact_value("api_key", "sk-1234567890", &config),
-            REDACTED
-        );
+        assert_eq!(redact_value("api_key", "sk-1234567890", &config), REDACTED);
         assert_eq!(
             redact_value("Authorization", "Bearer token123", &config),
             REDACTED
         );
-        assert_eq!(
-            redact_value("password", "secret123", &config),
-            REDACTED
-        );
+        assert_eq!(redact_value("password", "secret123", &config), REDACTED);
 
         // Should not redact
         assert_eq!(redact_value("model", "gpt-4", &config), "gpt-4");
@@ -285,10 +282,7 @@ mod tests {
         let mut config = RedactionConfig::default();
         config.additional_fields.insert("custom_secret".to_string());
 
-        assert_eq!(
-            redact_value("custom_secret", "my-value", &config),
-            REDACTED
-        );
+        assert_eq!(redact_value("custom_secret", "my-value", &config), REDACTED);
     }
 
     #[test]

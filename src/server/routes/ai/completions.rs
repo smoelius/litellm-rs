@@ -3,15 +3,15 @@
 //! This endpoint converts legacy text completions to chat completions format
 //! since most modern providers only support chat completions.
 
-use crate::core::completion::{completion, CompletionOptions};
-use crate::core::models::openai::{CompletionRequest, CompletionResponse};
+use crate::core::completion::{CompletionOptions, completion};
 use crate::core::models::RequestContext;
+use crate::core::models::openai::{CompletionRequest, CompletionResponse};
 use crate::core::providers::ProviderRegistry;
 use crate::core::types::{ChatMessage, MessageContent, MessageRole};
 use crate::server::routes::errors;
 use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
-use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use tracing::{error, info};
 
 use super::context::get_request_context;

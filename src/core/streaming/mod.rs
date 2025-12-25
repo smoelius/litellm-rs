@@ -2,15 +2,15 @@
 //!
 //! This module provides Server-Sent Events (SSE) streaming support for real-time AI responses.
 
+use crate::utils::error::Result;
 use actix_web::http::header::{CACHE_CONTROL, CONTENT_TYPE};
 use actix_web::{HttpResponse, web};
-use crate::utils::error::Result;
 use futures::stream::Stream;
 
 // Module declarations
-pub mod types;
 pub mod handler;
 pub mod providers;
+pub mod types;
 pub mod utils;
 
 #[cfg(test)]

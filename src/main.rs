@@ -5,8 +5,8 @@
 #![allow(missing_docs)]
 
 use litellm_rs::server;
-use tracing::Level;
 use std::process::ExitCode;
+use tracing::Level;
 
 #[tokio::main]
 async fn main() -> ExitCode {

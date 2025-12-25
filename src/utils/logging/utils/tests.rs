@@ -100,9 +100,15 @@ mod tests {
             .with_metadata("key3".to_string(), serde_json::json!(true));
 
         assert_eq!(entry.metadata.len(), 3);
-        assert_eq!(entry.metadata.get("key1").unwrap(), &serde_json::json!("value1"));
+        assert_eq!(
+            entry.metadata.get("key1").unwrap(),
+            &serde_json::json!("value1")
+        );
         assert_eq!(entry.metadata.get("key2").unwrap(), &serde_json::json!(42));
-        assert_eq!(entry.metadata.get("key3").unwrap(), &serde_json::json!(true));
+        assert_eq!(
+            entry.metadata.get("key3").unwrap(),
+            &serde_json::json!(true)
+        );
     }
 
     #[test]
@@ -147,28 +153,76 @@ mod tests {
     #[test]
     fn test_should_log_at_level_all_combinations() {
         // Debug level allows all
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Debug, &LogLevel::Debug));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Debug, &LogLevel::Info));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Debug, &LogLevel::Warn));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Debug, &LogLevel::Error));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Debug,
+            &LogLevel::Debug
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Debug,
+            &LogLevel::Info
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Debug,
+            &LogLevel::Warn
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Debug,
+            &LogLevel::Error
+        ));
 
         // Info level allows info and above
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Info, &LogLevel::Debug));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Info, &LogLevel::Info));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Info, &LogLevel::Warn));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Info, &LogLevel::Error));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Info,
+            &LogLevel::Debug
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Info,
+            &LogLevel::Info
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Info,
+            &LogLevel::Warn
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Info,
+            &LogLevel::Error
+        ));
 
         // Warn level allows warn and above
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Warn, &LogLevel::Debug));
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Warn, &LogLevel::Info));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Warn, &LogLevel::Warn));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Warn, &LogLevel::Error));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Warn,
+            &LogLevel::Debug
+        ));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Warn,
+            &LogLevel::Info
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Warn,
+            &LogLevel::Warn
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Warn,
+            &LogLevel::Error
+        ));
 
         // Error level only allows error
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Error, &LogLevel::Debug));
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Error, &LogLevel::Info));
-        assert!(!LoggingUtils::should_log_at_level(&LogLevel::Error, &LogLevel::Warn));
-        assert!(LoggingUtils::should_log_at_level(&LogLevel::Error, &LogLevel::Error));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Error,
+            &LogLevel::Debug
+        ));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Error,
+            &LogLevel::Info
+        ));
+        assert!(!LoggingUtils::should_log_at_level(
+            &LogLevel::Error,
+            &LogLevel::Warn
+        ));
+        assert!(LoggingUtils::should_log_at_level(
+            &LogLevel::Error,
+            &LogLevel::Error
+        ));
     }
 
     #[test]
@@ -277,12 +331,7 @@ mod tests {
 
     #[test]
     fn test_create_structured_log_minimal() {
-        let entry = LoggingUtils::create_structured_log(
-            LogLevel::Debug,
-            "Debug",
-            None,
-            None,
-        );
+        let entry = LoggingUtils::create_structured_log(LogLevel::Debug, "Debug", None, None);
 
         assert_eq!(entry.level, "DEBUG");
         assert!(entry.module.is_none());
@@ -393,7 +442,12 @@ mod tests {
         let temp_file = NamedTempFile::new().unwrap();
         let writer = FileLogging::setup_file_logging(temp_file.path().to_str().unwrap()).unwrap();
 
-        let levels = vec![LogLevel::Debug, LogLevel::Info, LogLevel::Warn, LogLevel::Error];
+        let levels = vec![
+            LogLevel::Debug,
+            LogLevel::Info,
+            LogLevel::Warn,
+            LogLevel::Error,
+        ];
         for level in levels {
             let entry = LogEntry::new(level, "Test message".to_string());
             assert!(FileLogging::log_to_file(&writer, &entry).is_ok());

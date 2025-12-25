@@ -1,9 +1,9 @@
 //! Metrics middleware for request monitoring
 
 use crate::server::state::AppState;
-use actix_web::dev::{forward_ready, Service, ServiceRequest, ServiceResponse, Transform};
+use actix_web::dev::{Service, ServiceRequest, ServiceResponse, Transform, forward_ready};
 use actix_web::web;
-use futures::future::{ready, Ready};
+use futures::future::{Ready, ready};
 use std::future::Future;
 use std::pin::Pin;
 use std::time::Instant;
@@ -72,10 +72,7 @@ where
             .and_then(|h| h.to_str().ok())
             .map(|s| s.to_string());
 
-        let client_ip = req
-            .connection_info()
-            .peer_addr()
-            .map(|s| s.to_string());
+        let client_ip = req.connection_info().peer_addr().map(|s| s.to_string());
 
         let request_size = req
             .headers()

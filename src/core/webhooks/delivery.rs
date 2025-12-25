@@ -170,7 +170,11 @@ impl WebhookManager {
     }
 
     /// Generate webhook signature
-    pub(super) fn generate_signature(&self, payload: &WebhookPayload, secret: &str) -> Result<String> {
+    pub(super) fn generate_signature(
+        &self,
+        payload: &WebhookPayload,
+        secret: &str,
+    ) -> Result<String> {
         use hmac::{Hmac, Mac};
         use sha2::Sha256;
 

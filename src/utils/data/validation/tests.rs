@@ -48,31 +48,42 @@ mod tests {
     fn test_model_name_validation() {
         let message = create_user_message("test");
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "claude-3.5-sonnet",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
         assert!(
-            RequestValidator::validate_chat_completion_request("", std::slice::from_ref(&message), None, None)
-                .is_err()
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
         );
-        assert!(RequestValidator::validate_chat_completion_request(
-            "invalid@model",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "claude-3.5-sonnet",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "invalid@model",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -80,62 +91,71 @@ mod tests {
         let message = create_user_message("test");
 
         // Valid model names with allowed characters
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4-turbo",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "anthropic/claude-3",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "model.v1.2",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "model_name_v2",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4-turbo",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "anthropic/claude-3",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "model.v1.2",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "model_name_v2",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
 
         // Invalid model names
-        assert!(RequestValidator::validate_chat_completion_request(
-            "model name",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "model#name",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "model name",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "model#name",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
     fn test_empty_messages() {
         let messages: Vec<ChatMessage> = vec![];
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            &messages,
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request("gpt-4", &messages, None, None)
+                .is_err()
+        );
     }
 
     #[test]
@@ -143,36 +163,44 @@ mod tests {
         let message = create_user_message("test");
 
         // Valid max_tokens
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            Some(100),
-            None
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            Some(100000),
-            None
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                Some(100),
+                None
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                Some(100000),
+                None
+            )
+            .is_ok()
+        );
 
         // Invalid max_tokens
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            Some(0),
-            None
-        )
-        .is_err());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            Some(100001),
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                Some(0),
+                None
+            )
+            .is_err()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                Some(100001),
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -180,43 +208,53 @@ mod tests {
         let message = create_user_message("test");
 
         // Valid temperatures
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            Some(0.0)
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            Some(1.0)
-        )
-        .is_ok());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            Some(2.0)
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                Some(0.0)
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                Some(1.0)
+            )
+            .is_ok()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                Some(2.0)
+            )
+            .is_ok()
+        );
 
         // Invalid temperatures
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            Some(-0.1)
-        )
-        .is_err());
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            Some(2.1)
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                Some(-0.1)
+            )
+            .is_err()
+        );
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                Some(2.1)
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -228,13 +266,10 @@ mod tests {
             create_user_message("How are you?"),
         ];
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            &messages,
-            None,
-            None
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request("gpt-4", &messages, None, None)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -249,13 +284,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -270,13 +307,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -292,13 +331,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
 
         // Function message with name
         let message = ChatMessage {
@@ -311,13 +352,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -333,13 +376,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_err());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_err()
+        );
 
         // Tool message with tool_call_id
         let message = ChatMessage {
@@ -352,13 +397,15 @@ mod tests {
             audio: None,
         };
 
-        assert!(RequestValidator::validate_chat_completion_request(
-            "gpt-4",
-            std::slice::from_ref(&message),
-            None,
-            None
-        )
-        .is_ok());
+        assert!(
+            RequestValidator::validate_chat_completion_request(
+                "gpt-4",
+                std::slice::from_ref(&message),
+                None,
+                None
+            )
+            .is_ok()
+        );
     }
 
     // ==================== ApiValidator Tests ====================

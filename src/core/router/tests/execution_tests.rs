@@ -11,17 +11,34 @@ use std::sync::atomic::Ordering;
 
 #[test]
 fn test_is_retryable_error() {
-    assert!(is_retryable_error(&ProviderError::rate_limit("test", Some(60))));
-    assert!(is_retryable_error(&ProviderError::timeout("test", "Request timed out")));
-    assert!(is_retryable_error(&ProviderError::network("test", "Connection failed")));
+    assert!(is_retryable_error(&ProviderError::rate_limit(
+        "test",
+        Some(60)
+    )));
+    assert!(is_retryable_error(&ProviderError::timeout(
+        "test",
+        "Request timed out"
+    )));
+    assert!(is_retryable_error(&ProviderError::network(
+        "test",
+        "Connection failed"
+    )));
     assert!(is_retryable_error(&ProviderError::ProviderUnavailable {
         provider: "test",
         message: "Service unavailable".to_string(),
     }));
 
-    assert!(!is_retryable_error(&ProviderError::authentication("test", "Invalid API key")));
-    assert!(!is_retryable_error(&ProviderError::model_not_found("test", "gpt-5")));
-    assert!(!is_retryable_error(&ProviderError::invalid_request("test", "Bad request")));
+    assert!(!is_retryable_error(&ProviderError::authentication(
+        "test",
+        "Invalid API key"
+    )));
+    assert!(!is_retryable_error(&ProviderError::model_not_found(
+        "test", "gpt-5"
+    )));
+    assert!(!is_retryable_error(&ProviderError::invalid_request(
+        "test",
+        "Bad request"
+    )));
 }
 
 #[tokio::test]

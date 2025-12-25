@@ -268,8 +268,14 @@ mod tests {
         assert!(config.is_feature_enabled("health_checks"));
 
         // Based on config
-        assert_eq!(config.is_feature_enabled("jwt_auth"), config.auth.enable_jwt);
-        assert_eq!(config.is_feature_enabled("api_key_auth"), config.auth.enable_api_key);
+        assert_eq!(
+            config.is_feature_enabled("jwt_auth"),
+            config.auth.enable_jwt
+        );
+        assert_eq!(
+            config.is_feature_enabled("api_key_auth"),
+            config.auth.enable_api_key
+        );
         assert_eq!(config.is_feature_enabled("caching"), config.cache.enabled);
         assert_eq!(
             config.is_feature_enabled("rate_limiting"),

@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::utils::data::utils::DataUtils;
-    use serde_json::{json, Map, Value};
+    use serde_json::{Map, Value, json};
     use uuid::Uuid;
 
     // ==================== Base64 Tests ====================
@@ -738,10 +738,7 @@ mod tests {
 
     #[test]
     fn test_clean_whitespace_multiple_spaces() {
-        assert_eq!(
-            DataUtils::clean_whitespace("  a    b     c  "),
-            "a b c"
-        );
+        assert_eq!(DataUtils::clean_whitespace("  a    b     c  "), "a b c");
     }
 
     #[test]

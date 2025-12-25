@@ -1,8 +1,8 @@
 //! Load balancer tests
 
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::router::load_balancer::{DeploymentInfo, FallbackConfig, LoadBalancer};
 use crate::core::router::strategy::types::RoutingStrategy;
-use crate::core::providers::unified_provider::ProviderError;
 
 #[test]
 fn test_fallback_config_builder() {
@@ -264,9 +264,18 @@ async fn test_get_providers_by_group() {
         .await
         .unwrap();
 
-    lb.update_deployment_info("provider_a", DeploymentInfo::new().with_group("gpt-4-group"));
-    lb.update_deployment_info("provider_b", DeploymentInfo::new().with_group("gpt-4-group"));
-    lb.update_deployment_info("provider_c", DeploymentInfo::new().with_group("claude-group"));
+    lb.update_deployment_info(
+        "provider_a",
+        DeploymentInfo::new().with_group("gpt-4-group"),
+    );
+    lb.update_deployment_info(
+        "provider_b",
+        DeploymentInfo::new().with_group("gpt-4-group"),
+    );
+    lb.update_deployment_info(
+        "provider_c",
+        DeploymentInfo::new().with_group("claude-group"),
+    );
 
     let gpt4_providers = lb.get_providers_by_group("gpt-4-group");
     assert_eq!(gpt4_providers.len(), 2);
@@ -304,9 +313,18 @@ async fn test_get_all_groups() {
         .await
         .unwrap();
 
-    lb.update_deployment_info("provider_a", DeploymentInfo::new().with_group("gpt-4-group"));
-    lb.update_deployment_info("provider_b", DeploymentInfo::new().with_group("gpt-4-group"));
-    lb.update_deployment_info("provider_c", DeploymentInfo::new().with_group("claude-group"));
+    lb.update_deployment_info(
+        "provider_a",
+        DeploymentInfo::new().with_group("gpt-4-group"),
+    );
+    lb.update_deployment_info(
+        "provider_b",
+        DeploymentInfo::new().with_group("gpt-4-group"),
+    );
+    lb.update_deployment_info(
+        "provider_c",
+        DeploymentInfo::new().with_group("claude-group"),
+    );
     lb.update_deployment_info("provider_d", DeploymentInfo::new()); // No group
 
     let all_groups = lb.get_all_groups();

@@ -1,7 +1,9 @@
 //! Main configuration builder implementation
 
 use super::types::ConfigBuilder;
-use crate::config::{AuthConfig, Config, GatewayConfig, ProviderConfig, ServerConfig, StorageConfig};
+use crate::config::{
+    AuthConfig, Config, GatewayConfig, ProviderConfig, ServerConfig, StorageConfig,
+};
 use crate::utils::data::type_utils::Builder;
 use crate::utils::error::{GatewayError, Result};
 use std::collections::HashMap;

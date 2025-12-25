@@ -425,8 +425,12 @@ async fn test_multiple_keys() {
     let key1 = RateLimitKey::new("api".to_string()).with_user(user1);
     let key2 = RateLimitKey::new("api".to_string()).with_user(user2);
 
-    limiter.add_config(limiter.build_key_string(&key1), config.clone()).await;
-    limiter.add_config(limiter.build_key_string(&key2), config).await;
+    limiter
+        .add_config(limiter.build_key_string(&key1), config.clone())
+        .await;
+    limiter
+        .add_config(limiter.build_key_string(&key2), config)
+        .await;
 
     // Both users should have independent limits
     for _ in 0..5 {

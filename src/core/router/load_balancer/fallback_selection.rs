@@ -1,8 +1,8 @@
 //! Fallback selection for LoadBalancer
 
 use super::core::LoadBalancer;
-use crate::core::providers::unified_provider::ProviderError;
 use crate::core::providers::Provider;
+use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::common::RequestContext;
 use tracing::{debug, info, warn};
 

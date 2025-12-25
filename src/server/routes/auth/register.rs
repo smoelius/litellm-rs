@@ -1,7 +1,7 @@
 //! User registration endpoint
 
-use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
+use crate::server::state::AppState;
 use crate::utils::auth::crypto::password::hash_password;
 use crate::utils::data::validation::DataValidator;
 use actix_web::{HttpResponse, Result as ActixResult, web};

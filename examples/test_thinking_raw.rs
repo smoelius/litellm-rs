@@ -3,7 +3,7 @@
 //! Run with: cargo run --example test_thinking_raw --all-features
 
 use reqwest::Client;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::env;
 
 #[tokio::main]
@@ -27,7 +27,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     println!("Sending request to OpenRouter...\n");
-    println!("Request body: {}", serde_json::to_string_pretty(&request_body)?);
+    println!(
+        "Request body: {}",
+        serde_json::to_string_pretty(&request_body)?
+    );
 
     let response = client
         .post("https://openrouter.ai/api/v1/chat/completions")
@@ -55,18 +58,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             for (i, choice) in choices.iter().enumerate() {
                 println!("\n=== Choice {} ===", i);
                 if let Some(message) = choice.get("message") {
-                    println!("Message keys: {:?}", message.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+                    println!(
+                        "Message keys: {:?}",
+                        message.as_object().map(|o| o.keys().collect::<Vec<_>>())
+                    );
 
                     // Check specific fields
                     if let Some(content) = message.get("content") {
-                        println!("content: {} chars", content.as_str().map(|s| s.len()).unwrap_or(0));
+                        println!(
+                            "content: {} chars",
+                            content.as_str().map(|s| s.len()).unwrap_or(0)
+                        );
                     }
                     if let Some(reasoning) = message.get("reasoning") {
                         println!("reasoning: {:?}", reasoning);
                     }
                     if let Some(reasoning_content) = message.get("reasoning_content") {
-                        println!("reasoning_content: {} chars", reasoning_content.as_str().map(|s| s.len()).unwrap_or(0));
-                        println!("reasoning_content preview: {:?}", reasoning_content.as_str().map(|s| &s[..s.len().min(200)]));
+                        println!(
+                            "reasoning_content: {} chars",
+                            reasoning_content.as_str().map(|s| s.len()).unwrap_or(0)
+                        );
+                        println!(
+                            "reasoning_content preview: {:?}",
+                            reasoning_content.as_str().map(|s| &s[..s.len().min(200)])
+                        );
                     }
                 }
             }

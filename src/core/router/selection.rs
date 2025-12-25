@@ -107,9 +107,11 @@ impl Router {
             RoutingStrategy::RateLimitAware => {
                 strategy_impl::rate_limit_aware(&candidate_ids, &self.deployments)
             }
-            RoutingStrategy::RoundRobin => {
-                strategy_impl::round_robin(&resolved_name, &candidate_ids, &self.round_robin_counters)
-            }
+            RoutingStrategy::RoundRobin => strategy_impl::round_robin(
+                &resolved_name,
+                &candidate_ids,
+                &self.round_robin_counters,
+            ),
         };
 
         // 5. Increment active_requests counter

@@ -1,19 +1,21 @@
 //! Chat completions endpoint
 
-use crate::core::completion::{completion_stream, CompletionOptions};
+use crate::core::completion::{CompletionOptions, completion_stream};
+use crate::core::models::RequestContext;
 use crate::core::models::openai::{
-    ChatCompletionRequest, ChatCompletionResponse, ChatChoice, ChatMessage, MessageContent,
+    ChatChoice, ChatCompletionRequest, ChatCompletionResponse, ChatMessage, MessageContent,
     MessageRole, Usage,
 };
-use crate::core::models::RequestContext;
 use crate::core::providers::ProviderRegistry;
-use crate::core::streaming::types::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta, Event};
+use crate::core::streaming::types::{
+    ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta, Event,
+};
 use crate::server::routes::errors;
 use crate::server::state::AppState;
 use crate::utils::data::validation::RequestValidator;
 use crate::utils::error::GatewayError;
 use actix_web::http::header::{CACHE_CONTROL, CONTENT_TYPE};
-use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use futures::StreamExt;
 use tracing::{error, info, warn};
 use uuid::Uuid;
@@ -47,8 +49,7 @@ pub async fn chat_completions(
     // Check if streaming is requested
     if request.stream.unwrap_or(false) {
         // Handle streaming request
-        handle_streaming_chat_completion(state.get_ref(), request.into_inner(), context)
-            .await
+        handle_streaming_chat_completion(state.get_ref(), request.into_inner(), context).await
     } else {
         // Handle non-streaming request
         // TODO: Implement proper routing through ProviderRegistry
@@ -68,7 +69,10 @@ async fn handle_streaming_chat_completion(
     request: ChatCompletionRequest,
     _context: RequestContext,
 ) -> ActixResult<HttpResponse> {
-    info!("Handling streaming chat completion for model: {}", request.model);
+    info!(
+        "Handling streaming chat completion for model: {}",
+        request.model
+    );
 
     // Convert ChatCompletionRequest messages to core Message format
     let messages: Vec<crate::core::types::ChatMessage> = request
@@ -129,10 +133,12 @@ async fn handle_streaming_chat_completion(
             });
 
             // Convert function call (legacy)
-            let function_call = msg.function_call.map(|fc| crate::core::types::FunctionCall {
-                name: fc.name,
-                arguments: fc.arguments,
-            });
+            let function_call = msg
+                .function_call
+                .map(|fc| crate::core::types::FunctionCall {
+                    name: fc.name,
+                    arguments: fc.arguments,
+                });
 
             crate::core::types::ChatMessage {
                 role,

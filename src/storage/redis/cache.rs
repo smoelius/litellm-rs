@@ -2,9 +2,9 @@
 //!
 //! This module provides core key-value caching operations including get, set, delete, exists, expire, and ttl.
 
+use super::pool::RedisPool;
 use crate::utils::error::{GatewayError, Result};
 use redis::{AsyncCommands, RedisResult};
-use super::pool::RedisPool;
 
 impl RedisPool {
     /// Get a value from cache
@@ -35,7 +35,10 @@ impl RedisPool {
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
             if let Some(ttl_seconds) = ttl {
-                let _: () = c.set_ex(key, value, ttl_seconds).await.map_err(GatewayError::Redis)?;
+                let _: () = c
+                    .set_ex(key, value, ttl_seconds)
+                    .await
+                    .map_err(GatewayError::Redis)?;
             } else {
                 let _: () = c.set(key, value).await.map_err(GatewayError::Redis)?;
             }
@@ -79,7 +82,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let _: () = c.expire(key, ttl as i64).await.map_err(GatewayError::Redis)?;
+            let _: () = c
+                .expire(key, ttl as i64)
+                .await
+                .map_err(GatewayError::Redis)?;
         }
         Ok(())
     }

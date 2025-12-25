@@ -125,13 +125,13 @@ mod tests {
                         "You are a helpful assistant that responds in exactly one word."
                             .to_string(),
                     )),
-                ..Default::default()
-            },
+                    ..Default::default()
+                },
                 ChatMessage {
                     role: MessageRole::User,
                     content: Some(MessageContent::Text("What is 2+2?".to_string())),
-                ..Default::default()
-            },
+                    ..Default::default()
+                },
             ],
             max_tokens: Some(10),
             temperature: Some(0.0),

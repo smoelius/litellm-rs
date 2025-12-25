@@ -513,7 +513,7 @@ impl GeminiClient {
                 .unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
-                thinking_usage: None,
+            thinking_usage: None,
         });
 
         // Use current timestamp, defaulting to 0 if system time is before UNIX_EPOCH

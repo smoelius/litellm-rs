@@ -50,7 +50,10 @@ impl StorageLayer {
                 Arc::new(pool)
             }
             Err(e) => {
-                warn!("Redis connection failed: {}. Gateway will operate without caching.", e);
+                warn!(
+                    "Redis connection failed: {}. Gateway will operate without caching.",
+                    e
+                );
                 // Create a no-op Redis pool wrapper
                 Arc::new(redis::RedisPool::create_noop())
             }

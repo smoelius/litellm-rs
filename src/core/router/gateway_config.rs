@@ -66,7 +66,11 @@ impl Router {
             let models: Vec<String> = if !provider_config.models.is_empty() {
                 provider_config.models.clone()
             } else {
-                provider.list_models().iter().map(|m| m.id.clone()).collect()
+                provider
+                    .list_models()
+                    .iter()
+                    .map(|m| m.id.clone())
+                    .collect()
             };
 
             // Create deployments

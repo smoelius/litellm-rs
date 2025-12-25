@@ -1,7 +1,7 @@
 //! Core router tests
 
-use crate::core::providers::openai::OpenAIProvider;
 use crate::core::providers::Provider;
+use crate::core::providers::openai::OpenAIProvider;
 use crate::core::router::config::{RouterConfig, RoutingStrategy};
 use crate::core::router::deployment::Deployment;
 use crate::core::router::router::Router;
@@ -184,7 +184,9 @@ async fn test_get_healthy_deployments() {
     assert_eq!(healthy.len(), 3);
 
     if let Some(d) = router.get_deployment("test-1") {
-        d.state.health.store(HealthStatus::Unhealthy as u8, Ordering::Relaxed);
+        d.state
+            .health
+            .store(HealthStatus::Unhealthy as u8, Ordering::Relaxed);
     }
 
     let healthy = router.get_healthy_deployments("gpt-4");

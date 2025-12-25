@@ -132,12 +132,48 @@ mod tests {
     /// Test GatewayError status codes via error_response
     #[test]
     fn test_gateway_error_status_codes() {
-        assert_eq!(GatewayError::Auth("test".to_string()).error_response().status().as_u16(), 401);
-        assert_eq!(GatewayError::BadRequest("test".to_string()).error_response().status().as_u16(), 400);
-        assert_eq!(GatewayError::NotFound("test".to_string()).error_response().status().as_u16(), 404);
-        assert_eq!(GatewayError::RateLimit("test".to_string()).error_response().status().as_u16(), 429);
-        assert_eq!(GatewayError::Timeout("test".to_string()).error_response().status().as_u16(), 408);
-        assert_eq!(GatewayError::Internal("test".to_string()).error_response().status().as_u16(), 500);
+        assert_eq!(
+            GatewayError::Auth("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            401
+        );
+        assert_eq!(
+            GatewayError::BadRequest("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            400
+        );
+        assert_eq!(
+            GatewayError::NotFound("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            404
+        );
+        assert_eq!(
+            GatewayError::RateLimit("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            429
+        );
+        assert_eq!(
+            GatewayError::Timeout("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            408
+        );
+        assert_eq!(
+            GatewayError::Internal("test".to_string())
+                .error_response()
+                .status()
+                .as_u16(),
+            500
+        );
     }
 
     /// Test GatewayError display

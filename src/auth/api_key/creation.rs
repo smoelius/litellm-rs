@@ -3,8 +3,8 @@
 //! This module provides methods for creating and verifying API keys.
 
 use super::types::{ApiKeyVerification, CreateApiKeyRequest};
-use crate::core::models::{ApiKey, Metadata, UsageStats};
 use crate::core::models::user::types::User;
+use crate::core::models::{ApiKey, Metadata, UsageStats};
 use crate::storage::StorageLayer;
 use crate::utils::auth::crypto::keys::{extract_api_key_prefix, generate_api_key, hash_api_key};
 use crate::utils::error::Result;

@@ -16,16 +16,16 @@
 #![allow(dead_code)]
 
 // Module declarations
-mod pool;
-mod cache;
+mod atomic;
 mod batch;
+mod cache;
 mod collections;
 mod hash;
+mod pool;
 mod pubsub;
-mod atomic;
 #[cfg(test)]
 mod tests;
 
 // Re-export public types
-pub use pool::{RedisPool, RedisConnection};
+pub use pool::{RedisConnection, RedisPool};
 pub use pubsub::Subscription;

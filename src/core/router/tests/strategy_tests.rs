@@ -19,9 +19,15 @@ async fn test_select_deployment_simple_shuffle() {
     let d2 = create_test_deployment("test-2", "gpt-4").await;
     let d3 = create_test_deployment("test-3", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d3.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d3.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     router.add_deployment(d1);
     router.add_deployment(d2);
@@ -52,8 +58,12 @@ async fn test_select_deployment_least_busy() {
     let d1 = create_test_deployment("test-1", "gpt-4").await;
     let d2 = create_test_deployment("test-2", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     d1.state.active_requests.store(5, Ordering::Relaxed);
     d2.state.active_requests.store(2, Ordering::Relaxed);
@@ -77,8 +87,12 @@ async fn test_select_deployment_usage_based() {
     let mut d1 = create_test_deployment("test-1", "gpt-4").await;
     let mut d2 = create_test_deployment("test-2", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     d1.config.tpm_limit = Some(10000);
     d1.state.tpm_current.store(8000, Ordering::Relaxed);
@@ -105,8 +119,12 @@ async fn test_select_deployment_latency_based() {
     let d1 = create_test_deployment("test-1", "gpt-4").await;
     let d2 = create_test_deployment("test-2", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     d1.state.avg_latency_us.store(100_000, Ordering::Relaxed);
     d2.state.avg_latency_us.store(50_000, Ordering::Relaxed);
@@ -131,9 +149,15 @@ async fn test_select_deployment_round_robin() {
     let d2 = create_test_deployment("test-2", "gpt-4").await;
     let d3 = create_test_deployment("test-3", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d3.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d3.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     router.add_deployment(d1);
     router.add_deployment(d2);
@@ -166,8 +190,12 @@ async fn test_select_deployment_cost_based() {
     let mut d1 = create_test_deployment("test-1", "gpt-4").await;
     let mut d2 = create_test_deployment("test-2", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     d1.config.priority = 2;
     d2.config.priority = 1;
@@ -191,8 +219,12 @@ async fn test_select_deployment_rate_limit_aware() {
     let mut d1 = create_test_deployment("test-1", "gpt-4").await;
     let mut d2 = create_test_deployment("test-2", "gpt-4").await;
 
-    d1.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
-    d2.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d1.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    d2.state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     d1.config.tpm_limit = Some(10000);
     d1.state.tpm_current.store(9000, Ordering::Relaxed);
@@ -228,7 +260,10 @@ async fn test_select_deployment_no_available() {
     let router = Router::default();
     let deployment = create_test_deployment("test-1", "gpt-4").await;
 
-    deployment.state.health.store(HealthStatus::Unhealthy as u8, Ordering::Relaxed);
+    deployment
+        .state
+        .health
+        .store(HealthStatus::Unhealthy as u8, Ordering::Relaxed);
     router.add_deployment(deployment);
 
     let result = router.select_deployment("gpt-4");
@@ -247,7 +282,10 @@ async fn test_select_deployment_respects_parallel_limit() {
     let router = Router::default();
     let mut deployment = create_test_deployment("test-1", "gpt-4").await;
 
-    deployment.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    deployment
+        .state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
     deployment.config.max_parallel_requests = Some(2);
     deployment.state.active_requests.store(2, Ordering::Relaxed);
 
@@ -262,7 +300,10 @@ async fn test_select_deployment_respects_rate_limit() {
     let router = Router::default();
     let mut deployment = create_test_deployment("test-1", "gpt-4").await;
 
-    deployment.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    deployment
+        .state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
     deployment.config.tpm_limit = Some(1000);
     deployment.state.tpm_current.store(1000, Ordering::Relaxed);
 
@@ -277,7 +318,10 @@ async fn test_release_deployment() {
     let router = Router::default();
     let deployment = create_test_deployment("test-1", "gpt-4").await;
 
-    deployment.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    deployment
+        .state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
     deployment.state.active_requests.store(5, Ordering::Relaxed);
 
     router.add_deployment(deployment);
@@ -296,7 +340,10 @@ async fn test_select_deployment_with_alias() {
     let router = Router::default();
     let deployment = create_test_deployment("test-1", "gpt-4").await;
 
-    deployment.state.health.store(HealthStatus::Healthy as u8, Ordering::Relaxed);
+    deployment
+        .state
+        .health
+        .store(HealthStatus::Healthy as u8, Ordering::Relaxed);
 
     router.add_deployment(deployment);
     router.add_model_alias("gpt4", "gpt-4");

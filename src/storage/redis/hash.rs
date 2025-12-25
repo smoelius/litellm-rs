@@ -2,10 +2,10 @@
 //!
 //! This module provides operations for Redis Hash and Sorted Set data structures.
 
+use super::pool::RedisPool;
 use crate::utils::error::{GatewayError, Result};
 use redis::{AsyncCommands, RedisResult};
 use std::collections::HashMap;
-use super::pool::RedisPool;
 
 impl RedisPool {
     // ===== Hash operations =====
@@ -18,7 +18,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let _: () = c.hset(key, field, value).await.map_err(GatewayError::Redis)?;
+            let _: () = c
+                .hset(key, field, value)
+                .await
+                .map_err(GatewayError::Redis)?;
         }
         Ok(())
     }
@@ -63,7 +66,8 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let hash: HashMap<String, String> = c.hgetall(key).await.map_err(GatewayError::Redis)?;
+            let hash: HashMap<String, String> =
+                c.hgetall(key).await.map_err(GatewayError::Redis)?;
             Ok(hash)
         } else {
             Ok(HashMap::new())
@@ -95,7 +99,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let _: () = c.zadd(key, score, member).await.map_err(GatewayError::Redis)?;
+            let _: () = c
+                .zadd(key, score, member)
+                .await
+                .map_err(GatewayError::Redis)?;
         }
         Ok(())
     }
@@ -113,7 +120,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let members: Vec<String> = c.zrange(key, start, stop).await.map_err(GatewayError::Redis)?;
+            let members: Vec<String> = c
+                .zrange(key, start, stop)
+                .await
+                .map_err(GatewayError::Redis)?;
             Ok(members)
         } else {
             Ok(vec![])

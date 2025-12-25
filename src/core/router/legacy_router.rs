@@ -406,3 +406,77 @@ impl Router {
         Ok(providers.list())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    //! Unit tests for the legacy Router implementation
+    //!
+    //! These tests verify the core router functionality including:
+    //! - Router initialization with different configurations
+    //! - Routing strategies
+    //! - Provider config structure
+
+    use crate::config::ProviderConfig;
+    use crate::core::router::strategy::types::RoutingStrategy;
+
+    /// Helper to create a test provider config
+    fn create_test_provider_config(name: &str, provider_type: &str) -> ProviderConfig {
+        ProviderConfig {
+            name: name.to_string(),
+            provider_type: provider_type.to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_provider_config_creation() {
+        let config = create_test_provider_config("openai", "openai");
+        assert_eq!(config.name, "openai");
+        assert_eq!(config.provider_type, "openai");
+    }
+
+    #[test]
+    fn test_routing_strategy_variants() {
+        // Test that all routing strategy variants are available
+        let _ = RoutingStrategy::RoundRobin;
+        let _ = RoutingStrategy::Random;
+        let _ = RoutingStrategy::LeastLatency;
+        let _ = RoutingStrategy::LeastCost;
+        let _ = RoutingStrategy::Weighted;
+        let _ = RoutingStrategy::Priority;
+    }
+
+    #[test]
+    fn test_routing_strategy_default() {
+        let strategy = RoutingStrategy::default();
+        assert!(matches!(strategy, RoutingStrategy::RoundRobin));
+    }
+
+    #[test]
+    fn test_routing_strategy_clone() {
+        let strategy = RoutingStrategy::LeastLatency;
+        let cloned = strategy.clone();
+        assert!(matches!(cloned, RoutingStrategy::LeastLatency));
+    }
+
+    #[test]
+    fn test_provider_config_with_defaults() {
+        let config = ProviderConfig::default();
+        assert!(config.enabled);
+        assert_eq!(config.weight, 1.0);
+    }
+
+    #[test]
+    fn test_multiple_provider_configs() {
+        let configs = vec![
+            create_test_provider_config("openai", "openai"),
+            create_test_provider_config("anthropic", "anthropic"),
+            create_test_provider_config("azure", "azure"),
+        ];
+
+        assert_eq!(configs.len(), 3);
+        assert_eq!(configs[0].name, "openai");
+        assert_eq!(configs[1].name, "anthropic");
+        assert_eq!(configs[2].name, "azure");
+    }
+}

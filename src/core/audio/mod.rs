@@ -20,7 +20,10 @@ use transcription::TranscriptionService;
 use translation::TranslationService;
 
 // Import types for AudioService method signatures
-use types::{SpeechRequest, SpeechResponse, TranscriptionRequest, TranscriptionResponse, TranslationRequest, TranslationResponse};
+use types::{
+    SpeechRequest, SpeechResponse, TranscriptionRequest, TranscriptionResponse, TranslationRequest,
+    TranslationResponse,
+};
 
 /// Audio service for handling audio API requests
 pub struct AudioService {

@@ -215,12 +215,38 @@ mod tests {
         let state = DeploymentState::new();
 
         assert_eq!(state.health_status(), HealthStatus::Healthy);
-        assert_eq!(state.tpm_current.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.rpm_current.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.active_requests.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.total_requests.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.success_requests.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.fail_requests.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(
+            state.tpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state.rpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state
+                .active_requests
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state
+                .total_requests
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state
+                .success_requests
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state
+                .fail_requests
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
     }
 
     /// Test deployment state reset_minute
@@ -229,34 +255,59 @@ mod tests {
         let state = DeploymentState::new();
 
         // Set some values
-        state.tpm_current.store(1000, std::sync::atomic::Ordering::Relaxed);
-        state.rpm_current.store(50, std::sync::atomic::Ordering::Relaxed);
-        state.fails_this_minute.store(5, std::sync::atomic::Ordering::Relaxed);
+        state
+            .tpm_current
+            .store(1000, std::sync::atomic::Ordering::Relaxed);
+        state
+            .rpm_current
+            .store(50, std::sync::atomic::Ordering::Relaxed);
+        state
+            .fails_this_minute
+            .store(5, std::sync::atomic::Ordering::Relaxed);
 
         // Reset
         state.reset_minute();
 
         // Verify reset
-        assert_eq!(state.tpm_current.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.rpm_current.load(std::sync::atomic::Ordering::Relaxed), 0);
-        assert_eq!(state.fails_this_minute.load(std::sync::atomic::Ordering::Relaxed), 0);
+        assert_eq!(
+            state.tpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state.rpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+        assert_eq!(
+            state
+                .fails_this_minute
+                .load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
     }
 
     /// Test deployment state clone
     #[test]
     fn test_deployment_state_clone() {
         let state = DeploymentState::new();
-        state.tpm_current.store(1000, std::sync::atomic::Ordering::Relaxed);
-        state.rpm_current.store(50, std::sync::atomic::Ordering::Relaxed);
+        state
+            .tpm_current
+            .store(1000, std::sync::atomic::Ordering::Relaxed);
+        state
+            .rpm_current
+            .store(50, std::sync::atomic::Ordering::Relaxed);
 
         let cloned = state.clone();
 
         assert_eq!(
-            cloned.tpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            cloned
+                .tpm_current
+                .load(std::sync::atomic::Ordering::Relaxed),
             1000
         );
         assert_eq!(
-            cloned.rpm_current.load(std::sync::atomic::Ordering::Relaxed),
+            cloned
+                .rpm_current
+                .load(std::sync::atomic::Ordering::Relaxed),
             50
         );
     }
@@ -288,10 +339,7 @@ mod tests {
 
         config.add_general_fallback(
             "gpt-4",
-            vec![
-                "gpt-3.5-turbo".to_string(),
-                "gpt-3.5-turbo-16k".to_string(),
-            ],
+            vec!["gpt-3.5-turbo".to_string(), "gpt-3.5-turbo-16k".to_string()],
         );
 
         let fallbacks = config.general_fallbacks.get("gpt-4").unwrap();

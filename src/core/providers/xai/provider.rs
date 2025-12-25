@@ -12,8 +12,10 @@ use tracing::{debug, info};
 use super::config::XAIConfig;
 use super::error::{XAIError, XAIErrorMapper};
 use super::model_info::{calculate_cost_with_reasoning, get_available_models, get_model_info};
-use crate::core::providers::base::{header, GlobalPoolManager, HttpMethod};
-use crate::core::traits::{ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod, header};
+use crate::core::traits::{
+    ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider,
+};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},

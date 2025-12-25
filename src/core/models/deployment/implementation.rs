@@ -2,13 +2,15 @@
 //!
 //! This module contains the main Deployment struct implementations.
 
+use crate::config::ProviderConfig;
 use crate::core::models::deployment::health::{CircuitBreakerState, DeploymentHealth};
 use crate::core::models::deployment::metrics::DeploymentMetrics;
-use crate::core::models::deployment::types::{Deployment, DeploymentMetricsSnapshot, DeploymentSnapshot, DeploymentState};
+use crate::core::models::deployment::types::{
+    Deployment, DeploymentMetricsSnapshot, DeploymentSnapshot, DeploymentState,
+};
 use crate::core::models::{HealthStatus, Metadata};
-use crate::config::ProviderConfig;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use uuid::Uuid;
 
 impl Deployment {

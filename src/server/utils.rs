@@ -71,7 +71,11 @@ impl HttpServer {
 │     lsof -i:{}
 └─────────────────────────────────────────────────────────────────┘
 "#,
-                port, port, port + 1, port + 1, port
+                port,
+                port,
+                port + 1,
+                port + 1,
+                port
             );
             GatewayError::server(message)
         } else if error_str.contains("Permission denied") || error_str.contains("os error 13") {

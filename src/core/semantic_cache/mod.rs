@@ -12,6 +12,4 @@ mod tests;
 
 // Re-export main types and structs for backward compatibility
 pub use cache::SemanticCache;
-pub use types::{
-    CacheStats, EmbeddingProvider, SemanticCacheConfig, SemanticCacheEntry,
-};
+pub use types::{CacheStats, EmbeddingProvider, SemanticCacheConfig, SemanticCacheEntry};

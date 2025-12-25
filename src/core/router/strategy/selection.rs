@@ -12,10 +12,7 @@ pub(super) struct SelectionMethods;
 
 impl SelectionMethods {
     /// Round-robin provider selection
-    pub fn select_round_robin(
-        providers: &[String],
-        counter: &AtomicUsize,
-    ) -> Result<String> {
+    pub fn select_round_robin(providers: &[String], counter: &AtomicUsize) -> Result<String> {
         let index = counter.fetch_add(1, Ordering::Relaxed) % providers.len();
         debug!(
             "Round-robin selected provider at index {}: {}",

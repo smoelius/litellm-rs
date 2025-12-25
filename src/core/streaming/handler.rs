@@ -1,8 +1,6 @@
 //! Streaming response handler implementation
 
-use super::types::{
-    ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta, Event,
-};
+use super::types::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta, Event};
 use crate::core::models::openai::Usage;
 use crate::core::types::MessageRole;
 use crate::utils::error::Result;

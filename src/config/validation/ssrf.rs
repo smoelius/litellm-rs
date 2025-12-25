@@ -14,9 +14,8 @@ use url::Url;
 /// - The host is not localhost or a loopback address
 /// - The host is not a cloud metadata endpoint
 pub fn validate_url_against_ssrf(url_str: &str, context: &str) -> Result<(), String> {
-    let url = Url::parse(url_str).map_err(|e| {
-        format!("{} has invalid URL format: {}", context, e)
-    })?;
+    let url =
+        Url::parse(url_str).map_err(|e| format!("{} has invalid URL format: {}", context, e))?;
 
     // Ensure scheme is http or https
     match url.scheme() {
@@ -30,9 +29,9 @@ pub fn validate_url_against_ssrf(url_str: &str, context: &str) -> Result<(), Str
     }
 
     // Get the host
-    let host = url.host_str().ok_or_else(|| {
-        format!("{} URL must have a valid host", context)
-    })?;
+    let host = url
+        .host_str()
+        .ok_or_else(|| format!("{} URL must have a valid host", context))?;
 
     // Check for localhost and other local aliases
     let host_lower = host.to_lowercase();
@@ -76,7 +75,7 @@ pub fn validate_url_against_ssrf(url_str: &str, context: &str) -> Result<(), Str
 
     // Check for IP addresses in brackets (IPv6)
     if host.starts_with('[') && host.ends_with(']') {
-        let ip_str = &host[1..host.len()-1];
+        let ip_str = &host[1..host.len() - 1];
         if let Ok(ip) = ip_str.parse::<IpAddr>() {
             if is_private_or_internal_ip(&ip) {
                 return Err(format!(

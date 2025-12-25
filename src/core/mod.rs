@@ -78,8 +78,11 @@ impl Gateway {
         // Initialize monitoring system
         debug!("Initializing monitoring system");
         let monitoring = Arc::new(
-            crate::monitoring::system::MonitoringSystem::new(&config.gateway.monitoring, storage.clone())
-                .await?,
+            crate::monitoring::system::MonitoringSystem::new(
+                &config.gateway.monitoring,
+                storage.clone(),
+            )
+            .await?,
         );
 
         // Initialize provider pool

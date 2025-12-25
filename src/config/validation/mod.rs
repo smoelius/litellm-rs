@@ -14,16 +14,16 @@
 //! - `enterprise_validators`: Enterprise configuration validators
 //! - `tests`: Test suite for all validators
 
-mod ssrf;
-mod trait_def;
-mod config_validators;
-mod router_validators;
-mod storage_validators;
 mod auth_validators;
-mod monitoring_validators;
 mod cache_validators;
+mod config_validators;
 mod enterprise_validators;
+mod monitoring_validators;
+mod router_validators;
+mod ssrf;
+mod storage_validators;
 mod tests;
+mod trait_def;
 
 // Re-export the Validate trait for backward compatibility
 pub use trait_def::Validate;

@@ -3,10 +3,10 @@
 //! This module contains error mappers for specific AI providers like OpenAI and Anthropic,
 //! handling their unique error response formats.
 
-use crate::core::types::errors::ProviderErrorTrait;
-use serde_json::Value;
 use super::trait_def::ErrorMapper;
 use super::types::GenericErrorMapper;
+use crate::core::types::errors::ProviderErrorTrait;
+use serde_json::Value;
 
 /// OpenAI error mapper
 ///

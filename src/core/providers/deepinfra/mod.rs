@@ -18,7 +18,10 @@ use std::pin::Pin;
 use thiserror::Error;
 
 use crate::core::providers::base_provider::{BaseHttpClient, BaseProviderConfig};
-use crate::core::traits::{error_mapper::trait_def::ErrorMapper, ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
+use crate::core::traits::{
+    ProviderConfig, error_mapper::trait_def::ErrorMapper,
+    provider::llm_provider::trait_definition::LLMProvider,
+};
 use crate::core::types::errors::ProviderErrorTrait;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},

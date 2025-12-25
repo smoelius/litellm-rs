@@ -52,12 +52,7 @@ pub fn check_permission(user: Option<&User>, api_key: Option<&ApiKey>, _operatio
 }
 
 /// Log API usage for billing and analytics
-pub async fn log_api_usage(
-    context: &RequestContext,
-    model: &str,
-    tokens_used: u32,
-    cost: f64,
-) {
+pub async fn log_api_usage(context: &RequestContext, model: &str, tokens_used: u32, cost: f64) {
     // In a real implementation, this would log usage to the database
     debug!(
         "API usage: user_id={:?}, model={}, tokens={}, cost={}",

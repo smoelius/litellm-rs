@@ -2,8 +2,8 @@
 
 use crate::utils::logging::logging::types::{AsyncLoggerConfig, LogEntry};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::mpsc;
 use tracing::{Level, debug, error, info, warn};
 use uuid::Uuid;

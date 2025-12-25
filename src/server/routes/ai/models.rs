@@ -5,7 +5,7 @@ use crate::core::providers::ProviderRegistry;
 use crate::server::routes::ApiResponse;
 use crate::server::state::AppState;
 use crate::utils::error::GatewayError;
-use actix_web::{web, HttpResponse, Result as ActixResult};
+use actix_web::{HttpResponse, Result as ActixResult, web};
 use tracing::{debug, error};
 
 /// List available models

@@ -6,8 +6,8 @@ mod tests {
     use super::super::types::{EmbeddingProvider, SemanticCacheConfig};
     use super::super::utils::extract_prompt_text;
     use super::super::validation::should_cache_request;
-    use crate::core::models::openai::{ChatMessage, MessageContent, MessageRole};
     use crate::core::models::openai::ChatCompletionRequest;
+    use crate::core::models::openai::{ChatMessage, MessageContent, MessageRole};
     use crate::storage::vector::VectorStore;
     use crate::utils::error::Result;
     use std::sync::Arc;

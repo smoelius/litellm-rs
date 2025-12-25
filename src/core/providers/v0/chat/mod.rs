@@ -280,7 +280,7 @@ impl V0ChatHandler {
             total_tokens: usage.total_tokens as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
-                thinking_usage: None,
+            thinking_usage: None,
         });
 
         Ok(ChatResponse {

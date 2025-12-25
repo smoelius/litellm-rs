@@ -16,7 +16,9 @@ impl Validate for CacheConfig {
             return Err("Cache max size must be greater than 0".to_string());
         }
 
-        if self.semantic_cache && (self.similarity_threshold <= 0.0 || self.similarity_threshold > 1.0) {
+        if self.semantic_cache
+            && (self.similarity_threshold <= 0.0 || self.similarity_threshold > 1.0)
+        {
             return Err("Semantic cache similarity threshold must be between 0 and 1".to_string());
         }
 

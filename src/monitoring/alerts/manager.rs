@@ -7,8 +7,8 @@ use crate::monitoring::types::{Alert, AlertSeverity};
 use crate::utils::error::Result;
 use parking_lot::{Mutex, RwLock};
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::RwLock as TokioRwLock;
 use tracing::{debug, info};
 

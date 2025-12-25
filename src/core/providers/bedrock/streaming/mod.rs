@@ -217,7 +217,7 @@ impl BedrockStream {
                     delta: ChatDelta {
                         role: None,
                         content: None,
-                            thinking: None,
+                        thinking: None,
                         tool_calls: None,
                         function_call: None,
                     },
@@ -251,7 +251,7 @@ impl BedrockStream {
                     delta: ChatDelta {
                         role: None,
                         content: Some(content.to_string()),
-                            thinking: None,
+                        thinking: None,
                         tool_calls: None,
                         function_call: None,
                     },
@@ -281,7 +281,7 @@ impl BedrockStream {
                     delta: ChatDelta {
                         role: None,
                         content: Some(content.to_string()),
-                            thinking: None,
+                        thinking: None,
                         tool_calls: None,
                         function_call: None,
                     },
@@ -322,7 +322,7 @@ impl BedrockStream {
                     delta: ChatDelta {
                         role: None,
                         content: Some(text.to_string()),
-                            thinking: None,
+                        thinking: None,
                         tool_calls: None,
                         function_call: None,
                     },

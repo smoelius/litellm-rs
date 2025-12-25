@@ -1,6 +1,8 @@
 //! Core semantic cache implementation
 
-use super::types::{CacheData, CacheStats, EmbeddingProvider, SemanticCacheConfig, SemanticCacheEntry};
+use super::types::{
+    CacheData, CacheStats, EmbeddingProvider, SemanticCacheConfig, SemanticCacheEntry,
+};
 use super::utils::{extract_prompt_text, hash_prompt};
 use super::validation::{is_entry_valid, should_cache_request};
 use crate::core::models::openai::{ChatCompletionRequest, ChatCompletionResponse};

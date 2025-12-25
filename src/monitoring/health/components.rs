@@ -172,7 +172,11 @@ impl HealthChecker {
     }
 
     /// Check external provider health
-    pub(super) async fn check_provider(&self, provider_name: &str, provider_url: &str) -> ComponentHealth {
+    pub(super) async fn check_provider(
+        &self,
+        provider_name: &str,
+        provider_url: &str,
+    ) -> ComponentHealth {
         let start_time = Instant::now();
 
         // Simple HTTP health check

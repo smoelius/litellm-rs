@@ -27,7 +27,8 @@ impl Validate for AuthConfig {
             return Err("JWT expiration must be greater than 0".to_string());
         }
 
-        if self.jwt_expiration > 86400 * 30 { // 30 days
+        if self.jwt_expiration > 86400 * 30 {
+            // 30 days
             return Err("JWT expiration should not exceed 30 days".to_string());
         }
 

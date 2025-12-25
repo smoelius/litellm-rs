@@ -33,7 +33,10 @@ impl HealthMonitor {
         if let Ok(mut health_map) = self.provider_health.write() {
             if let Some(provider_health) = health_map.get_mut(provider_id) {
                 provider_health.update(result);
-                info!("Manually updated health for {}: {:?}", provider_id, provider_health.status);
+                info!(
+                    "Manually updated health for {}: {:?}",
+                    provider_id, provider_health.status
+                );
             }
         }
     }
@@ -55,7 +58,9 @@ pub(crate) async fn perform_health_check(provider_id: &str) -> Result<Duration> 
 
     // Simulate occasional failures
     if rand::random::<f64>() < 0.05 {
-        return Err(GatewayError::External("Simulated health check failure".to_string()));
+        return Err(GatewayError::External(
+            "Simulated health check failure".to_string(),
+        ));
     }
 
     Ok(start_time.elapsed())

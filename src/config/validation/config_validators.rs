@@ -79,7 +79,8 @@ impl Validate for ServerConfig {
             return Err("Max body size must be greater than 0".to_string());
         }
 
-        if self.max_body_size > 1024 * 1024 * 100 { // 100MB
+        if self.max_body_size > 1024 * 1024 * 100 {
+            // 100MB
             return Err("Max body size should not exceed 100MB".to_string());
         }
 
@@ -111,8 +112,15 @@ impl Validate for ProviderConfig {
 
         // Validate supported provider types
         let supported_types = [
-            "openai", "anthropic", "azure", "google", "bedrock", "cohere",
-            "huggingface", "ollama", "custom"
+            "openai",
+            "anthropic",
+            "azure",
+            "google",
+            "bedrock",
+            "cohere",
+            "huggingface",
+            "ollama",
+            "custom",
         ];
         if !supported_types.contains(&self.provider_type.as_str()) {
             return Err(format!(
@@ -126,27 +134,36 @@ impl Validate for ProviderConfig {
         }
 
         if self.weight <= 0.0 {
-            return Err(format!("Provider {} weight must be greater than 0", self.name));
+            return Err(format!(
+                "Provider {} weight must be greater than 0",
+                self.name
+            ));
         }
 
         if self.weight > 100.0 {
-            return Err(format!("Provider {} weight should not exceed 100", self.name));
+            return Err(format!(
+                "Provider {} weight should not exceed 100",
+                self.name
+            ));
         }
 
         if self.timeout == 0 {
-            return Err(format!("Provider {} timeout must be greater than 0", self.name));
+            return Err(format!(
+                "Provider {} timeout must be greater than 0",
+                self.name
+            ));
         }
 
         if self.timeout > 300 {
-            return Err(format!("Provider {} timeout should not exceed 5 minutes", self.name));
+            return Err(format!(
+                "Provider {} timeout should not exceed 5 minutes",
+                self.name
+            ));
         }
 
         // Validate base URL if present (with SSRF protection)
         if let Some(base_url) = &self.base_url {
-            validate_url_against_ssrf(
-                base_url,
-                &format!("Provider {} base URL", self.name),
-            )?;
+            validate_url_against_ssrf(base_url, &format!("Provider {} base URL", self.name))?;
         }
 
         // Validate rate limits
@@ -159,7 +176,10 @@ impl Validate for ProviderConfig {
         }
 
         if self.max_concurrent_requests == 0 {
-            return Err(format!("Provider {} max concurrent requests must be greater than 0", self.name));
+            return Err(format!(
+                "Provider {} max concurrent requests must be greater than 0",
+                self.name
+            ));
         }
 
         Ok(())

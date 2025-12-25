@@ -13,7 +13,7 @@ mod tests;
 pub mod types;
 
 // Re-export all public items for backward compatibility
-pub use async_logger::{async_logger, init_async_logger, AsyncLogger};
+pub use async_logger::{AsyncLogger, async_logger, init_async_logger};
 pub use performance_logger::PerformanceLogger;
 pub use sampler::LogSampler;
 pub use security_logger::SecurityLogger;

@@ -3,8 +3,8 @@
 //! This module provides a generic error mapper with standard HTTP status code handling
 //! that can be used as a fallback or base implementation.
 
-use crate::core::types::errors::ProviderErrorTrait;
 use super::trait_def::ErrorMapper;
+use crate::core::types::errors::ProviderErrorTrait;
 
 /// Generic error mapper with standard HTTP status code handling
 ///

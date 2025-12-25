@@ -91,8 +91,13 @@ mod tests {
     #[test]
     fn test_ssrf_validation_metadata_endpoints() {
         // Cloud metadata endpoints should be blocked
-        assert!(validate_url_against_ssrf("http://169.254.169.254/latest/meta-data", "test").is_err());
-        assert!(validate_url_against_ssrf("http://metadata.google.internal/computeMetadata", "test").is_err());
+        assert!(
+            validate_url_against_ssrf("http://169.254.169.254/latest/meta-data", "test").is_err()
+        );
+        assert!(
+            validate_url_against_ssrf("http://metadata.google.internal/computeMetadata", "test")
+                .is_err()
+        );
     }
 
     #[test]

@@ -6,8 +6,8 @@ use crate::core::router::config::RouterConfig;
 use crate::core::router::deployment::HealthStatus;
 use crate::core::router::error::CooldownReason;
 use crate::core::router::router::Router;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 #[tokio::test]
@@ -32,7 +32,10 @@ async fn test_record_failure_triggers_cooldown() {
 
     if let Some(d) = router.get_deployment("test-1") {
         assert!(d.is_in_cooldown());
-        assert_eq!(d.state.health.load(Ordering::Relaxed), HealthStatus::Cooldown as u8);
+        assert_eq!(
+            d.state.health.load(Ordering::Relaxed),
+            HealthStatus::Cooldown as u8
+        );
     } else {
         panic!("Deployment not found");
     }
@@ -53,7 +56,10 @@ async fn test_cooldown_on_rate_limit() {
 
     if let Some(d) = router.get_deployment("test-1") {
         assert!(d.is_in_cooldown());
-        assert_eq!(d.state.health.load(Ordering::Relaxed), HealthStatus::Cooldown as u8);
+        assert_eq!(
+            d.state.health.load(Ordering::Relaxed),
+            HealthStatus::Cooldown as u8
+        );
         assert_eq!(d.state.fail_requests.load(Ordering::Relaxed), 1);
     } else {
         panic!("Deployment not found");

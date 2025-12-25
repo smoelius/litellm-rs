@@ -126,7 +126,9 @@ mod tests {
     #[test]
     fn test_not_implemented_helper() {
         let error = GatewayError::not_implemented("Feature not available");
-        assert!(matches!(error, GatewayError::NotImplemented(msg) if msg == "Feature not available"));
+        assert!(
+            matches!(error, GatewayError::NotImplemented(msg) if msg == "Feature not available")
+        );
     }
 
     #[test]
@@ -174,7 +176,9 @@ mod tests {
     #[test]
     fn test_no_healthy_providers_helper() {
         let error = GatewayError::no_healthy_providers("All providers down");
-        assert!(matches!(error, GatewayError::NoHealthyProviders(msg) if msg == "All providers down"));
+        assert!(
+            matches!(error, GatewayError::NoHealthyProviders(msg) if msg == "All providers down")
+        );
     }
 
     #[test]
@@ -186,7 +190,9 @@ mod tests {
     #[test]
     fn test_unavailable_helper() {
         let error = GatewayError::unavailable("Provider unavailable");
-        assert!(matches!(error, GatewayError::ProviderUnavailable(msg) if msg == "Provider unavailable"));
+        assert!(
+            matches!(error, GatewayError::ProviderUnavailable(msg) if msg == "Provider unavailable")
+        );
     }
 
     // ==================== Error Display Tests ====================

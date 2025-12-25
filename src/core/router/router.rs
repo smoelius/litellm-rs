@@ -9,10 +9,10 @@ use super::error::CooldownReason;
 use super::execution::infer_cooldown_reason;
 use super::fallback::{FallbackConfig, FallbackType};
 use crate::core::providers::unified_provider::ProviderError;
-use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
-use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+use dashmap::mapref::one::Ref;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
 
 /// Unified Router

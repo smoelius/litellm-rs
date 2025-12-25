@@ -10,8 +10,9 @@ use crate::services::pricing::PricingService;
 use crate::utils::error::{GatewayError, Result};
 use actix_cors::Cors;
 use actix_web::{
+    App, HttpServer as ActixHttpServer,
     middleware::{DefaultHeaders, Logger},
-    App, HttpServer as ActixHttpServer, web,
+    web,
 };
 use std::sync::Arc;
 use tracing::{debug, info, warn};

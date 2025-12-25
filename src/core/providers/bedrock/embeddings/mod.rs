@@ -124,7 +124,7 @@ async fn execute_titan_embedding(
         total_tokens: tokens,
         prompt_tokens_details: None,
         completion_tokens_details: None,
-                thinking_usage: None,
+        thinking_usage: None,
     });
 
     Ok(EmbeddingResponse {
@@ -181,7 +181,7 @@ async fn execute_titan_multimodal_embedding(
         total_tokens: tokens,
         prompt_tokens_details: None,
         completion_tokens_details: None,
-                thinking_usage: None,
+        thinking_usage: None,
     });
 
     Ok(EmbeddingResponse {

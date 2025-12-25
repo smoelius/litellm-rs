@@ -688,7 +688,11 @@ impl ProviderError {
     /// let err = ProviderError::network("openai", "Connection refused")
     ///     .with_context("req-123", Some("gpt-4"));
     /// ```
-    pub fn with_context(self, request_id: impl Into<String>, model: Option<&str>) -> ContextualError {
+    pub fn with_context(
+        self,
+        request_id: impl Into<String>,
+        model: Option<&str>,
+    ) -> ContextualError {
         ContextualError {
             inner: self,
             request_id: request_id.into(),
@@ -1102,11 +1106,7 @@ pub struct ContextualError {
 
 impl std::fmt::Display for ContextualError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "[request_id={}] {}",
-            self.request_id, self.inner
-        )?;
+        write!(f, "[request_id={}] {}", self.request_id, self.inner)?;
         if let Some(model) = &self.model {
             write!(f, " (model: {})", model)?;
         }
@@ -1196,8 +1196,7 @@ mod contextual_error_tests {
 
     #[test]
     fn test_contextual_error_methods() {
-        let err = ProviderError::rate_limit("anthropic", Some(60))
-            .with_context("req-abc", None);
+        let err = ProviderError::rate_limit("anthropic", Some(60)).with_context("req-abc", None);
 
         assert!(err.is_retryable());
         assert_eq!(err.retry_delay(), Some(60));

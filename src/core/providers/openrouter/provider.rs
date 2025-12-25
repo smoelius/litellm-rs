@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{header, GlobalPoolManager, HeaderPair, HttpMethod};
+use crate::core::providers::base::{GlobalPoolManager, HeaderPair, HttpMethod, header};
 use crate::core::providers::unified_provider::ProviderError;
 use crate::core::traits::{ProviderConfig, provider::llm_provider::trait_definition::LLMProvider};
 use crate::core::types::{
@@ -36,7 +36,10 @@ impl OpenRouterProvider {
     fn get_request_headers(&self) -> Vec<HeaderPair> {
         let mut headers = Vec::with_capacity(3);
 
-        headers.push(header("Authorization", format!("Bearer {}", self.config.api_key)));
+        headers.push(header(
+            "Authorization",
+            format!("Bearer {}", self.config.api_key),
+        ));
 
         if let Some(site_url) = &self.config.site_url {
             headers.push(header("HTTP-Referer", site_url.clone()));

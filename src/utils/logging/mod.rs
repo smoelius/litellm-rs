@@ -9,6 +9,6 @@ pub mod utils;
 // Re-export commonly used types and functions
 pub use logging::*;
 pub use structured::*;
-pub use utils::types::{LogEntry, LogLevel};
-pub use utils::logger::Logger;
 pub use utils::LoggingUtils;
+pub use utils::logger::Logger;
+pub use utils::types::{LogEntry, LogLevel};

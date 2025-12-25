@@ -1,10 +1,10 @@
 //! Audio speech endpoint (text-to-speech)
 
-use crate::core::audio::types::SpeechRequest;
 use crate::core::audio::AudioService;
-use crate::server::routes::{errors, ApiResponse};
+use crate::core::audio::types::SpeechRequest;
+use crate::server::routes::{ApiResponse, errors};
 use crate::server::state::AppState;
-use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use serde::Deserialize;
 use tracing::{error, info};
 

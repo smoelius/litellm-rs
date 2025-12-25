@@ -2,8 +2,8 @@
 //!
 //! This module contains request/response types for API key management.
 
-use crate::core::models::{ApiKey, RateLimits};
 use crate::core::models::user::types::User;
+use crate::core::models::{ApiKey, RateLimits};
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 

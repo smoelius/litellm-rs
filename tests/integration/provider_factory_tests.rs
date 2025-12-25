@@ -17,7 +17,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::OpenAI, config).await;
-        assert!(result.is_ok(), "Failed to create OpenAI provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create OpenAI provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "openai");
@@ -31,7 +35,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::Anthropic, config).await;
-        assert!(result.is_ok(), "Failed to create Anthropic provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Anthropic provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "anthropic");
@@ -45,7 +53,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::Groq, config).await;
-        assert!(result.is_ok(), "Failed to create Groq provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Groq provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "groq");
@@ -59,7 +71,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::XAI, config).await;
-        assert!(result.is_ok(), "Failed to create XAI provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create XAI provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "xai");
@@ -73,7 +89,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::OpenRouter, config).await;
-        assert!(result.is_ok(), "Failed to create OpenRouter provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create OpenRouter provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "openrouter");
@@ -87,7 +107,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::Mistral, config).await;
-        assert!(result.is_ok(), "Failed to create Mistral provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Mistral provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "mistral");
@@ -101,7 +125,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::DeepSeek, config).await;
-        assert!(result.is_ok(), "Failed to create DeepSeek provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create DeepSeek provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "deepseek");
@@ -115,7 +143,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::Moonshot, config).await;
-        assert!(result.is_ok(), "Failed to create Moonshot provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Moonshot provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "moonshot");
@@ -130,7 +162,11 @@ mod tests {
         });
 
         let result = Provider::from_config_async(ProviderType::Cloudflare, config).await;
-        assert!(result.is_ok(), "Failed to create Cloudflare provider: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Failed to create Cloudflare provider: {:?}",
+            result.err()
+        );
 
         let provider = result.unwrap();
         assert_eq!(provider.name(), "cloudflare");
@@ -148,7 +184,8 @@ mod tests {
         let err_str = err.to_string();
         assert!(
             err_str.contains("api_key") || err_str.contains("required"),
-            "Error should mention api_key: {}", err_str
+            "Error should mention api_key: {}",
+            err_str
         );
     }
 
@@ -175,7 +212,10 @@ mod tests {
             .unwrap();
 
         let capabilities = provider.capabilities();
-        assert!(!capabilities.is_empty(), "Provider should have capabilities");
+        assert!(
+            !capabilities.is_empty(),
+            "Provider should have capabilities"
+        );
     }
 
     /// Test provider models list

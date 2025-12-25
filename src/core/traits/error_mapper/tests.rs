@@ -2,9 +2,9 @@
 //!
 //! This module contains comprehensive tests for all error mapper types.
 
+use super::implementations::{AnthropicErrorMapper, OpenAIErrorMapper};
 use super::trait_def::ErrorMapper;
 use super::types::GenericErrorMapper;
-use super::implementations::{OpenAIErrorMapper, AnthropicErrorMapper};
 use crate::core::types::errors::ProviderErrorTrait;
 use serde_json::json;
 
@@ -170,8 +170,6 @@ fn test_anthropic_error_mapper() {
     let validation_error: TestError = mapper.map_json_error(&validation_json);
     assert_eq!(
         validation_error,
-        TestError::Network(
-            "Validation error: Missing required parameter: messages".to_string()
-        )
+        TestError::Network("Validation error: Missing required parameter: messages".to_string())
     );
 }

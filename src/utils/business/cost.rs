@@ -544,8 +544,14 @@ mod tests {
         calculator.add_provider_config(config);
 
         let token_usage = TokenUsage::new(100, 50);
-        let result =
-            calculator.calculate_cost("test_provider", "unknown_model", &token_usage, 1, None, None);
+        let result = calculator.calculate_cost(
+            "test_provider",
+            "unknown_model",
+            &token_usage,
+            1,
+            None,
+            None,
+        );
 
         assert!(result.is_err());
         let err = result.unwrap_err();

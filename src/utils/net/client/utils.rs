@@ -1,5 +1,5 @@
-use crate::core::providers::unified_provider::ProviderError;
 use super::types::{HttpClientConfig, RetryConfig};
+use crate::core::providers::unified_provider::ProviderError;
 use reqwest::{Client, ClientBuilder, Proxy};
 use std::collections::HashMap;
 use std::env;

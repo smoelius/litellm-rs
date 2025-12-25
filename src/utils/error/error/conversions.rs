@@ -60,9 +60,9 @@ impl From<ProviderError> for GatewayError {
             ProviderError::TokenLimitExceeded { message, provider } => GatewayError::BadRequest(
                 format!("Token limit exceeded for {}: {}", provider, message),
             ),
-            ProviderError::FeatureDisabled { feature, provider } => {
-                GatewayError::NotImplemented(format!("Feature '{}' disabled for {}", feature, provider))
-            }
+            ProviderError::FeatureDisabled { feature, provider } => GatewayError::NotImplemented(
+                format!("Feature '{}' disabled for {}", feature, provider),
+            ),
             ProviderError::DeploymentError {
                 deployment,
                 message,

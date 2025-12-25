@@ -2,9 +2,9 @@
 //!
 //! This module provides operations for Redis Lists and Sets data structures.
 
+use super::pool::RedisPool;
 use crate::utils::error::{GatewayError, Result};
 use redis::{AsyncCommands, RedisResult};
-use super::pool::RedisPool;
 
 impl RedisPool {
     // ===== List operations =====
@@ -64,7 +64,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let values: Vec<String> = c.lrange(key, start, stop).await.map_err(GatewayError::Redis)?;
+            let values: Vec<String> = c
+                .lrange(key, start, stop)
+                .await
+                .map_err(GatewayError::Redis)?;
             Ok(values)
         } else {
             Ok(vec![])
@@ -122,7 +125,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let is_member: bool = c.sismember(key, member).await.map_err(GatewayError::Redis)?;
+            let is_member: bool = c
+                .sismember(key, member)
+                .await
+                .map_err(GatewayError::Redis)?;
             Ok(is_member)
         } else {
             Ok(false)

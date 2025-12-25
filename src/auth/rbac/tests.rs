@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::rbac::types::{Permission, Role};
     use crate::auth::rbac::RbacSystem;
+    use crate::auth::rbac::types::{Permission, Role};
     use crate::config::RbacConfig;
     use std::collections::HashSet;
 

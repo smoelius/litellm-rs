@@ -9,7 +9,9 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::sync::Arc;
 
-use crate::core::providers::base::{header, header_owned, GlobalPoolManager, HeaderPair, HttpMethod};
+use crate::core::providers::base::{
+    GlobalPoolManager, HeaderPair, HttpMethod, header, header_owned,
+};
 use crate::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},

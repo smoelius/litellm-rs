@@ -2,9 +2,9 @@
 //!
 //! This module provides atomic increment/decrement operations and utility functions.
 
+use super::pool::RedisPool;
 use crate::utils::error::{GatewayError, Result};
 use redis::AsyncCommands;
-use super::pool::RedisPool;
 
 impl RedisPool {
     /// Increment key value by delta

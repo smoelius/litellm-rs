@@ -117,3 +117,75 @@ impl PerformanceLogger {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::logging::logging::types::RequestMetrics;
+    use uuid::Uuid;
+
+    fn create_test_request_metrics(duration_ms: u64, status_code: u16) -> RequestMetrics {
+        RequestMetrics {
+            method: "GET".to_string(),
+            path: "/api/test".to_string(),
+            status_code,
+            duration_ms,
+            request_size: 1024,
+            response_size: 2048,
+            user_id: Some(Uuid::new_v4()),
+            request_id: Some("test-request-123".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_request_metrics_creation() {
+        let metrics = create_test_request_metrics(100, 200);
+        assert_eq!(metrics.method, "GET");
+        assert_eq!(metrics.path, "/api/test");
+        assert_eq!(metrics.status_code, 200);
+        assert_eq!(metrics.duration_ms, 100);
+    }
+
+    #[test]
+    fn test_request_metrics_with_optional_fields() {
+        let mut metrics = create_test_request_metrics(100, 200);
+        assert!(metrics.user_id.is_some());
+        assert!(metrics.request_id.is_some());
+
+        metrics.user_id = None;
+        metrics.request_id = None;
+        assert!(metrics.user_id.is_none());
+        assert!(metrics.request_id.is_none());
+    }
+
+    #[test]
+    fn test_request_metrics_various_status_codes() {
+        let success = create_test_request_metrics(100, 200);
+        assert_eq!(success.status_code, 200);
+
+        let error = create_test_request_metrics(100, 500);
+        assert_eq!(error.status_code, 500);
+
+        let not_found = create_test_request_metrics(100, 404);
+        assert_eq!(not_found.status_code, 404);
+    }
+
+    #[test]
+    fn test_request_metrics_various_durations() {
+        let fast = create_test_request_metrics(10, 200);
+        assert!(fast.duration_ms < 100);
+
+        let slow = create_test_request_metrics(2000, 200);
+        assert!(slow.duration_ms > 1000);
+
+        let very_slow = create_test_request_metrics(6000, 200);
+        assert!(very_slow.duration_ms > 5000);
+    }
+
+    #[test]
+    fn test_performance_logger_is_zero_sized() {
+        // PerformanceLogger is a unit struct with no fields
+        // Verify it has zero size
+        assert_eq!(std::mem::size_of::<PerformanceLogger>(), 0);
+    }
+}

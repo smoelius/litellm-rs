@@ -121,8 +121,12 @@ fn test_webhook_signature() {
 
     // Test with old timestamp (should fail)
     let old_timestamp = timestamp - 400; // More than 5 minutes old
-    let old_signature = webhooks::generate_webhook_signature(secret, payload, old_timestamp).unwrap();
-    assert!(!webhooks::verify_webhook_signature(secret, payload, old_timestamp, &old_signature).unwrap());
+    let old_signature =
+        webhooks::generate_webhook_signature(secret, payload, old_timestamp).unwrap();
+    assert!(
+        !webhooks::verify_webhook_signature(secret, payload, old_timestamp, &old_signature)
+            .unwrap()
+    );
 }
 
 #[test]
@@ -155,8 +159,14 @@ fn test_aes_gcm_different_nonces() {
     assert_ne!(encrypted1, encrypted2);
 
     // Both should decrypt to the same plaintext
-    assert_eq!(encryption::decrypt_data(key, &encrypted1).unwrap(), plaintext);
-    assert_eq!(encryption::decrypt_data(key, &encrypted2).unwrap(), plaintext);
+    assert_eq!(
+        encryption::decrypt_data(key, &encrypted1).unwrap(),
+        plaintext
+    );
+    assert_eq!(
+        encryption::decrypt_data(key, &encrypted2).unwrap(),
+        plaintext
+    );
 }
 
 #[test]
@@ -335,7 +345,9 @@ fn test_generate_totp_secret() {
 
 #[test]
 fn test_generate_totp_secret_uniqueness() {
-    let secrets: Vec<String> = (0..100).map(|_| encryption::generate_totp_secret()).collect();
+    let secrets: Vec<String> = (0..100)
+        .map(|_| encryption::generate_totp_secret())
+        .collect();
 
     // All secrets should be unique
     let unique_secrets: std::collections::HashSet<_> = secrets.iter().collect();
@@ -403,7 +415,11 @@ fn test_generate_session_token_url_safe() {
     let token = keys::generate_session_token();
 
     // URL-safe base64 uses only alphanumeric, -, and _
-    assert!(token.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_'));
+    assert!(
+        token
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+    );
 }
 
 // ==================== API Key Prefix Tests ====================
@@ -696,11 +712,19 @@ fn test_webhook_signature_timestamp_boundary() {
 
     // Exactly 5 minutes (300 seconds) old should still be valid
     let timestamp_at_boundary = current_time - 299;
-    let signature = webhooks::generate_webhook_signature(secret, payload, timestamp_at_boundary).unwrap();
-    assert!(webhooks::verify_webhook_signature(secret, payload, timestamp_at_boundary, &signature).unwrap());
+    let signature =
+        webhooks::generate_webhook_signature(secret, payload, timestamp_at_boundary).unwrap();
+    assert!(
+        webhooks::verify_webhook_signature(secret, payload, timestamp_at_boundary, &signature)
+            .unwrap()
+    );
 
     // Just over 5 minutes old should be invalid
     let timestamp_expired = current_time - 301;
-    let signature_expired = webhooks::generate_webhook_signature(secret, payload, timestamp_expired).unwrap();
-    assert!(!webhooks::verify_webhook_signature(secret, payload, timestamp_expired, &signature_expired).unwrap());
+    let signature_expired =
+        webhooks::generate_webhook_signature(secret, payload, timestamp_expired).unwrap();
+    assert!(
+        !webhooks::verify_webhook_signature(secret, payload, timestamp_expired, &signature_expired)
+            .unwrap()
+    );
 }

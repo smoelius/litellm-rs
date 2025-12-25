@@ -92,7 +92,9 @@ pub use core::completion::{
 };
 
 // Export streaming types
-pub use core::streaming::types::{ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta};
+pub use core::streaming::types::{
+    ChatCompletionChunk, ChatCompletionChunkChoice, ChatCompletionDelta,
+};
 
 // Export unified type system
 pub use core::types::{MessageContent, MessageRole};
@@ -105,8 +107,8 @@ pub use core::providers::{
 
 // Export unified router
 pub use core::router::{
-    UnifiedRouter, RouterConfig, RouterError, UnifiedRoutingStrategy as RoutingStrategy,
-    Deployment, DeploymentConfig, FallbackConfig, FallbackType, CooldownReason,
+    CooldownReason, Deployment, DeploymentConfig, FallbackConfig, FallbackType, RouterConfig,
+    RouterError, UnifiedRouter, UnifiedRoutingStrategy as RoutingStrategy,
 };
 
 use tracing::info;

@@ -25,11 +25,10 @@ pub use requests::{
     ResponseFormat, StreamOptions,
 };
 pub use responses::{
-    ChatChoice, ChatChoiceDelta, ChatCompletionChunk, ChatCompletionChoice,
-    ChatCompletionResponse, ChatMessageDelta, CompletionChoice, CompletionResponse,
+    ChatChoice, ChatChoiceDelta, ChatCompletionChoice, ChatCompletionChunk, ChatCompletionResponse,
+    ChatMessageDelta, CompletionChoice, CompletionResponse, CompletionTokensDetails,
     ContentLogprob, EmbeddingObject, EmbeddingResponse, EmbeddingUsage, ImageGenerationResponse,
     ImageObject, Logprobs, Model, ModelListResponse, PromptTokensDetails, TopLogprob, Usage,
-    CompletionTokensDetails,
 };
 pub use tools::{
     Function, FunctionCall, FunctionCallDelta, Tool, ToolCall, ToolCallDelta, ToolChoice,

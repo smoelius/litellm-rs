@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::auth::api_key::types::{CreateApiKeyRequest, ApiKeyVerification};
+    use crate::auth::api_key::types::{ApiKeyVerification, CreateApiKeyRequest};
     use crate::core::models::{ApiKey, Metadata, UsageStats};
     use crate::storage::StorageLayer;
     use std::sync::Arc;

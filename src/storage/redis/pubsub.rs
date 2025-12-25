@@ -3,9 +3,9 @@
 //! This module provides publish/subscribe messaging functionality.
 //! Note: Subscription functionality is temporarily disabled due to Redis API changes.
 
+use super::pool::RedisPool;
 use crate::utils::error::{GatewayError, Result};
 use redis::AsyncCommands;
-use super::pool::RedisPool;
 
 /// Redis subscription wrapper
 /// Note: Subscription functionality temporarily disabled due to Redis API changes
@@ -24,7 +24,10 @@ impl RedisPool {
 
         let mut conn = self.get_connection().await?;
         if let Some(ref mut c) = conn.conn {
-            let _: () = c.publish(channel, message).await.map_err(GatewayError::Redis)?;
+            let _: () = c
+                .publish(channel, message)
+                .await
+                .map_err(GatewayError::Redis)?;
         }
         Ok(())
     }

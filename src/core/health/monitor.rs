@@ -63,11 +63,17 @@ impl HealthMonitor {
 
     /// Register a provider for health monitoring
     pub async fn register_provider(&self, provider_id: String) {
-        info!("Registering provider for health monitoring: {}", provider_id);
+        info!(
+            "Registering provider for health monitoring: {}",
+            provider_id
+        );
 
         // Initialize provider health
         if let Ok(mut health) = self.provider_health.write() {
-            health.insert(provider_id.clone(), ProviderHealth::new(provider_id.clone()));
+            health.insert(
+                provider_id.clone(),
+                ProviderHealth::new(provider_id.clone()),
+            );
         } else {
             error!("Failed to acquire write lock for provider health");
             return;
@@ -76,7 +82,10 @@ impl HealthMonitor {
         // Initialize circuit breaker (wrapped in Arc for shared access)
         if let Ok(mut breakers) = self.circuit_breakers.write() {
             let breaker_config = CircuitBreakerConfig::default();
-            breakers.insert(provider_id.clone(), Arc::new(CircuitBreaker::new(breaker_config)));
+            breakers.insert(
+                provider_id.clone(),
+                Arc::new(CircuitBreaker::new(breaker_config)),
+            );
         } else {
             error!("Failed to acquire write lock for circuit breakers");
             return;
@@ -140,33 +149,42 @@ impl HealthMonitor {
                 debug!("Running health check for provider: {}", provider_id);
 
                 let start_time = Instant::now();
-                let result = match tokio::time::timeout(check_timeout, perform_health_check(&provider_id)).await {
-                    Ok(Ok(response_time)) => {
-                        let response_time_ms = response_time.as_millis() as u64;
-                        if response_time_ms > degraded_threshold {
-                            HealthCheckResult::degraded(
-                                format!("High latency: {}ms", response_time_ms),
-                                response_time_ms
-                            )
-                        } else {
-                            HealthCheckResult::healthy(response_time_ms)
+                let result =
+                    match tokio::time::timeout(check_timeout, perform_health_check(&provider_id))
+                        .await
+                    {
+                        Ok(Ok(response_time)) => {
+                            let response_time_ms = response_time.as_millis() as u64;
+                            if response_time_ms > degraded_threshold {
+                                HealthCheckResult::degraded(
+                                    format!("High latency: {}ms", response_time_ms),
+                                    response_time_ms,
+                                )
+                            } else {
+                                HealthCheckResult::healthy(response_time_ms)
+                            }
                         }
-                    }
-                    Ok(Err(error)) => {
-                        let elapsed = start_time.elapsed().as_millis() as u64;
-                        HealthCheckResult::unhealthy(error.to_string(), elapsed)
-                    }
-                    Err(_) => {
-                        let elapsed = start_time.elapsed().as_millis() as u64;
-                        HealthCheckResult::unhealthy("Health check timeout".to_string(), elapsed)
-                    }
-                };
+                        Ok(Err(error)) => {
+                            let elapsed = start_time.elapsed().as_millis() as u64;
+                            HealthCheckResult::unhealthy(error.to_string(), elapsed)
+                        }
+                        Err(_) => {
+                            let elapsed = start_time.elapsed().as_millis() as u64;
+                            HealthCheckResult::unhealthy(
+                                "Health check timeout".to_string(),
+                                elapsed,
+                            )
+                        }
+                    };
 
                 // Update provider health
                 if let Ok(mut health_map) = provider_health.write() {
                     if let Some(provider_health) = health_map.get_mut(&provider_id) {
                         provider_health.update(result);
-                        debug!("Updated health for {}: {:?}", provider_id, provider_health.status);
+                        debug!(
+                            "Updated health for {}: {:?}",
+                            provider_id, provider_health.status
+                        );
                     }
                 }
             }

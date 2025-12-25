@@ -6,8 +6,8 @@ use super::types::MetricsStorage;
 use crate::config::MonitoringConfig;
 use crate::utils::error::Result;
 use parking_lot::RwLock;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tracing::debug;
 

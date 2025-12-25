@@ -74,11 +74,7 @@ impl RateLimiter {
 
     /// Token bucket rate limiting implementation
     /// If `record` is true, atomically consumes a token if allowed
-    pub(super) async fn check_token_bucket_impl(
-        &self,
-        key: &str,
-        record: bool,
-    ) -> RateLimitResult {
+    pub(super) async fn check_token_bucket_impl(&self, key: &str, record: bool) -> RateLimitResult {
         let now = Instant::now();
         let limit = self.config.default_rpm;
         let tokens_per_second = limit as f64 / 60.0;
@@ -141,11 +137,7 @@ impl RateLimiter {
 
     /// Fixed window rate limiting implementation
     /// If `record` is true, atomically records the request if allowed
-    pub(super) async fn check_fixed_window_impl(
-        &self,
-        key: &str,
-        record: bool,
-    ) -> RateLimitResult {
+    pub(super) async fn check_fixed_window_impl(&self, key: &str, record: bool) -> RateLimitResult {
         let now = Instant::now();
         let limit = self.config.default_rpm;
 

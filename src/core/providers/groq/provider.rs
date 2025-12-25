@@ -12,8 +12,10 @@ use tracing::debug;
 use super::config::GroqConfig;
 use super::error::{GroqError, GroqErrorMapper};
 use super::model_info::{get_available_models, get_model_info, is_reasoning_model};
-use crate::core::providers::base::{header, GlobalPoolManager, HttpMethod};
-use crate::core::traits::{ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod, header};
+use crate::core::traits::{
+    ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider,
+};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest, MessageRole},

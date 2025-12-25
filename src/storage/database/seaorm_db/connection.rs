@@ -25,7 +25,8 @@ impl SeaOrmDatabase {
             }
             Err(e) => {
                 // If PostgreSQL connection fails, try SQLite fallback
-                if config.url.starts_with("postgresql://") || config.url.starts_with("postgres://") {
+                if config.url.starts_with("postgresql://") || config.url.starts_with("postgres://")
+                {
                     warn!(
                         "PostgreSQL connection failed: {}. Attempting SQLite fallback...",
                         e
@@ -50,9 +51,7 @@ impl SeaOrmDatabase {
             .sqlx_logging(true)
             .sqlx_logging_level(log::LevelFilter::Debug);
 
-        Database::connect(opt)
-            .await
-            .map_err(GatewayError::Database)
+        Database::connect(opt).await.map_err(GatewayError::Database)
     }
 
     /// Fallback to SQLite database

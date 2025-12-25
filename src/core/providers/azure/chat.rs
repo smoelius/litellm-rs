@@ -381,7 +381,7 @@ impl AzureChatHandler {
             total_tokens: u["total_tokens"].as_u64().unwrap_or(0) as u32,
             prompt_tokens_details: None,
             completion_tokens_details: None,
-                thinking_usage: None,
+            thinking_usage: None,
         });
 
         let timestamp = response["created"].as_i64().unwrap_or_else(|| {

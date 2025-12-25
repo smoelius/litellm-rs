@@ -12,8 +12,10 @@ use tracing::debug;
 use super::config::CloudflareConfig;
 use super::error::{CloudflareError, CloudflareErrorMapper};
 use super::model_info::{calculate_cost, get_available_models, get_model_info};
-use crate::core::providers::base::{header, GlobalPoolManager, HttpMethod};
-use crate::core::traits::{ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider};
+use crate::core::providers::base::{GlobalPoolManager, HttpMethod, header};
+use crate::core::traits::{
+    ProviderConfig as _, provider::llm_provider::trait_definition::LLMProvider,
+};
 use crate::core::types::{
     common::{HealthStatus, ModelInfo, ProviderCapability, RequestContext},
     requests::{ChatRequest, EmbeddingRequest},
@@ -447,7 +449,7 @@ mod tests {
                 function_call: None,
                 tool_calls: None,
                 tool_call_id: None,
-            thinking: None,
+                thinking: None,
             }],
             temperature: Some(0.7),
             max_tokens: Some(100),

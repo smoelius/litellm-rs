@@ -10,9 +10,9 @@
 //! - `implementations` - Provider-specific error mappers (OpenAI, Anthropic)
 //! - `tests` - Comprehensive test suite
 
+pub mod implementations;
 pub mod trait_def;
 pub mod types;
-pub mod implementations;
 
 #[cfg(test)]
 mod tests;

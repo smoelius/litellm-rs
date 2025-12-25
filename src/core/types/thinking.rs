@@ -330,7 +330,11 @@ impl ThinkingCapabilities {
             supports_thinking: true,
             supports_streaming_thinking: false,
             max_thinking_tokens: None,
-            supported_efforts: vec![ThinkingEffort::Low, ThinkingEffort::Medium, ThinkingEffort::High],
+            supported_efforts: vec![
+                ThinkingEffort::Low,
+                ThinkingEffort::Medium,
+                ThinkingEffort::High,
+            ],
             thinking_models: Vec::new(),
             can_return_thinking: true,
             thinking_always_on: false,
@@ -524,8 +528,8 @@ mod tests {
 
     #[test]
     fn test_thinking_config_with_param() {
-        let config = ThinkingConfig::new()
-            .with_param("custom_key", serde_json::json!("custom_value"));
+        let config =
+            ThinkingConfig::new().with_param("custom_key", serde_json::json!("custom_value"));
         assert!(config.extra_params.contains_key("custom_key"));
     }
 

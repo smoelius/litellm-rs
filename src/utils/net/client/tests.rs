@@ -269,8 +269,7 @@ mod tests {
 
     #[test]
     fn test_parse_content_type_with_quotes() {
-        let (media_type, params) =
-            ClientUtils::parse_content_type("text/plain; charset=\"UTF-8\"");
+        let (media_type, params) = ClientUtils::parse_content_type("text/plain; charset=\"UTF-8\"");
         assert_eq!(media_type, "text/plain");
         assert_eq!(params.get("charset"), Some(&"UTF-8".to_string()));
     }
@@ -290,10 +289,7 @@ mod tests {
             headers.get("Content-Type"),
             Some(&"application/json".to_string())
         );
-        assert_eq!(
-            headers.get("Accept"),
-            Some(&"application/json".to_string())
-        );
+        assert_eq!(headers.get("Accept"), Some(&"application/json".to_string()));
     }
 
     #[test]
@@ -408,7 +404,10 @@ mod tests {
 
         assert_eq!(config.timeout, Duration::from_secs(120));
         assert_eq!(config.max_retries, 5);
-        assert_eq!(config.proxy, Some("http://proxy.example.com:8080".to_string()));
+        assert_eq!(
+            config.proxy,
+            Some("http://proxy.example.com:8080".to_string())
+        );
         assert_eq!(config.user_agent, "custom-agent/2.0");
         assert!(config.default_headers.contains_key("X-Custom-Header"));
     }

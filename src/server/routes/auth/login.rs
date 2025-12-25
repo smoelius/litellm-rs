@@ -1,7 +1,7 @@
 //! User login endpoint
 
-use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
+use crate::server::state::AppState;
 use crate::utils::auth::crypto::password::verify_password;
 use actix_web::{HttpResponse, Result as ActixResult, web};
 use tracing::{error, info, warn};
@@ -43,15 +43,14 @@ pub async fn login(
     }
 
     // Verify password
-    let password_valid =
-        match verify_password(&request.password, &user.password_hash) {
-            Ok(valid) => valid,
-            Err(e) => {
-                error!("Password verification error: {}", e);
-                return Ok(HttpResponse::InternalServerError()
-                    .json(ApiResponse::<()>::error("Authentication error".to_string())));
-            }
-        };
+    let password_valid = match verify_password(&request.password, &user.password_hash) {
+        Ok(valid) => valid,
+        Err(e) => {
+            error!("Password verification error: {}", e);
+            return Ok(HttpResponse::InternalServerError()
+                .json(ApiResponse::<()>::error("Authentication error".to_string())));
+        }
+    };
 
     if !password_valid {
         warn!(

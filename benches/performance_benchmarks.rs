@@ -7,13 +7,13 @@ use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_m
 use litellm_rs::core::cache_manager::manager::CacheManager;
 use litellm_rs::core::cache_manager::types::{CacheConfig, CacheKey};
 use litellm_rs::core::models::openai::*;
+use litellm_rs::core::providers::Provider;
+use litellm_rs::core::providers::openai::OpenAIProvider;
 use litellm_rs::core::router::load_balancer::LoadBalancer;
 use litellm_rs::core::router::strategy::types::RoutingStrategy;
 use litellm_rs::core::router::{
-    UnifiedRouter, RouterConfig, UnifiedRoutingStrategy, Deployment, DeploymentConfig,
+    Deployment, DeploymentConfig, RouterConfig, UnifiedRouter, UnifiedRoutingStrategy,
 };
-use litellm_rs::core::providers::Provider;
-use litellm_rs::core::providers::openai::OpenAIProvider;
 use std::hint::black_box;
 
 use litellm_rs::utils::string_pool::{StringPool, intern_string};
@@ -167,8 +167,8 @@ fn create_test_deployments(rt: &Runtime, count: usize, model_name: &str) -> Vec<
             Deployment::new(
                 format!("deployment-{}", i),
                 provider.clone(),
-                format!("{}-turbo", model_name),  // model (actual)
-                model_name.to_string(),            // model_name (user-facing)
+                format!("{}-turbo", model_name), // model (actual)
+                model_name.to_string(),          // model_name (user-facing)
             )
             .with_config(DeploymentConfig {
                 tpm_limit: Some(100000),
@@ -189,9 +189,7 @@ fn bench_unified_router(c: &mut Criterion) {
 
     // Test 1: Router creation
     group.bench_function("router_creation", |b| {
-        b.iter(|| {
-            black_box(UnifiedRouter::default())
-        });
+        b.iter(|| black_box(UnifiedRouter::default()));
     });
 
     // Test 2: Add deployment
@@ -230,9 +228,7 @@ fn bench_unified_router(c: &mut Criterion) {
                     router.add_deployment(deployment);
                 }
 
-                b.iter(|| {
-                    black_box(router.select_deployment("gpt-4"))
-                });
+                b.iter(|| black_box(router.select_deployment("gpt-4")));
             },
         );
     }
@@ -249,9 +245,7 @@ fn bench_unified_router(c: &mut Criterion) {
                     router.add_deployment(deployment);
                 }
 
-                b.iter(|| {
-                    black_box(router.get_healthy_deployments("gpt-4"))
-                });
+                b.iter(|| black_box(router.get_healthy_deployments("gpt-4")));
             },
         );
     }
@@ -269,9 +263,7 @@ fn bench_unified_router(c: &mut Criterion) {
             router.add_deployment(deployment);
         }
 
-        b.iter(|| {
-            black_box(router.resolve_model_name("gpt4"))
-        });
+        b.iter(|| black_box(router.resolve_model_name("gpt4")));
     });
 
     // Test 6: Different routing strategies
@@ -280,7 +272,9 @@ fn bench_unified_router(c: &mut Criterion) {
         UnifiedRoutingStrategy::LeastBusy,
         UnifiedRoutingStrategy::RoundRobin,
         UnifiedRoutingStrategy::LatencyBased,
-    ].iter() {
+    ]
+    .iter()
+    {
         group.bench_with_input(
             BenchmarkId::new("routing_strategy", format!("{:?}", strategy)),
             strategy,
@@ -295,9 +289,7 @@ fn bench_unified_router(c: &mut Criterion) {
                     router.add_deployment(deployment);
                 }
 
-                b.iter(|| {
-                    black_box(router.select_deployment("gpt-4"))
-                });
+                b.iter(|| black_box(router.select_deployment("gpt-4")));
             },
         );
     }

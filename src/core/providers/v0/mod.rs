@@ -7,10 +7,7 @@ pub mod chat;
 
 use crate::core::{
     traits::{
-        error_mapper::{
-            trait_def::ErrorMapper,
-            types::GenericErrorMapper,
-        },
+        error_mapper::{trait_def::ErrorMapper, types::GenericErrorMapper},
         provider::{LLMProvider, ProviderConfig},
     },
     types::{

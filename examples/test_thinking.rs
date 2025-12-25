@@ -4,7 +4,7 @@
 
 use litellm_rs::core::providers::openrouter::{OpenRouterConfig, OpenRouterProvider};
 use litellm_rs::core::providers::thinking::{
-    openrouter_thinking, deepseek_thinking, openai_thinking,
+    deepseek_thinking, openai_thinking, openrouter_thinking,
 };
 use litellm_rs::core::traits::provider::llm_provider::trait_definition::LLMProvider;
 use litellm_rs::core::types::common::RequestContext;
@@ -45,34 +45,51 @@ fn test_model_detection() {
     println!("--- Model Detection Tests ---");
 
     // OpenAI models
-    println!("OpenAI o1-preview: {}", openai_thinking::supports_thinking("o1-preview"));
-    println!("OpenAI o3-mini: {}", openai_thinking::supports_thinking("o3-mini"));
-    println!("OpenAI gpt-4: {}", openai_thinking::supports_thinking("gpt-4"));
+    println!(
+        "OpenAI o1-preview: {}",
+        openai_thinking::supports_thinking("o1-preview")
+    );
+    println!(
+        "OpenAI o3-mini: {}",
+        openai_thinking::supports_thinking("o3-mini")
+    );
+    println!(
+        "OpenAI gpt-4: {}",
+        openai_thinking::supports_thinking("gpt-4")
+    );
 
     // DeepSeek models
-    println!("DeepSeek R1: {}", deepseek_thinking::supports_thinking("deepseek-r1"));
-    println!("DeepSeek Chat: {}", deepseek_thinking::supports_thinking("deepseek-chat"));
+    println!(
+        "DeepSeek R1: {}",
+        deepseek_thinking::supports_thinking("deepseek-r1")
+    );
+    println!(
+        "DeepSeek Chat: {}",
+        deepseek_thinking::supports_thinking("deepseek-chat")
+    );
 
     // OpenRouter detection
-    println!("OpenRouter deepseek/deepseek-r1: {}",
-        openrouter_thinking::supports_thinking("deepseek/deepseek-r1"));
-    println!("OpenRouter provider detection: {}",
-        openrouter_thinking::detect_provider("deepseek/deepseek-r1"));
+    println!(
+        "OpenRouter deepseek/deepseek-r1: {}",
+        openrouter_thinking::supports_thinking("deepseek/deepseek-r1")
+    );
+    println!(
+        "OpenRouter provider detection: {}",
+        openrouter_thinking::detect_provider("deepseek/deepseek-r1")
+    );
 }
 
 async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn std::error::Error>> {
     // Create a reasoning question
     let request = ChatRequest {
         model: "deepseek/deepseek-r1".to_string(),
-        messages: vec![
-            ChatMessage {
-                role: MessageRole::User,
-                content: Some(MessageContent::Text(
-                    "What is 15% of 240? Think through this step by step.".to_string()
-                )),
-                ..Default::default()
-            },
-        ],
+        messages: vec![ChatMessage {
+            role: MessageRole::User,
+            content: Some(MessageContent::Text(
+                "What is 15% of 240? Think through this step by step.".to_string(),
+            )),
+            ..Default::default()
+        }],
         thinking: Some(ThinkingConfig {
             enabled: true,
             budget_tokens: Some(5000),
@@ -103,7 +120,11 @@ async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn s
             // Truncate content for display
             let content_str = content.to_string();
             let display_content = if content_str.len() > 500 {
-                format!("{}... [truncated, {} chars total]", &content_str[..500], content_str.len())
+                format!(
+                    "{}... [truncated, {} chars total]",
+                    &content_str[..500],
+                    content_str.len()
+                )
             } else {
                 content_str
             };
@@ -112,7 +133,10 @@ async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn s
 
         // Check for thinking in the message - more detailed debug
         println!("\n--- Thinking Field Debug ---");
-        println!("message.thinking is_some: {}", choice.message.thinking.is_some());
+        println!(
+            "message.thinking is_some: {}",
+            choice.message.thinking.is_some()
+        );
         println!("message.thinking: {:?}", choice.message.thinking);
 
         if let Some(thinking) = &choice.message.thinking {
@@ -121,7 +145,11 @@ async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn s
                 ThinkingContent::Text { text, signature } => {
                     println!("Type: Text");
                     let display_text = if text.len() > 500 {
-                        format!("{}... [truncated, {} chars total]", &text[..500], text.len())
+                        format!(
+                            "{}... [truncated, {} chars total]",
+                            &text[..500],
+                            text.len()
+                        )
                     } else {
                         text.clone()
                     };
@@ -130,7 +158,10 @@ async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn s
                         println!("Signature: {}", sig);
                     }
                 }
-                ThinkingContent::Block { thinking, block_type } => {
+                ThinkingContent::Block {
+                    thinking,
+                    block_type,
+                } => {
                     println!("Type: Block");
                     println!("Block Type: {:?}", block_type);
                     println!("Thinking:\n{}", thinking);
@@ -168,19 +199,31 @@ async fn test_deepseek_r1(provider: &OpenRouterProvider) -> Result<(), Box<dyn s
     // Also try to extract thinking from raw response
     println!("\n--- Raw Response Analysis ---");
     let raw_json = serde_json::to_value(&response)?;
-    println!("Response JSON keys: {:?}", raw_json.as_object().map(|o| o.keys().collect::<Vec<_>>()));
+    println!(
+        "Response JSON keys: {:?}",
+        raw_json.as_object().map(|o| o.keys().collect::<Vec<_>>())
+    );
 
     // Check choices structure
     if let Some(choices) = raw_json.get("choices").and_then(|c| c.as_array()) {
         for (i, choice) in choices.iter().enumerate() {
-            println!("\nChoice {} message keys: {:?}", i,
-                choice.get("message").and_then(|m| m.as_object()).map(|o| o.keys().collect::<Vec<_>>()));
+            println!(
+                "\nChoice {} message keys: {:?}",
+                i,
+                choice
+                    .get("message")
+                    .and_then(|m| m.as_object())
+                    .map(|o| o.keys().collect::<Vec<_>>())
+            );
         }
     }
 
     // Try OpenRouter thinking extraction
     if let Some(extracted) = openrouter_thinking::extract_thinking(&raw_json) {
-        println!("Extracted thinking via openrouter_thinking::extract_thinking: {:?}", extracted);
+        println!(
+            "Extracted thinking via openrouter_thinking::extract_thinking: {:?}",
+            extracted
+        );
     } else {
         println!("No thinking extracted from serialized response");
     }

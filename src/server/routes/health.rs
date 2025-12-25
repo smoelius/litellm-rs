@@ -4,8 +4,8 @@
 
 #![allow(dead_code)]
 
-use crate::server::state::AppState;
 use crate::server::routes::ApiResponse;
+use crate::server::state::AppState;
 use actix_web::{HttpResponse, Result as ActixResult, web};
 use std::borrow::Cow;
 

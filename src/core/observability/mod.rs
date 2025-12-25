@@ -20,7 +20,7 @@ pub use destinations::{AlertChannel, AlertRule, LogDestination, TraceExporter};
 pub use histogram::{BoundedHistogram, HISTOGRAM_MAX_SAMPLES};
 pub use logging::LogAggregator;
 pub use metrics::{DataDogClient, MetricsCollector, OtelExporter, PrometheusMetrics};
-pub use redaction::{redact_headers, redact_json_value, redact_value, RedactionConfig};
+pub use redaction::{RedactionConfig, redact_headers, redact_json_value, redact_value};
 pub use tracing::PerformanceTracer;
 pub use types::{
     AlertCondition, AlertSeverity, AlertState, ErrorDetails, LogEntry, LogLevel, MetricValue,

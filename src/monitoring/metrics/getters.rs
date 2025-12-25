@@ -1,7 +1,9 @@
 //! Getter methods for retrieving aggregated metrics
 
 use super::collector::MetricsCollector;
-use super::helpers::{calculate_average, calculate_average_u32, calculate_average_u64, calculate_percentile};
+use super::helpers::{
+    calculate_average, calculate_average_u32, calculate_average_u64, calculate_percentile,
+};
 use crate::monitoring::types::{
     ErrorMetrics, LatencyPercentiles, PerformanceMetrics, ProviderMetrics, RequestMetrics,
     SystemResourceMetrics,

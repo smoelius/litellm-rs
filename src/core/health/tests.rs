@@ -79,7 +79,10 @@ mod tests {
     #[test]
     fn test_system_health() {
         let mut providers = HashMap::new();
-        providers.insert("provider1".to_string(), ProviderHealth::new("provider1".to_string()));
+        providers.insert(
+            "provider1".to_string(),
+            ProviderHealth::new("provider1".to_string()),
+        );
 
         let mut provider2 = ProviderHealth::new("provider2".to_string());
         provider2.status = HealthStatus::Unhealthy;

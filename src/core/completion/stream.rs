@@ -5,7 +5,8 @@ use crate::core::types::FinishReason;
 use futures::stream::BoxStream;
 
 /// Streaming completion response
-pub type CompletionStream = BoxStream<'static, Result<CompletionChunk, crate::utils::error::GatewayError>>;
+pub type CompletionStream =
+    BoxStream<'static, Result<CompletionChunk, crate::utils::error::GatewayError>>;
 
 /// Chunk in a streaming completion response
 #[derive(Debug, Clone)]

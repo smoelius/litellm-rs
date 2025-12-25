@@ -1,11 +1,11 @@
 //! Audio translations endpoint
 
-use crate::core::audio::types::TranslationRequest;
 use crate::core::audio::AudioService;
-use crate::server::routes::{errors, ApiResponse};
+use crate::core::audio::types::TranslationRequest;
+use crate::server::routes::{ApiResponse, errors};
 use crate::server::state::AppState;
 use actix_multipart::Multipart;
-use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{HttpRequest, HttpResponse, Result as ActixResult, web};
 use futures::StreamExt;
 use tracing::{error, info};
 

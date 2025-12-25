@@ -1,7 +1,7 @@
 //! Deployment management tests
 
-use crate::core::providers::openai::OpenAIProvider;
 use crate::core::providers::Provider;
+use crate::core::providers::openai::OpenAIProvider;
 use crate::core::router::deployment::{Deployment, DeploymentConfig, HealthStatus};
 use std::sync::atomic::Ordering;
 

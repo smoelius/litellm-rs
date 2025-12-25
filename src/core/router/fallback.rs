@@ -137,7 +137,11 @@ impl FallbackConfig {
     ///
     /// Returns a cloned vector of fallback model names. Returns empty vector if no fallbacks
     /// are configured for the given model and type.
-    pub fn get_fallbacks_for_type(&self, model_name: &str, fallback_type: FallbackType) -> Vec<String> {
+    pub fn get_fallbacks_for_type(
+        &self,
+        model_name: &str,
+        fallback_type: FallbackType,
+    ) -> Vec<String> {
         let lock = match fallback_type {
             FallbackType::General => &self.general,
             FallbackType::ContextWindow => &self.context_window,

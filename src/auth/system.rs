@@ -35,7 +35,8 @@ impl AuthSystem {
         let jwt = Arc::new(crate::auth::jwt::types::JwtHandler::new(&config).await?);
 
         // Initialize API key handler
-        let api_key = Arc::new(crate::auth::api_key::creation::ApiKeyHandler::new(storage.clone()).await?);
+        let api_key =
+            Arc::new(crate::auth::api_key::creation::ApiKeyHandler::new(storage.clone()).await?);
 
         // Initialize RBAC system
         let rbac = Arc::new(crate::auth::rbac::RbacSystem::new(&config.rbac).await?);

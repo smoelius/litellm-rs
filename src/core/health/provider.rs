@@ -83,7 +83,9 @@ impl ProviderHealth {
         self.avg_response_time_ms = total_time as f64 / self.history.len() as f64;
 
         // Calculate success rate
-        let successful_checks = self.history.iter()
+        let successful_checks = self
+            .history
+            .iter()
             .filter(|h| h.status == HealthStatus::Healthy || h.status == HealthStatus::Degraded)
             .count();
         self.success_rate = (successful_checks as f64 / self.history.len() as f64) * 100.0;
@@ -134,10 +136,14 @@ impl SystemHealth {
         }
 
         let total_providers = self.provider_health.len();
-        let healthy_providers = self.provider_health.values()
+        let healthy_providers = self
+            .provider_health
+            .values()
             .filter(|h| h.status == HealthStatus::Healthy)
             .count();
-        let available_providers = self.provider_health.values()
+        let available_providers = self
+            .provider_health
+            .values()
             .filter(|h| h.is_available())
             .count();
 
@@ -158,10 +164,14 @@ impl SystemHealth {
 
         if !self.provider_health.is_empty() {
             let total = self.provider_health.len() as f64;
-            let healthy = self.provider_health.values()
+            let healthy = self
+                .provider_health
+                .values()
                 .filter(|h| h.status == HealthStatus::Healthy)
                 .count() as f64;
-            let available = self.provider_health.values()
+            let available = self
+                .provider_health
+                .values()
                 .filter(|h| h.is_available())
                 .count() as f64;
 
@@ -169,12 +179,18 @@ impl SystemHealth {
             metrics.insert("healthy_providers".to_string(), healthy);
             metrics.insert("available_providers".to_string(), available);
             metrics.insert("health_percentage".to_string(), (healthy / total) * 100.0);
-            metrics.insert("availability_percentage".to_string(), (available / total) * 100.0);
+            metrics.insert(
+                "availability_percentage".to_string(),
+                (available / total) * 100.0,
+            );
 
             // Average response time across all providers
-            let avg_response_time: f64 = self.provider_health.values()
+            let avg_response_time: f64 = self
+                .provider_health
+                .values()
                 .map(|h| h.avg_response_time_ms)
-                .sum::<f64>() / total;
+                .sum::<f64>()
+                / total;
             metrics.insert("avg_response_time_ms".to_string(), avg_response_time);
         }
 
