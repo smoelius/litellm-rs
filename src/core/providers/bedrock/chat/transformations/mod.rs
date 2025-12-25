@@ -81,3 +81,108 @@ pub fn messages_to_prompt(messages: &[crate::core::types::ChatMessage]) -> Strin
     prompt.push_str("Assistant:");
     prompt
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::{ChatMessage, MessageContent, MessageRole};
+
+    fn create_user_message(text: &str) -> ChatMessage {
+        ChatMessage {
+            role: MessageRole::User,
+            content: Some(MessageContent::Text(text.to_string())),
+            thinking: None,
+            name: None,
+            function_call: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+
+    fn create_assistant_message(text: &str) -> ChatMessage {
+        ChatMessage {
+            role: MessageRole::Assistant,
+            content: Some(MessageContent::Text(text.to_string())),
+            thinking: None,
+            name: None,
+            function_call: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+
+    fn create_system_message(text: &str) -> ChatMessage {
+        ChatMessage {
+            role: MessageRole::System,
+            content: Some(MessageContent::Text(text.to_string())),
+            thinking: None,
+            name: None,
+            function_call: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }
+    }
+
+    #[test]
+    fn test_messages_to_prompt_user_only() {
+        let messages = vec![create_user_message("Hello")];
+        let prompt = messages_to_prompt(&messages);
+        assert!(prompt.contains("Human: Hello"));
+        assert!(prompt.ends_with("Assistant:"));
+    }
+
+    #[test]
+    fn test_messages_to_prompt_conversation() {
+        let messages = vec![
+            create_user_message("Hi"),
+            create_assistant_message("Hello!"),
+            create_user_message("How are you?"),
+        ];
+        let prompt = messages_to_prompt(&messages);
+        assert!(prompt.contains("Human: Hi"));
+        assert!(prompt.contains("Assistant: Hello!"));
+        assert!(prompt.contains("Human: How are you?"));
+    }
+
+    #[test]
+    fn test_messages_to_prompt_with_system() {
+        let messages = vec![
+            create_system_message("You are a helpful assistant"),
+            create_user_message("Hello"),
+        ];
+        let prompt = messages_to_prompt(&messages);
+        assert!(prompt.contains("System: You are a helpful assistant"));
+        assert!(prompt.contains("Human: Hello"));
+    }
+
+    #[test]
+    fn test_messages_to_prompt_tool_role() {
+        let messages = vec![ChatMessage {
+            role: MessageRole::Tool,
+            content: Some(MessageContent::Text("Tool result".to_string())),
+            thinking: None,
+            name: None,
+            function_call: None,
+            tool_calls: None,
+            tool_call_id: Some("call_123".to_string()),
+        }];
+        let prompt = messages_to_prompt(&messages);
+        assert!(prompt.contains("Tool: Tool result"));
+    }
+
+    #[test]
+    fn test_messages_to_prompt_empty_content() {
+        let messages = vec![ChatMessage {
+            role: MessageRole::User,
+            content: None,
+            thinking: None,
+            name: None,
+            function_call: None,
+            tool_calls: None,
+            tool_call_id: None,
+        }];
+        let prompt = messages_to_prompt(&messages);
+        // Empty content messages should be skipped
+        assert_eq!(prompt, "Assistant:");
+    }
+}

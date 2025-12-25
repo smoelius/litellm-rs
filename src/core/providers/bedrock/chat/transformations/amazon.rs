@@ -5,6 +5,9 @@ use crate::core::providers::unified_provider::ProviderError;
 use crate::core::types::requests::ChatRequest;
 use serde_json::{Value, json};
 
+#[cfg(test)]
+use crate::core::types::{ChatMessage, MessageContent, MessageRole};
+
 /// Transform request for Amazon Titan models
 pub fn transform_titan_request(
     request: &ChatRequest,
@@ -156,4 +159,178 @@ pub fn transform_nova_request(
     }
 
     Ok(body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::providers::bedrock::model_config::{BedrockApiType, BedrockModelFamily};
+
+    fn create_test_request() -> ChatRequest {
+        ChatRequest {
+            model: "amazon.titan-text-express-v1".to_string(),
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn create_test_model_config() -> ModelConfig {
+        ModelConfig {
+            family: BedrockModelFamily::TitanText,
+            api_type: BedrockApiType::Invoke,
+            supports_streaming: true,
+            supports_function_calling: false,
+            supports_multimodal: false,
+            max_context_length: 8192,
+            max_output_length: Some(4096),
+            input_cost_per_1k: 0.0,
+            output_cost_per_1k: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_transform_titan_request_basic() {
+        let request = create_test_request();
+        let model_config = create_test_model_config();
+
+        let result = transform_titan_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["inputText"].is_string());
+        assert!(value["textGenerationConfig"].is_object());
+        assert_eq!(value["textGenerationConfig"]["maxTokenCount"], 4096);
+    }
+
+    #[test]
+    fn test_transform_titan_request_with_temperature() {
+        let mut request = create_test_request();
+        request.temperature = Some(0.5);
+        let model_config = create_test_model_config();
+
+        let result = transform_titan_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["textGenerationConfig"]["temperature"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_titan_request_with_top_p() {
+        let mut request = create_test_request();
+        request.top_p = Some(0.5);
+        let model_config = create_test_model_config();
+
+        let result = transform_titan_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["textGenerationConfig"]["topP"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_titan_request_with_max_tokens() {
+        let mut request = create_test_request();
+        request.max_tokens = Some(100);
+        let model_config = create_test_model_config();
+
+        let result = transform_titan_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["textGenerationConfig"]["maxTokenCount"], 100);
+    }
+
+    #[test]
+    fn test_transform_titan_request_with_stop() {
+        let mut request = create_test_request();
+        request.stop = Some(vec!["STOP".to_string()]);
+        let model_config = create_test_model_config();
+
+        let result = transform_titan_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["textGenerationConfig"]["stopSequences"].is_array());
+    }
+
+    fn create_nova_model_config() -> ModelConfig {
+        ModelConfig {
+            family: BedrockModelFamily::Nova,
+            api_type: BedrockApiType::Converse,
+            supports_streaming: true,
+            supports_function_calling: true,
+            supports_multimodal: true,
+            max_context_length: 128000,
+            max_output_length: Some(4096),
+            input_cost_per_1k: 0.0,
+            output_cost_per_1k: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_transform_nova_request_basic() {
+        let request = create_test_request();
+        let model_config = create_nova_model_config();
+
+        let result = transform_nova_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["messages"].is_array());
+    }
+
+    #[test]
+    fn test_transform_nova_request_with_system() {
+        let request = ChatRequest {
+            model: "amazon.nova-pro-v1".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: MessageRole::System,
+                    content: Some(MessageContent::Text("You are helpful".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(MessageContent::Text("Hello".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+        let model_config = create_nova_model_config();
+
+        let result = transform_nova_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["system"].is_array());
+        assert!(value["messages"].is_array());
+    }
+
+    #[test]
+    fn test_transform_nova_request_with_inference_config() {
+        let mut request = create_test_request();
+        request.max_tokens = Some(100);
+        request.temperature = Some(0.5);
+        request.top_p = Some(0.5);
+        let model_config = create_nova_model_config();
+
+        let result = transform_nova_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["inferenceConfig"].is_object());
+        assert_eq!(value["inferenceConfig"]["maxTokens"], 100);
+        assert_eq!(value["inferenceConfig"]["temperature"], 0.5);
+        assert_eq!(value["inferenceConfig"]["topP"], 0.5);
+    }
 }

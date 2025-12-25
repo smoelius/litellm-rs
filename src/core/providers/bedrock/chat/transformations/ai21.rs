@@ -98,3 +98,179 @@ fn transform_jurassic_request(request: &ChatRequest) -> Result<Value, ProviderEr
 
     Ok(body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::providers::bedrock::model_config::{BedrockApiType, BedrockModelFamily};
+    use crate::core::types::{ChatMessage, MessageContent, MessageRole};
+
+    fn create_test_request(model: &str) -> ChatRequest {
+        ChatRequest {
+            model: model.to_string(),
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn create_test_model_config() -> ModelConfig {
+        ModelConfig {
+            family: BedrockModelFamily::AI21,
+            api_type: BedrockApiType::Invoke,
+            supports_streaming: true,
+            supports_function_calling: false,
+            supports_multimodal: false,
+            max_context_length: 256000,
+            max_output_length: Some(4096),
+            input_cost_per_1k: 0.0,
+            output_cost_per_1k: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_transform_request_jamba() {
+        let request = create_test_request("ai21.jamba-instruct-v1");
+        let model_config = create_test_model_config();
+
+        let result = transform_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        // Jamba uses messages format
+        assert!(value["messages"].is_array());
+        assert_eq!(value["max_tokens"], 4096);
+    }
+
+    #[test]
+    fn test_transform_request_jurassic() {
+        let request = create_test_request("ai21.j2-ultra-v1");
+        let model_config = create_test_model_config();
+
+        let result = transform_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        // Jurassic uses prompt format
+        assert!(value["prompt"].is_string());
+        assert_eq!(value["maxTokens"], 4096);
+    }
+
+    #[test]
+    fn test_transform_jamba_with_system() {
+        let request = ChatRequest {
+            model: "ai21.jamba-instruct-v1".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: MessageRole::System,
+                    content: Some(MessageContent::Text("You are helpful".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(MessageContent::Text("Hello".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let result = transform_jamba_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        let messages = value["messages"].as_array().unwrap();
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[0]["role"], "system");
+        assert_eq!(messages[1]["role"], "user");
+    }
+
+    #[test]
+    fn test_transform_jamba_with_temperature() {
+        let mut request = create_test_request("ai21.jamba-instruct-v1");
+        request.temperature = Some(0.5);
+
+        let result = transform_jamba_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["temperature"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_jamba_with_top_p() {
+        let mut request = create_test_request("ai21.jamba-instruct-v1");
+        request.top_p = Some(0.5);
+
+        let result = transform_jamba_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["top_p"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_jamba_with_stop() {
+        let mut request = create_test_request("ai21.jamba-instruct-v1");
+        request.stop = Some(vec!["STOP".to_string()]);
+
+        let result = transform_jamba_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["stop"].is_array());
+    }
+
+    #[test]
+    fn test_transform_jurassic_with_temperature() {
+        let mut request = create_test_request("ai21.j2-ultra-v1");
+        request.temperature = Some(0.5);
+
+        let result = transform_jurassic_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["temperature"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_jurassic_with_top_p() {
+        let mut request = create_test_request("ai21.j2-ultra-v1");
+        request.top_p = Some(0.5);
+
+        let result = transform_jurassic_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["topP"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_jurassic_with_stop() {
+        let mut request = create_test_request("ai21.j2-ultra-v1");
+        request.stop = Some(vec!["STOP".to_string()]);
+
+        let result = transform_jurassic_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["stopSequences"].is_array());
+    }
+
+    #[test]
+    fn test_transform_jurassic_with_max_tokens() {
+        let mut request = create_test_request("ai21.j2-ultra-v1");
+        request.max_tokens = Some(100);
+
+        let result = transform_jurassic_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["maxTokens"], 100);
+    }
+}

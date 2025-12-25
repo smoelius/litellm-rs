@@ -128,3 +128,198 @@ fn transform_command_request(request: &ChatRequest) -> Result<Value, ProviderErr
 
     Ok(body)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::providers::bedrock::model_config::{BedrockApiType, BedrockModelFamily};
+    use crate::core::types::{ChatMessage, MessageContent, MessageRole};
+
+    fn create_test_request(model: &str) -> ChatRequest {
+        ChatRequest {
+            model: model.to_string(),
+            messages: vec![ChatMessage {
+                role: MessageRole::User,
+                content: Some(MessageContent::Text("Hello".to_string())),
+                thinking: None,
+                name: None,
+                function_call: None,
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            ..Default::default()
+        }
+    }
+
+    fn create_test_model_config() -> ModelConfig {
+        ModelConfig {
+            family: BedrockModelFamily::Cohere,
+            api_type: BedrockApiType::Invoke,
+            supports_streaming: true,
+            supports_function_calling: false,
+            supports_multimodal: false,
+            max_context_length: 128000,
+            max_output_length: Some(4096),
+            input_cost_per_1k: 0.0,
+            output_cost_per_1k: 0.0,
+        }
+    }
+
+    #[test]
+    fn test_transform_request_command_r() {
+        let request = create_test_request("cohere.command-r-v1");
+        let model_config = create_test_model_config();
+
+        let result = transform_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        // Command R uses chat format
+        assert!(value["message"].is_string());
+        assert_eq!(value["max_tokens"], 4096);
+    }
+
+    #[test]
+    fn test_transform_request_command() {
+        let request = create_test_request("cohere.command-text-v14");
+        let model_config = create_test_model_config();
+
+        let result = transform_request(&request, &model_config);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        // Older Command uses prompt format
+        assert!(value["prompt"].is_string());
+        assert_eq!(value["max_tokens"], 4096);
+    }
+
+    #[test]
+    fn test_transform_command_r_with_system() {
+        let request = ChatRequest {
+            model: "cohere.command-r-v1".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: MessageRole::System,
+                    content: Some(MessageContent::Text("You are helpful".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(MessageContent::Text("Hello".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let result = transform_command_r_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["preamble"], "You are helpful");
+        assert_eq!(value["message"], "Hello");
+    }
+
+    #[test]
+    fn test_transform_command_r_with_chat_history() {
+        let request = ChatRequest {
+            model: "cohere.command-r-v1".to_string(),
+            messages: vec![
+                ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(MessageContent::Text("Hi".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                ChatMessage {
+                    role: MessageRole::Assistant,
+                    content: Some(MessageContent::Text("Hello!".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+                ChatMessage {
+                    role: MessageRole::User,
+                    content: Some(MessageContent::Text("How are you?".to_string())),
+                    thinking: None,
+                    name: None,
+                    function_call: None,
+                    tool_calls: None,
+                    tool_call_id: None,
+                },
+            ],
+            ..Default::default()
+        };
+
+        let result = transform_command_r_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["chat_history"].is_array());
+        assert_eq!(value["message"], "How are you?");
+    }
+
+    #[test]
+    fn test_transform_command_r_with_temperature() {
+        let mut request = create_test_request("cohere.command-r-v1");
+        request.temperature = Some(0.5);
+
+        let result = transform_command_r_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["temperature"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_command_r_with_top_p() {
+        let mut request = create_test_request("cohere.command-r-v1");
+        request.top_p = Some(0.5);
+
+        let result = transform_command_r_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["p"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_command_r_with_stop() {
+        let mut request = create_test_request("cohere.command-r-v1");
+        request.stop = Some(vec!["STOP".to_string()]);
+
+        let result = transform_command_r_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value["stop_sequences"].is_array());
+    }
+
+    #[test]
+    fn test_transform_command_with_temperature() {
+        let mut request = create_test_request("cohere.command-text-v14");
+        request.temperature = Some(0.5);
+
+        let result = transform_command_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["temperature"], 0.5);
+    }
+
+    #[test]
+    fn test_transform_command_with_top_p() {
+        let mut request = create_test_request("cohere.command-text-v14");
+        request.top_p = Some(0.5);
+
+        let result = transform_command_request(&request);
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert_eq!(value["p"], 0.5);
+    }
+}
