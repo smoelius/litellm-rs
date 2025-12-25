@@ -84,3 +84,101 @@ pub struct Choice {
     pub message: ChatMessage,
     pub finish_reason: Option<FinishReason>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::MessageRole;
+
+    #[test]
+    fn test_completion_options_default() {
+        let opts = CompletionOptions::default();
+        assert!(opts.temperature.is_none());
+        assert!(opts.max_tokens.is_none());
+        assert!(!opts.stream);
+        assert!(opts.api_key.is_none());
+    }
+
+    #[test]
+    fn test_completion_options_with_values() {
+        let mut opts = CompletionOptions::default();
+        opts.temperature = Some(0.5);
+        opts.max_tokens = Some(100);
+        opts.stream = true;
+
+        assert_eq!(opts.temperature, Some(0.5));
+        assert_eq!(opts.max_tokens, Some(100));
+        assert!(opts.stream);
+    }
+
+    #[test]
+    fn test_completion_options_serialization() {
+        let mut opts = CompletionOptions::default();
+        opts.temperature = Some(0.5);
+        opts.max_tokens = Some(100);
+
+        let json = serde_json::to_value(&opts).unwrap();
+        assert_eq!(json["temperature"], 0.5);
+        assert_eq!(json["max_tokens"], 100);
+        // stream defaults to false, should be present
+        assert_eq!(json["stream"], false);
+    }
+
+    #[test]
+    fn test_tool_call_structure() {
+        let call = ToolCall {
+            id: "call_123".to_string(),
+            r#type: "function".to_string(),
+            function: FunctionCall {
+                name: "get_weather".to_string(),
+                arguments: "{\"city\": \"NYC\"}".to_string(),
+            },
+        };
+
+        assert_eq!(call.id, "call_123");
+        assert_eq!(call.function.name, "get_weather");
+    }
+
+    #[test]
+    fn test_completion_response() {
+        let response = CompletionResponse {
+            id: "cmpl-123".to_string(),
+            object: "chat.completion".to_string(),
+            created: 1234567890,
+            model: "gpt-4".to_string(),
+            choices: vec![],
+            usage: None,
+        };
+
+        assert_eq!(response.id, "cmpl-123");
+        assert_eq!(response.model, "gpt-4");
+        assert!(response.choices.is_empty());
+    }
+
+    #[test]
+    fn test_choice_structure() {
+        let choice = Choice {
+            index: 0,
+            message: ChatMessage {
+                role: MessageRole::Assistant,
+                content: Some(crate::core::types::MessageContent::Text("Hello".to_string())),
+                ..Default::default()
+            },
+            finish_reason: Some(FinishReason::Stop),
+        };
+
+        assert_eq!(choice.index, 0);
+        assert_eq!(choice.message.role, MessageRole::Assistant);
+    }
+
+    #[test]
+    fn test_completion_options_api_config() {
+        let mut opts = CompletionOptions::default();
+        opts.api_key = Some("sk-test".to_string());
+        opts.api_base = Some("https://api.example.com".to_string());
+        opts.timeout = Some(30);
+
+        assert_eq!(opts.api_key, Some("sk-test".to_string()));
+        assert_eq!(opts.timeout, Some(30));
+    }
+}
