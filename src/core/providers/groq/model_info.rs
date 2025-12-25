@@ -390,3 +390,112 @@ pub fn get_tool_capable_models() -> Vec<&'static str> {
         .map(|(id, _)| *id)
         .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_get_model_info_valid() {
+        let info = get_model_info("llama-3.3-70b-versatile");
+        assert!(info.is_some());
+        let info = info.unwrap();
+        assert_eq!(info.model_id, "llama-3.3-70b-versatile");
+        assert_eq!(info.display_name, "Llama 3.3 70B");
+        assert_eq!(info.context_length, 128000);
+        assert!(info.supports_tools);
+        assert!(!info.is_reasoning);
+    }
+
+    #[test]
+    fn test_get_model_info_invalid() {
+        let info = get_model_info("nonexistent-model");
+        assert!(info.is_none());
+    }
+
+    #[test]
+    fn test_is_reasoning_model() {
+        assert!(is_reasoning_model("llama-3.1-405b-reasoning"));
+        assert!(is_reasoning_model("deepseek-r1-distill-llama-70b"));
+        assert!(is_reasoning_model("qwen3-32b"));
+        assert!(!is_reasoning_model("llama-3.3-70b-versatile"));
+        assert!(!is_reasoning_model("mixtral-8x7b-32768"));
+        assert!(!is_reasoning_model("nonexistent-model"));
+    }
+
+    #[test]
+    fn test_get_available_models() {
+        let models = get_available_models();
+        assert!(!models.is_empty());
+        assert!(models.contains(&"llama-3.3-70b-versatile"));
+        assert!(models.contains(&"mixtral-8x7b-32768"));
+        assert!(models.contains(&"whisper-large-v3"));
+    }
+
+    #[test]
+    fn test_get_tool_capable_models() {
+        let models = get_tool_capable_models();
+        assert!(!models.is_empty());
+        assert!(models.contains(&"llama-3.3-70b-versatile"));
+        assert!(models.contains(&"mixtral-8x7b-32768"));
+        // Whisper models don't support tools
+        assert!(!models.contains(&"whisper-large-v3"));
+    }
+
+    #[test]
+    fn test_audio_models() {
+        let whisper = get_model_info("whisper-large-v3").unwrap();
+        assert!(whisper.is_audio);
+        assert!(!whisper.supports_tools);
+        assert_eq!(whisper.context_length, 0);
+
+        let whisper_turbo = get_model_info("whisper-large-v3-turbo").unwrap();
+        assert!(whisper_turbo.is_audio);
+
+        let distil_whisper = get_model_info("distil-whisper-large-v3-en").unwrap();
+        assert!(distil_whisper.is_audio);
+    }
+
+    #[test]
+    fn test_model_info_costs() {
+        let info = get_model_info("llama-3.1-8b-instant").unwrap();
+        assert!(info.input_cost_per_million > 0.0);
+        assert!(info.output_cost_per_million > 0.0);
+        assert!(info.input_cost_per_million < info.output_cost_per_million);
+    }
+
+    #[test]
+    fn test_groq_model_enum() {
+        let model = GroqModel::Llama33_70B;
+        assert_eq!(format!("{:?}", model), "Llama33_70B");
+
+        let model = GroqModel::WhisperLargeV3;
+        assert_eq!(format!("{:?}", model), "WhisperLargeV3");
+    }
+
+    #[test]
+    fn test_model_info_serialization() {
+        let info = get_model_info("mixtral-8x7b-32768").unwrap();
+        assert_eq!(info.model_id, "mixtral-8x7b-32768");
+        assert_eq!(info.context_length, 32768);
+        assert_eq!(info.max_output_tokens, 32768);
+    }
+
+    #[test]
+    fn test_tool_use_models() {
+        let tool_70b = get_model_info("llama3-groq-70b-8192-tool-use-preview").unwrap();
+        assert!(tool_70b.supports_tools);
+        assert_eq!(tool_70b.context_length, 8192);
+
+        let tool_8b = get_model_info("llama3-groq-8b-8192-tool-use-preview").unwrap();
+        assert!(tool_8b.supports_tools);
+    }
+
+    #[test]
+    fn test_gemma_models() {
+        let gemma = get_model_info("gemma2-9b-it").unwrap();
+        assert_eq!(gemma.display_name, "Gemma2 9B");
+        assert!(gemma.supports_tools);
+        assert!(!gemma.is_audio);
+    }
+}

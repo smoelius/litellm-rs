@@ -161,3 +161,203 @@ impl ErrorMapper<GroqError> for GroqErrorMapper {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_groq_error_display() {
+        let err = GroqError::ApiError("test error".to_string());
+        assert_eq!(err.to_string(), "API error: test error");
+
+        let err = GroqError::AuthenticationError("invalid key".to_string());
+        assert_eq!(err.to_string(), "Authentication failed: invalid key");
+
+        let err = GroqError::RateLimitError("limit exceeded".to_string());
+        assert_eq!(err.to_string(), "Rate limit exceeded: limit exceeded");
+    }
+
+    #[test]
+    fn test_groq_error_type() {
+        assert_eq!(
+            GroqError::ApiError("".to_string()).error_type(),
+            "api_error"
+        );
+        assert_eq!(
+            GroqError::AuthenticationError("".to_string()).error_type(),
+            "authentication_error"
+        );
+        assert_eq!(
+            GroqError::RateLimitError("".to_string()).error_type(),
+            "rate_limit_error"
+        );
+        assert_eq!(
+            GroqError::InvalidRequestError("".to_string()).error_type(),
+            "invalid_request_error"
+        );
+        assert_eq!(
+            GroqError::ModelNotFoundError("".to_string()).error_type(),
+            "model_not_found_error"
+        );
+        assert_eq!(
+            GroqError::ServiceUnavailableError("".to_string()).error_type(),
+            "service_unavailable_error"
+        );
+        assert_eq!(
+            GroqError::StreamingError("".to_string()).error_type(),
+            "streaming_error"
+        );
+        assert_eq!(
+            GroqError::ConfigurationError("".to_string()).error_type(),
+            "configuration_error"
+        );
+        assert_eq!(
+            GroqError::NetworkError("".to_string()).error_type(),
+            "network_error"
+        );
+        assert_eq!(
+            GroqError::UnknownError("".to_string()).error_type(),
+            "unknown_error"
+        );
+    }
+
+    #[test]
+    fn test_groq_error_is_retryable() {
+        assert!(GroqError::RateLimitError("".to_string()).is_retryable());
+        assert!(GroqError::ServiceUnavailableError("".to_string()).is_retryable());
+        assert!(GroqError::NetworkError("".to_string()).is_retryable());
+
+        assert!(!GroqError::ApiError("".to_string()).is_retryable());
+        assert!(!GroqError::AuthenticationError("".to_string()).is_retryable());
+        assert!(!GroqError::InvalidRequestError("".to_string()).is_retryable());
+        assert!(!GroqError::ModelNotFoundError("".to_string()).is_retryable());
+    }
+
+    #[test]
+    fn test_groq_error_retry_delay() {
+        assert_eq!(
+            GroqError::RateLimitError("".to_string()).retry_delay(),
+            Some(60)
+        );
+        assert_eq!(
+            GroqError::ServiceUnavailableError("".to_string()).retry_delay(),
+            Some(5)
+        );
+        assert_eq!(
+            GroqError::NetworkError("".to_string()).retry_delay(),
+            Some(2)
+        );
+        assert_eq!(GroqError::ApiError("".to_string()).retry_delay(), None);
+    }
+
+    #[test]
+    fn test_groq_error_http_status() {
+        assert_eq!(
+            GroqError::AuthenticationError("".to_string()).http_status(),
+            401
+        );
+        assert_eq!(
+            GroqError::RateLimitError("".to_string()).http_status(),
+            429
+        );
+        assert_eq!(
+            GroqError::InvalidRequestError("".to_string()).http_status(),
+            400
+        );
+        assert_eq!(
+            GroqError::ModelNotFoundError("".to_string()).http_status(),
+            404
+        );
+        assert_eq!(
+            GroqError::ServiceUnavailableError("".to_string()).http_status(),
+            503
+        );
+        assert_eq!(GroqError::ApiError("".to_string()).http_status(), 500);
+    }
+
+    #[test]
+    fn test_groq_error_factory_methods() {
+        let err = GroqError::not_supported("vision");
+        assert!(matches!(err, GroqError::InvalidRequestError(_)));
+
+        let err = GroqError::authentication_failed("bad key");
+        assert!(matches!(err, GroqError::AuthenticationError(_)));
+
+        let err = GroqError::rate_limited(Some(30));
+        assert!(matches!(err, GroqError::RateLimitError(_)));
+
+        let err = GroqError::rate_limited(None);
+        assert!(matches!(err, GroqError::RateLimitError(_)));
+
+        let err = GroqError::network_error("connection failed");
+        assert!(matches!(err, GroqError::NetworkError(_)));
+
+        let err = GroqError::parsing_error("invalid json");
+        assert!(matches!(err, GroqError::ApiError(_)));
+
+        let err = GroqError::not_implemented("feature");
+        assert!(matches!(err, GroqError::InvalidRequestError(_)));
+    }
+
+    #[test]
+    fn test_groq_error_to_provider_error() {
+        let err: ProviderError = GroqError::AuthenticationError("bad key".to_string()).into();
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+
+        let err: ProviderError = GroqError::RateLimitError("limit".to_string()).into();
+        assert!(matches!(err, ProviderError::RateLimit { .. }));
+
+        let err: ProviderError = GroqError::ModelNotFoundError("gpt-5".to_string()).into();
+        assert!(matches!(err, ProviderError::ModelNotFound { .. }));
+
+        let err: ProviderError = GroqError::ConfigurationError("bad config".to_string()).into();
+        assert!(matches!(err, ProviderError::Configuration { .. }));
+
+        let err: ProviderError = GroqError::NetworkError("timeout".to_string()).into();
+        assert!(matches!(err, ProviderError::Network { .. }));
+    }
+
+    #[test]
+    fn test_groq_error_mapper_http_errors() {
+        let mapper = GroqErrorMapper;
+
+        let err = mapper.map_http_error(400, "bad request");
+        assert!(matches!(err, GroqError::InvalidRequestError(_)));
+
+        let err = mapper.map_http_error(401, "");
+        assert!(matches!(err, GroqError::AuthenticationError(_)));
+
+        let err = mapper.map_http_error(403, "");
+        assert!(matches!(err, GroqError::AuthenticationError(_)));
+
+        let err = mapper.map_http_error(404, "");
+        assert!(matches!(err, GroqError::ModelNotFoundError(_)));
+
+        let err = mapper.map_http_error(429, "");
+        assert!(matches!(err, GroqError::RateLimitError(_)));
+
+        let err = mapper.map_http_error(500, "");
+        assert!(matches!(err, GroqError::ApiError(_)));
+
+        let err = mapper.map_http_error(502, "");
+        assert!(matches!(err, GroqError::ServiceUnavailableError(_)));
+
+        let err = mapper.map_http_error(503, "");
+        assert!(matches!(err, GroqError::ServiceUnavailableError(_)));
+
+        let err = mapper.map_http_error(418, "teapot");
+        assert!(matches!(err, GroqError::ApiError(_)));
+    }
+
+    #[test]
+    fn test_groq_error_mapper_empty_body() {
+        let mapper = GroqErrorMapper;
+        let err = mapper.map_http_error(400, "");
+        if let GroqError::InvalidRequestError(msg) = err {
+            assert!(msg.contains("HTTP error 400"));
+        } else {
+            panic!("Expected InvalidRequestError");
+        }
+    }
+}

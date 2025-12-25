@@ -102,3 +102,121 @@ fn default_timeout() -> u64 {
 fn default_max_retries() -> u32 {
     3
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_groq_config_default() {
+        let config = GroqConfig::default();
+        assert!(config.api_key.is_none());
+        assert!(config.api_base.is_none());
+        assert!(config.organization_id.is_none());
+        assert_eq!(config.timeout, 30);
+        assert_eq!(config.max_retries, 3);
+        assert!(!config.debug);
+    }
+
+    #[test]
+    fn test_groq_config_get_api_base_default() {
+        let config = GroqConfig::default();
+        assert_eq!(config.get_api_base(), "https://api.groq.com/openai/v1");
+    }
+
+    #[test]
+    fn test_groq_config_get_api_base_custom() {
+        let config = GroqConfig {
+            api_base: Some("https://custom.groq.com".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config.get_api_base(), "https://custom.groq.com");
+    }
+
+    #[test]
+    fn test_groq_config_get_api_key() {
+        let config = GroqConfig {
+            api_key: Some("test-key".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config.get_api_key(), Some("test-key".to_string()));
+    }
+
+    #[test]
+    fn test_groq_config_provider_config_trait() {
+        let config = GroqConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: Some("https://custom.groq.com".to_string()),
+            timeout: 60,
+            max_retries: 5,
+            ..Default::default()
+        };
+
+        assert_eq!(config.api_key(), Some("test-key"));
+        assert_eq!(config.api_base(), Some("https://custom.groq.com"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(60));
+        assert_eq!(config.max_retries(), 5);
+    }
+
+    #[test]
+    fn test_groq_config_validation_no_key() {
+        // Clear env var for this test
+        // SAFETY: This is safe in a single-threaded test context
+        unsafe { std::env::remove_var("GROQ_API_KEY") };
+        let config = GroqConfig::default();
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_groq_config_validation_with_key() {
+        let config = GroqConfig {
+            api_key: Some("test-key".to_string()),
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_groq_config_validation_zero_timeout() {
+        let config = GroqConfig {
+            api_key: Some("test-key".to_string()),
+            timeout: 0,
+            ..Default::default()
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_groq_config_serialization() {
+        let config = GroqConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: Some("https://custom.groq.com".to_string()),
+            organization_id: Some("org-123".to_string()),
+            timeout: 45,
+            max_retries: 2,
+            debug: true,
+        };
+
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["api_key"], "test-key");
+        assert_eq!(json["api_base"], "https://custom.groq.com");
+        assert_eq!(json["organization_id"], "org-123");
+        assert_eq!(json["timeout"], 45);
+        assert_eq!(json["max_retries"], 2);
+        assert_eq!(json["debug"], true);
+    }
+
+    #[test]
+    fn test_groq_config_deserialization() {
+        let json = r#"{
+            "api_key": "test-key",
+            "timeout": 60,
+            "debug": true
+        }"#;
+
+        let config: GroqConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.api_key, Some("test-key".to_string()));
+        assert_eq!(config.timeout, 60);
+        assert!(config.debug);
+    }
+}
