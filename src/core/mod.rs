@@ -13,6 +13,7 @@ pub mod completion; // Core completion API
 pub mod cost; // Unified cost calculation system
 pub mod function_calling; // Function calling support for AI providers
 pub mod health; // Health monitoring system
+pub mod mcp; // MCP (Model Context Protocol) Gateway
 pub mod models;
 pub mod observability; // Advanced observability and monitoring
 pub mod providers;
