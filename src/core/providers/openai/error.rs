@@ -227,3 +227,114 @@ impl std::fmt::Display for OpenAIStreamType {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_openai_authentication_error() {
+        let err = OpenAIError::openai_authentication("Invalid API key");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "auth");
+    }
+
+    #[test]
+    fn test_openai_rate_limit_error() {
+        let err = OpenAIError::openai_rate_limit(Some(60), Some(100), Some(10000), Some(0.5));
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "rate_limit");
+    }
+
+    #[test]
+    fn test_openai_content_filtered_error() {
+        let err = OpenAIError::openai_content_filtered(
+            "Content violates policy",
+            Some(vec!["violence".to_string()]),
+            false,
+        );
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "content_policy");
+    }
+
+    #[test]
+    fn test_openai_context_exceeded_error() {
+        let err = OpenAIError::openai_context_exceeded(4096, 5000);
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "context_limit");
+    }
+
+    #[test]
+    fn test_openai_model_not_found_error() {
+        let err = OpenAIError::openai_model_not_found("gpt-5");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "model");
+    }
+
+    #[test]
+    fn test_openai_network_error() {
+        let err = OpenAIError::openai_network_error("Connection failed");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "network");
+    }
+
+    #[test]
+    fn test_openai_timeout_error() {
+        let err = OpenAIError::openai_timeout("Request timed out after 30s");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "network");
+    }
+
+    #[test]
+    fn test_openai_streaming_error() {
+        let err = OpenAIError::openai_streaming_error("chat", Some(100), "Stream interrupted");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "streaming");
+    }
+
+    #[test]
+    fn test_openai_api_error() {
+        let err = OpenAIError::openai_api_error(500, "Internal server error");
+        assert!(err.is_openai_error());
+        assert_eq!(err.openai_category(), "other");
+    }
+
+    #[test]
+    fn test_content_policy_type_display() {
+        assert_eq!(OpenAIContentPolicyType::Violence.to_string(), "violence");
+        assert_eq!(OpenAIContentPolicyType::Sexual.to_string(), "sexual");
+        assert_eq!(OpenAIContentPolicyType::Hate.to_string(), "hate");
+        assert_eq!(
+            OpenAIContentPolicyType::Other("custom".to_string()).to_string(),
+            "custom"
+        );
+    }
+
+    #[test]
+    fn test_operation_type_display() {
+        assert_eq!(
+            OpenAIOperationType::ChatCompletion.to_string(),
+            "chat_completion"
+        );
+        assert_eq!(
+            OpenAIOperationType::ImageGeneration.to_string(),
+            "image_generation"
+        );
+        assert_eq!(
+            OpenAIOperationType::Other("custom_op".to_string()).to_string(),
+            "custom_op"
+        );
+    }
+
+    #[test]
+    fn test_stream_type_display() {
+        assert_eq!(
+            OpenAIStreamType::ChatCompletion.to_string(),
+            "chat_completion"
+        );
+        assert_eq!(
+            OpenAIStreamType::AudioTranscription.to_string(),
+            "audio_transcription"
+        );
+    }
+}
