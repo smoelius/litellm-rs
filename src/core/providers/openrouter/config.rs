@@ -233,4 +233,80 @@ mod tests {
             Some(&"application/json".to_string())
         );
     }
+
+    #[test]
+    fn test_default_config() {
+        let config = OpenRouterConfig::default();
+        assert_eq!(config.base_url, "https://openrouter.ai/api/v1");
+        assert_eq!(config.timeout_seconds, 30);
+        assert_eq!(config.max_retries, 3);
+        assert!(config.api_key.is_empty());
+        assert!(config.site_url.is_none());
+        assert!(config.site_name.is_none());
+        assert!(config.extra_params.is_empty());
+    }
+
+    #[test]
+    fn test_validation_empty_base_url() {
+        let mut config = OpenRouterConfig::new("or-valid-api-key-12345");
+        config.base_url = String::new();
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validation_invalid_base_url() {
+        let mut config = OpenRouterConfig::new("or-valid-api-key-12345");
+        config.base_url = "invalid-url".to_string();
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_validation_zero_timeout() {
+        let mut config = OpenRouterConfig::new("or-valid-api-key-12345");
+        config.timeout_seconds = 0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_provider_config_trait() {
+        let config = OpenRouterConfig::new("test-api-key");
+        assert_eq!(config.api_key(), Some("test-api-key"));
+        assert_eq!(config.api_base(), Some("https://openrouter.ai/api/v1"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(30));
+        assert_eq!(config.max_retries(), 3);
+    }
+
+    #[test]
+    fn test_with_base_url() {
+        let config = OpenRouterConfig::new("test-key")
+            .with_base_url("https://custom.api.com/v1");
+        assert_eq!(config.base_url, "https://custom.api.com/v1");
+    }
+
+    #[test]
+    fn test_with_extra_param() {
+        let config = OpenRouterConfig::new("test-key")
+            .with_extra_param("model_routing", serde_json::json!(["openai", "anthropic"]));
+
+        assert!(config.extra_params.contains_key("model_routing"));
+        assert_eq!(
+            config.extra_params.get("model_routing").unwrap(),
+            &serde_json::json!(["openai", "anthropic"])
+        );
+    }
+
+    #[test]
+    fn test_headers_without_optional() {
+        let config = OpenRouterConfig::new("test-key");
+
+        let headers = config.get_headers();
+
+        // Should have authorization and content-type
+        assert!(headers.contains_key("Authorization"));
+        assert!(headers.contains_key("Content-Type"));
+
+        // Should NOT have optional headers
+        assert!(!headers.contains_key("HTTP-Referer"));
+        assert!(!headers.contains_key("X-Title"));
+    }
 }

@@ -343,4 +343,149 @@ mod tests {
         assert!(spec.features.contains(&OpenRouterModelFeature::Vision));
         assert!(spec.features.contains(&OpenRouterModelFeature::Json));
     }
+
+    #[test]
+    fn test_global_registry() {
+        let registry = get_openrouter_registry();
+        assert!(registry.get_model_spec("openai/gpt-4").is_some());
+    }
+
+    #[test]
+    fn test_anthropic_models() {
+        let registry = OpenRouterModelRegistry::new();
+
+        let claude_opus = registry.get_model_spec("anthropic/claude-3-opus");
+        assert!(claude_opus.is_some());
+        let spec = claude_opus.unwrap();
+        assert_eq!(spec.provider, "anthropic");
+        assert_eq!(spec.context_length, 200000);
+        assert!(spec.features.contains(&OpenRouterModelFeature::Vision));
+
+        let claude_sonnet = registry.get_model_spec("anthropic/claude-3-sonnet");
+        assert!(claude_sonnet.is_some());
+
+        let claude_haiku = registry.get_model_spec("anthropic/claude-3-haiku");
+        assert!(claude_haiku.is_some());
+    }
+
+    #[test]
+    fn test_google_models() {
+        let registry = OpenRouterModelRegistry::new();
+
+        let gemini = registry.get_model_spec("google/gemini-pro");
+        assert!(gemini.is_some());
+        let spec = gemini.unwrap();
+        assert_eq!(spec.provider, "google");
+        assert!(spec.features.contains(&OpenRouterModelFeature::Vision));
+    }
+
+    #[test]
+    fn test_meta_models() {
+        let registry = OpenRouterModelRegistry::new();
+
+        let llama = registry.get_model_spec("meta-llama/llama-3-70b-instruct");
+        assert!(llama.is_some());
+        let spec = llama.unwrap();
+        assert_eq!(spec.provider, "meta");
+        assert!(!spec
+            .features
+            .contains(&OpenRouterModelFeature::FunctionCalling));
+    }
+
+    #[test]
+    fn test_deepseek_models() {
+        let registry = OpenRouterModelRegistry::new();
+
+        let deepseek = registry.get_model_spec("deepseek/deepseek-chat");
+        assert!(deepseek.is_some());
+        let spec = deepseek.unwrap();
+        assert_eq!(spec.provider, "deepseek");
+        assert!(spec
+            .features
+            .contains(&OpenRouterModelFeature::FunctionCalling));
+        assert!(spec.features.contains(&OpenRouterModelFeature::Json));
+    }
+
+    #[test]
+    fn test_mistral_models() {
+        let registry = OpenRouterModelRegistry::new();
+
+        let mistral = registry.get_model_spec("mistralai/mistral-large");
+        assert!(mistral.is_some());
+        let spec = mistral.unwrap();
+        assert_eq!(spec.provider, "mistral");
+        assert_eq!(spec.context_length, 128000);
+    }
+
+    #[test]
+    fn test_model_pricing() {
+        let registry = OpenRouterModelRegistry::new();
+
+        // GPT-4 should have pricing
+        let gpt4 = registry.get_model_spec("openai/gpt-4").unwrap();
+        assert!(gpt4.prompt_cost.is_some());
+        assert!(gpt4.completion_cost.is_some());
+
+        // Check cost conversion in ModelInfo
+        let models = registry.get_all_models();
+        let gpt4_info = models.iter().find(|m| m.id == "openai/gpt-4").unwrap();
+        // 30.0 per 1M => 0.03 per 1k
+        assert!(gpt4_info.input_cost_per_1k_tokens.is_some());
+    }
+
+    #[test]
+    fn test_register_custom_model() {
+        let mut registry = OpenRouterModelRegistry::new();
+
+        let custom_model = OpenRouterModelSpec {
+            id: "custom/my-model".to_string(),
+            name: "My Custom Model".to_string(),
+            context_length: 4096,
+            max_output_tokens: Some(1024),
+            features: vec![OpenRouterModelFeature::ChatCompletion],
+            prompt_cost: Some(1.0),
+            completion_cost: Some(2.0),
+            provider: "custom".to_string(),
+        };
+
+        registry.register_model(custom_model);
+
+        let spec = registry.get_model_spec("custom/my-model");
+        assert!(spec.is_some());
+        assert_eq!(spec.unwrap().name, "My Custom Model");
+    }
+
+    #[test]
+    fn test_partial_match_by_name() {
+        let registry = OpenRouterModelRegistry::new();
+
+        // Match by name (case insensitive)
+        let spec = registry.get_model_spec("claude 3 opus");
+        assert!(spec.is_some());
+    }
+
+    #[test]
+    fn test_model_info_capabilities() {
+        let registry = OpenRouterModelRegistry::new();
+        let models = registry.get_all_models();
+
+        // GPT-4 turbo should have function calling capability
+        let gpt4_turbo = models.iter().find(|m| m.id == "openai/gpt-4-turbo").unwrap();
+        assert!(gpt4_turbo.supports_tools);
+        assert!(gpt4_turbo.supports_streaming);
+        assert!(gpt4_turbo.supports_multimodal);
+
+        // Llama should not have function calling
+        let llama = models
+            .iter()
+            .find(|m| m.id == "meta-llama/llama-3-70b-instruct")
+            .unwrap();
+        assert!(!llama.supports_tools);
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let registry = OpenRouterModelRegistry::default();
+        assert!(registry.get_model_spec("openai/gpt-4").is_some());
+    }
 }

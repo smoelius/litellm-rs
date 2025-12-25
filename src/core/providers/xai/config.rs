@@ -104,3 +104,172 @@ fn default_max_retries() -> u32 {
 fn default_web_search() -> bool {
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_default_config() {
+        let config = XAIConfig {
+            api_key: None,
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert!(config.api_key.is_none());
+        assert!(config.api_base.is_none());
+        assert_eq!(config.timeout, 30);
+        assert_eq!(config.max_retries, 3);
+        assert!(!config.debug);
+        assert!(config.enable_web_search);
+    }
+
+    #[test]
+    fn test_validate_missing_api_key() {
+        let config = XAIConfig {
+            api_key: None,
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API key"));
+    }
+
+    #[test]
+    fn test_validate_zero_timeout() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: None,
+            organization_id: None,
+            timeout: 0,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Timeout"));
+    }
+
+    #[test]
+    fn test_validate_success() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_provider_config_trait() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: Some("https://custom.api.com".to_string()),
+            organization_id: None,
+            timeout: 60,
+            max_retries: 5,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert_eq!(config.api_key(), Some("test-key"));
+        assert_eq!(config.api_base(), Some("https://custom.api.com"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(60));
+        assert_eq!(config.max_retries(), 5);
+    }
+
+    #[test]
+    fn test_get_api_base_default() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        // Note: This test assumes XAI_API_BASE is not set in the environment
+        // When api_base is None and env var is not set, should return default
+        assert_eq!(config.get_api_base(), "https://api.x.ai/v1");
+    }
+
+    #[test]
+    fn test_get_api_base_custom() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: Some("https://custom.api.com".to_string()),
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert_eq!(config.get_api_base(), "https://custom.api.com");
+    }
+
+    #[test]
+    fn test_get_api_key() {
+        let config = XAIConfig {
+            api_key: Some("my-api-key".to_string()),
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert_eq!(config.get_api_key(), Some("my-api-key".to_string()));
+    }
+
+    #[test]
+    fn test_debug_mode() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: None,
+            organization_id: None,
+            timeout: 30,
+            max_retries: 3,
+            debug: true,
+            enable_web_search: true,
+        };
+
+        assert!(config.debug);
+    }
+
+    #[test]
+    fn test_organization_id() {
+        let config = XAIConfig {
+            api_key: Some("test-key".to_string()),
+            api_base: None,
+            organization_id: Some("org-123".to_string()),
+            timeout: 30,
+            max_retries: 3,
+            debug: false,
+            enable_web_search: true,
+        };
+
+        assert_eq!(config.organization_id, Some("org-123".to_string()));
+    }
+}
