@@ -35,3 +35,82 @@ fn parse_retry_after(response_body: &str) -> Option<u64> {
         None
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deepseek_error_mapper_401() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(401, "Unauthorized");
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_403() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(403, "Forbidden");
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_404() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(404, "Not found");
+        assert!(matches!(err, ProviderError::ModelNotFound { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_429() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(429, "rate limit exceeded");
+        assert!(matches!(err, ProviderError::RateLimit { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_429_no_rate_limit() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(429, "too many requests");
+        assert!(matches!(err, ProviderError::RateLimit { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_500() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(500, "Internal error");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_503() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(503, "Service unavailable");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_deepseek_error_mapper_unknown() {
+        let mapper = DeepSeekErrorMapper;
+        let err = mapper.map_http_error(418, "I'm a teapot");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_parse_retry_after_with_rate_limit() {
+        let result = parse_retry_after("rate limit exceeded");
+        assert_eq!(result, Some(60));
+    }
+
+    #[test]
+    fn test_parse_retry_after_without_rate_limit() {
+        let result = parse_retry_after("other error");
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_parse_retry_after_empty() {
+        let result = parse_retry_after("");
+        assert_eq!(result, None);
+    }
+}
