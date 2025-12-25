@@ -254,6 +254,34 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_deepinfra_rerank_transformation_new() {
+        let transformation = DeepInfraRerankTransformation::new();
+        let params = transformation.get_supported_cohere_rerank_params();
+        assert!(params.contains(&"query"));
+        assert!(params.contains(&"documents"));
+    }
+
+    #[test]
+    fn test_deepinfra_rerank_transformation_default() {
+        let transformation = DeepInfraRerankTransformation::default();
+        let params = transformation.get_supported_cohere_rerank_params();
+        assert!(!params.is_empty());
+    }
+
+    #[test]
+    fn test_get_supported_cohere_rerank_params() {
+        let transformation = DeepInfraRerankTransformation::new();
+        let params = transformation.get_supported_cohere_rerank_params();
+
+        assert!(params.contains(&"query"));
+        assert!(params.contains(&"documents"));
+        assert!(params.contains(&"queries"));
+        assert!(params.contains(&"top_n"));
+        assert!(params.contains(&"return_documents"));
+        assert_eq!(params.len(), 5);
+    }
+
+    #[test]
     fn test_get_complete_url() {
         let transformation = DeepInfraRerankTransformation::new();
 
@@ -262,6 +290,43 @@ mod tests {
             .unwrap();
 
         assert_eq!(url, "https://api.deepinfra.com/v1/inference/model-name");
+    }
+
+    #[test]
+    fn test_get_complete_url_no_openai() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let url = transformation
+            .get_complete_url(Some("https://api.deepinfra.com/v1/"), "bge-reranker")
+            .unwrap();
+
+        assert_eq!(url, "https://api.deepinfra.com/v1/inference/bge-reranker");
+    }
+
+    #[test]
+    fn test_get_complete_url_missing_base() {
+        let transformation = DeepInfraRerankTransformation::new();
+        let result = transformation.get_complete_url(None, "model-name");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API base is required"));
+    }
+
+    #[test]
+    fn test_create_headers() {
+        let transformation = DeepInfraRerankTransformation::new();
+        let headers = transformation.create_headers(Some("test-api-key")).unwrap();
+
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer test-api-key");
+        assert_eq!(headers.get("Accept").unwrap(), "application/json");
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_create_headers_missing_key() {
+        let transformation = DeepInfraRerankTransformation::new();
+        let result = transformation.create_headers(None);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API key is required"));
     }
 
     #[test]
@@ -284,6 +349,55 @@ mod tests {
         assert_eq!(result["queries"].as_array().unwrap().len(), 2);
         assert_eq!(result["top_n"], json!(5));
         assert_eq!(result["return_documents"], json!(true));
+    }
+
+    #[test]
+    fn test_map_cohere_rerank_params_with_queries() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let request = RerankRequest {
+            query: None,
+            queries: Some(vec!["query1".to_string(), "query2".to_string()]),
+            documents: vec![json!("doc1"), json!("doc2")],
+            top_n: None,
+            return_documents: None,
+            max_chunks_per_doc: None,
+            max_tokens_per_doc: None,
+        };
+
+        let result = transformation.map_cohere_rerank_params(&request);
+
+        assert!(result["queries"].is_array());
+        assert_eq!(result["queries"].as_array().unwrap().len(), 2);
+        assert_eq!(result["queries"][0], "query1");
+        assert!(result.get("top_n").is_none());
+    }
+
+    #[test]
+    fn test_transform_rerank_request() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let request = json!({
+            "query": "test query",
+            "documents": ["doc1", "doc2"],
+            "top_n": 3
+        });
+
+        let result = transformation.transform_rerank_request(request);
+        assert!(result.is_ok());
+        let transformed = result.unwrap();
+        assert!(transformed["queries"].is_array());
+        assert!(transformed["documents"].is_array());
+    }
+
+    #[test]
+    fn test_transform_rerank_request_invalid() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let request = json!("invalid");
+
+        let result = transformation.transform_rerank_request(request);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -311,7 +425,180 @@ mod tests {
         assert_eq!(result.results.len(), 3);
         assert_eq!(result.results[0].relevance_score, 0.9);
         assert_eq!(result.results[0].index, 0);
+        assert_eq!(result.results[1].relevance_score, 0.7);
+        assert_eq!(result.results[1].index, 1);
+        assert_eq!(result.results[2].relevance_score, 0.5);
+        assert_eq!(result.results[2].index, 2);
         assert_eq!(result.meta.tokens.input_tokens, 100);
+        assert_eq!(result.meta.tokens.output_tokens, 0);
+        assert_eq!(result.meta.billed_units.total_tokens, 100);
         assert!(result.usage.is_some());
+        let usage = result.usage.unwrap();
+        assert_eq!(usage.prompt_tokens, 100);
+        assert_eq!(usage.total_tokens, 100);
+    }
+
+    #[test]
+    fn test_transform_rerank_response_without_inference_status() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let deepinfra_response = json!({
+            "scores": [0.8, 0.6],
+            "input_tokens": 50
+        });
+
+        let result = transformation
+            .transform_rerank_response(deepinfra_response)
+            .unwrap();
+
+        assert!(!result.id.is_empty()); // UUID generated
+        assert_eq!(result.results.len(), 2);
+        assert!(result.usage.is_none());
+    }
+
+    #[test]
+    fn test_transform_rerank_response_invalid() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let invalid_response = json!({
+            "invalid": "response"
+        });
+
+        let result = transformation.transform_rerank_response(invalid_response);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_parse_error_with_detail_error() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let error_response = json!({
+            "detail": {
+                "error": "Model not found"
+            }
+        });
+
+        let msg = transformation.parse_error(error_response);
+        assert_eq!(msg, "Model not found");
+    }
+
+    #[test]
+    fn test_parse_error_with_detail_string() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let error_response = json!({
+            "detail": "Bad request"
+        });
+
+        let msg = transformation.parse_error(error_response);
+        assert_eq!(msg, "Bad request");
+    }
+
+    #[test]
+    fn test_parse_error_with_error_field() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let error_response = json!({
+            "error": "Rate limit exceeded"
+        });
+
+        let msg = transformation.parse_error(error_response);
+        assert_eq!(msg, "Rate limit exceeded");
+    }
+
+    #[test]
+    fn test_parse_error_fallback() {
+        let transformation = DeepInfraRerankTransformation::new();
+
+        let error_response = json!({
+            "status": "error",
+            "code": 500
+        });
+
+        let msg = transformation.parse_error(error_response);
+        assert!(msg.contains("status"));
+        assert!(msg.contains("error"));
+    }
+
+    // Struct serialization tests
+    #[test]
+    fn test_rerank_request_serialization() {
+        let request = RerankRequest {
+            query: Some("test".to_string()),
+            queries: None,
+            documents: vec![json!("doc1")],
+            top_n: Some(5),
+            return_documents: Some(true),
+            max_chunks_per_doc: Some(10),
+            max_tokens_per_doc: Some(512),
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(json["query"], "test");
+        assert_eq!(json["top_n"], 5);
+        assert_eq!(json["return_documents"], true);
+        assert_eq!(json["max_chunks_per_doc"], 10);
+        assert_eq!(json["max_tokens_per_doc"], 512);
+    }
+
+    #[test]
+    fn test_rerank_result_serialization() {
+        let result = RerankResult {
+            index: 0,
+            relevance_score: 0.95,
+            document: Some(json!({"text": "test document"})),
+        };
+
+        let json = serde_json::to_value(&result).unwrap();
+        assert_eq!(json["index"], 0);
+        assert_eq!(json["relevance_score"], 0.95);
+        assert!(json["document"].is_object());
+    }
+
+    #[test]
+    fn test_rerank_response_serialization() {
+        let response = RerankResponse {
+            id: "test-id".to_string(),
+            results: vec![RerankResult {
+                index: 0,
+                relevance_score: 0.9,
+                document: None,
+            }],
+            meta: RerankMeta {
+                tokens: RerankTokens {
+                    input_tokens: 100,
+                    output_tokens: 0,
+                },
+                billed_units: RerankBilledUnits {
+                    total_tokens: 100,
+                },
+            },
+            usage: None,
+        };
+
+        let json = serde_json::to_value(&response).unwrap();
+        assert_eq!(json["id"], "test-id");
+        assert!(json["results"].is_array());
+        assert!(json["meta"].is_object());
+        // usage should be skipped when None
+        assert!(json.get("usage").is_none());
+    }
+
+    #[test]
+    fn test_inference_status_deserialization() {
+        let json_str = r#"{
+            "status": "success",
+            "runtime_ms": 150,
+            "cost": 0.001,
+            "tokens_generated": 10,
+            "tokens_input": 100
+        }"#;
+
+        let status: InferenceStatus = serde_json::from_str(json_str).unwrap();
+        assert_eq!(status.status, "success");
+        assert_eq!(status.runtime_ms, 150);
+        assert_eq!(status.cost, 0.001);
+        assert_eq!(status.tokens_generated, 10);
+        assert_eq!(status.tokens_input, 100);
     }
 }

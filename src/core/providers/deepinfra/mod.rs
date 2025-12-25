@@ -530,3 +530,323 @@ impl ProviderConfig for DeepInfraConfig {
         self.max_retries
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::traits::error_mapper::trait_def::ErrorMapper;
+
+    // DeepInfraConfig tests
+    #[test]
+    fn test_deepinfra_config_default() {
+        let config = DeepInfraConfig::default();
+        assert!(config.api_key.is_none());
+        assert_eq!(config.api_base, Some("https://api.deepinfra.com".to_string()));
+        assert_eq!(config.timeout, 60);
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_deepinfra_config_with_api_key() {
+        let config = DeepInfraConfig {
+            api_key: Some("test-key".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config.get_effective_api_key(), Some(&"test-key".to_string()));
+    }
+
+    #[test]
+    fn test_deepinfra_config_get_effective_api_base() {
+        let config = DeepInfraConfig::default();
+        assert_eq!(config.get_effective_api_base(), "https://api.deepinfra.com");
+
+        let config_custom = DeepInfraConfig {
+            api_base: Some("https://custom.api.com".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(config_custom.get_effective_api_base(), "https://custom.api.com");
+
+        let config_none = DeepInfraConfig {
+            api_base: None,
+            ..Default::default()
+        };
+        assert_eq!(config_none.get_effective_api_base(), "https://api.deepinfra.com");
+    }
+
+    #[test]
+    fn test_deepinfra_config_validate_missing_key() {
+        let config = DeepInfraConfig::default();
+        let result = config.validate();
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), "DeepInfra API key is required");
+    }
+
+    #[test]
+    fn test_deepinfra_config_validate_with_key() {
+        let config = DeepInfraConfig {
+            api_key: Some("test-key".to_string()),
+            ..Default::default()
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_deepinfra_config_provider_trait() {
+        let config = DeepInfraConfig {
+            api_key: Some("my-key".to_string()),
+            api_base: Some("https://api.example.com".to_string()),
+            timeout: 120,
+            max_retries: 5,
+        };
+
+        assert_eq!(config.api_key(), Some("my-key"));
+        assert_eq!(config.api_base(), Some("https://api.example.com"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(120));
+        assert_eq!(config.max_retries(), 5);
+    }
+
+    // DeepInfraError tests
+    #[test]
+    fn test_deepinfra_error_display() {
+        let err = DeepInfraError::Configuration("missing config".to_string());
+        assert_eq!(err.to_string(), "Configuration error: missing config");
+
+        let err = DeepInfraError::Authentication("bad key".to_string());
+        assert_eq!(err.to_string(), "Authentication error: bad key");
+
+        let err = DeepInfraError::Network("timeout".to_string());
+        assert_eq!(err.to_string(), "Network error: timeout");
+
+        let err = DeepInfraError::Api { status: 500, message: "server error".to_string() };
+        assert_eq!(err.to_string(), "API error: 500 - server error");
+
+        let err = DeepInfraError::Serialization("parse error".to_string());
+        assert_eq!(err.to_string(), "Serialization error: parse error");
+
+        let err = DeepInfraError::Validation("invalid input".to_string());
+        assert_eq!(err.to_string(), "Validation error: invalid input");
+
+        let err = DeepInfraError::RateLimit("too many requests".to_string());
+        assert_eq!(err.to_string(), "Rate limit exceeded: too many requests");
+
+        let err = DeepInfraError::NotImplemented("streaming".to_string());
+        assert_eq!(err.to_string(), "Feature not implemented: streaming");
+
+        let err = DeepInfraError::ModelNotFound("gpt-5".to_string());
+        assert_eq!(err.to_string(), "Model not found: gpt-5");
+    }
+
+    #[test]
+    fn test_deepinfra_error_type() {
+        assert_eq!(DeepInfraError::Configuration("".to_string()).error_type(), "configuration");
+        assert_eq!(DeepInfraError::Authentication("".to_string()).error_type(), "authentication");
+        assert_eq!(DeepInfraError::Network("".to_string()).error_type(), "network");
+        assert_eq!(DeepInfraError::Api { status: 500, message: "".to_string() }.error_type(), "api_error");
+        assert_eq!(DeepInfraError::Serialization("".to_string()).error_type(), "serialization");
+        assert_eq!(DeepInfraError::Validation("".to_string()).error_type(), "validation");
+        assert_eq!(DeepInfraError::RateLimit("".to_string()).error_type(), "rate_limit");
+        assert_eq!(DeepInfraError::NotImplemented("".to_string()).error_type(), "not_implemented");
+        assert_eq!(DeepInfraError::ModelNotFound("".to_string()).error_type(), "model_not_found");
+    }
+
+    #[test]
+    fn test_deepinfra_error_is_retryable() {
+        assert!(DeepInfraError::Network("".to_string()).is_retryable());
+        assert!(DeepInfraError::RateLimit("".to_string()).is_retryable());
+        assert!(DeepInfraError::Api { status: 500, message: "".to_string() }.is_retryable());
+        assert!(DeepInfraError::Api { status: 503, message: "".to_string() }.is_retryable());
+        assert!(DeepInfraError::Api { status: 429, message: "".to_string() }.is_retryable());
+
+        assert!(!DeepInfraError::Configuration("".to_string()).is_retryable());
+        assert!(!DeepInfraError::Authentication("".to_string()).is_retryable());
+        assert!(!DeepInfraError::Api { status: 400, message: "".to_string() }.is_retryable());
+        assert!(!DeepInfraError::Api { status: 404, message: "".to_string() }.is_retryable());
+        assert!(!DeepInfraError::Validation("".to_string()).is_retryable());
+    }
+
+    #[test]
+    fn test_deepinfra_error_retry_delay() {
+        assert_eq!(DeepInfraError::Network("".to_string()).retry_delay(), Some(5));
+        assert_eq!(DeepInfraError::RateLimit("".to_string()).retry_delay(), Some(60));
+        assert_eq!(DeepInfraError::Api { status: 429, message: "".to_string() }.retry_delay(), Some(30));
+        assert_eq!(DeepInfraError::Api { status: 500, message: "".to_string() }.retry_delay(), Some(10));
+        assert_eq!(DeepInfraError::Api { status: 503, message: "".to_string() }.retry_delay(), Some(10));
+        assert_eq!(DeepInfraError::Configuration("".to_string()).retry_delay(), None);
+        assert_eq!(DeepInfraError::Authentication("".to_string()).retry_delay(), None);
+    }
+
+    #[test]
+    fn test_deepinfra_error_http_status() {
+        assert_eq!(DeepInfraError::Api { status: 503, message: "".to_string() }.http_status(), 503);
+        assert_eq!(DeepInfraError::Authentication("".to_string()).http_status(), 401);
+        assert_eq!(DeepInfraError::Configuration("".to_string()).http_status(), 400);
+        assert_eq!(DeepInfraError::Validation("".to_string()).http_status(), 400);
+        assert_eq!(DeepInfraError::RateLimit("".to_string()).http_status(), 429);
+        assert_eq!(DeepInfraError::ModelNotFound("".to_string()).http_status(), 404);
+        assert_eq!(DeepInfraError::NotImplemented("".to_string()).http_status(), 501);
+        assert_eq!(DeepInfraError::Network("".to_string()).http_status(), 500);
+        assert_eq!(DeepInfraError::Serialization("".to_string()).http_status(), 500);
+    }
+
+    #[test]
+    fn test_deepinfra_error_factory_methods() {
+        let err = DeepInfraError::not_supported("vision");
+        assert!(matches!(err, DeepInfraError::Configuration(_)));
+
+        let err = DeepInfraError::authentication_failed("bad token");
+        assert!(matches!(err, DeepInfraError::Authentication(_)));
+
+        let err = DeepInfraError::rate_limited(Some(30));
+        assert!(matches!(err, DeepInfraError::RateLimit(_)));
+
+        let err = DeepInfraError::network_error("timeout");
+        assert!(matches!(err, DeepInfraError::Network(_)));
+
+        let err = DeepInfraError::parsing_error("invalid json");
+        assert!(matches!(err, DeepInfraError::Serialization(_)));
+
+        let err = DeepInfraError::not_implemented("streaming");
+        assert!(matches!(err, DeepInfraError::NotImplemented(_)));
+    }
+
+    // DeepInfraErrorMapper tests
+    #[test]
+    fn test_deepinfra_error_mapper_401() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(401, "invalid key");
+        assert!(matches!(err, DeepInfraError::Authentication(_)));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_403() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(403, "forbidden");
+        assert!(matches!(err, DeepInfraError::Authentication(_)));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_404() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(404, "not found");
+        assert!(matches!(err, DeepInfraError::ModelNotFound(_)));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_429() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(429, "rate limited");
+        assert!(matches!(err, DeepInfraError::RateLimit(_)));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_500() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(500, "server error");
+        assert!(matches!(err, DeepInfraError::Api { status: 500, .. }));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_503() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(503, "service unavailable");
+        assert!(matches!(err, DeepInfraError::Api { status: 503, .. }));
+    }
+
+    #[test]
+    fn test_deepinfra_error_mapper_unknown() {
+        let mapper = DeepInfraErrorMapper;
+        let err = mapper.map_http_error(418, "teapot");
+        assert!(matches!(err, DeepInfraError::Api { status: 418, .. }));
+    }
+
+    // DeepInfraProvider tests
+    #[test]
+    fn test_deepinfra_provider_supports_model() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+
+        assert!(provider.supports_model("meta-llama/Llama-2-70b"));
+        assert!(provider.supports_model("mistralai/Mixtral-8x7B"));
+        assert!(provider.supports_model("tiiuae/falcon-40b"));
+        assert!(!provider.supports_model("gpt-4"));
+        assert!(!provider.supports_model("claude-3"));
+    }
+
+    #[test]
+    fn test_deepinfra_provider_name() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+        assert_eq!(provider.name(), "deepinfra");
+    }
+
+    #[test]
+    fn test_deepinfra_provider_capabilities() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+        let capabilities = provider.capabilities();
+
+        assert!(capabilities.contains(&ProviderCapability::ChatCompletion));
+        assert!(capabilities.contains(&ProviderCapability::ChatCompletionStream));
+    }
+
+    #[test]
+    fn test_deepinfra_provider_get_supported_openai_params() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+        let params = provider.get_supported_openai_params("any-model");
+
+        assert!(params.contains(&"temperature"));
+        assert!(params.contains(&"max_tokens"));
+        assert!(params.contains(&"top_p"));
+        assert!(params.contains(&"stream"));
+    }
+
+    #[tokio::test]
+    async fn test_deepinfra_provider_calculate_cost() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+
+        let cost = provider.calculate_cost("meta-llama/Llama-2-70b-chat-hf", 1000, 1000).await.unwrap();
+        assert!(cost > 0.0);
+
+        let cost_unknown = provider.calculate_cost("unknown-model", 1000, 1000).await.unwrap();
+        assert_eq!(cost_unknown, 0.0);
+    }
+
+    #[tokio::test]
+    async fn test_deepinfra_provider_health_check_with_key() {
+        let config = DeepInfraConfig {
+            api_key: Some("test".to_string()),
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+        let status = provider.health_check().await;
+        assert_eq!(status, HealthStatus::Healthy);
+    }
+
+    #[tokio::test]
+    async fn test_deepinfra_provider_health_check_without_key() {
+        let config = DeepInfraConfig {
+            api_key: None,
+            ..Default::default()
+        };
+        let provider = DeepInfraProvider::new(config).unwrap();
+        let status = provider.health_check().await;
+        assert_eq!(status, HealthStatus::Unhealthy);
+    }
+}
