@@ -33,10 +33,12 @@ This is a **high-performance AI Gateway** written in Rust that provides OpenAI-c
 
 **Gateway Architecture**: Modular, trait-based design with dependency injection
 - `src/core/` - Central orchestrator and business logic
-- `src/server/` - Actix-web HTTP server with middleware pipeline  
+- `src/server/` - Actix-web HTTP server with middleware pipeline
 - `src/auth/` - Multi-layered authentication (JWT, API keys, RBAC)
 - `src/core/providers/` - Pluggable provider system (OpenAI, Anthropic, Azure, Google, etc.)
 - `src/core/router/` - Intelligent routing with multiple strategies
+- `src/core/mcp/` - MCP Gateway for external tool integration (90 tests)
+- `src/core/a2a/` - A2A Protocol for agent-to-agent communication (48 tests)
 - `src/storage/` - Multi-backend storage (PostgreSQL, Redis, S3, Vector DB)
 - `src/monitoring/` - Observability (Prometheus, tracing, health checks)
 
@@ -107,6 +109,28 @@ The codebase uses Cargo features extensively:
 3. **Authentication**: Extend auth modules in `src/auth/`
 4. **Configuration**: Update models in `src/config/models/`
 5. **Monitoring**: Add metrics in respective modules
+6. **MCP servers**: Add server configs in `src/core/mcp/config.rs`
+7. **A2A agents**: Add agent configs in `src/core/a2a/config.rs`
+
+## Protocol Gateways
+
+### MCP Gateway (`src/core/mcp/`)
+Model Context Protocol for connecting LLMs to external tools:
+- `config.rs` - Server configuration, authentication (Bearer, API Key, OAuth 2.0)
+- `transport.rs` - HTTP, SSE, WebSocket, stdio transports
+- `protocol.rs` - JSON-RPC 2.0 implementation
+- `tools.rs` - Tool definitions and invocation
+- `server.rs` - Individual server connection management
+- `gateway.rs` - Main gateway aggregating servers
+- `permissions.rs` - Fine-grained access control
+
+### A2A Protocol (`src/core/a2a/`)
+Agent-to-Agent communication with multi-provider support:
+- `config.rs` - Agent configuration, provider types
+- `message.rs` - JSON-RPC 2.0 message format, task states
+- `provider.rs` - Provider adapters (LangGraph, Vertex AI, Azure, Bedrock, Pydantic AI)
+- `registry.rs` - Agent discovery and health monitoring
+- `gateway.rs` - Main gateway for agent management
 
 ## Docker & Deployment
 

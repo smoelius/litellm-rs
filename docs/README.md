@@ -23,6 +23,10 @@ A high-performance AI Gateway written in Rust that provides unified access to 10
 - [Anthropic](./providers/anthropic.md) - Claude models integration
 - [Adding Providers](./providers/adding-new-provider.md) - Step-by-step provider implementation
 
+### Protocol Gateways
+- [MCP Gateway](./protocols/mcp.md) - Model Context Protocol integration
+- [A2A Protocol](./protocols/a2a.md) - Agent-to-Agent communication
+
 ### Examples & Tutorials
 - [Basic Examples](./examples/basic-usage.md) - Simple completion examples
 - [Advanced Features](./examples/advanced-features.md) - Streaming, function calling, etc.
@@ -57,6 +61,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - **Intelligent Routing**: Smart load balancing and failover
 - **Enterprise Ready**: Authentication, monitoring, cost tracking
 - **Type Safety**: Compile-time guarantees and zero-cost abstractions
+- **MCP Gateway**: Model Context Protocol for external tool integration
+- **A2A Protocol**: Agent-to-Agent communication with multi-provider support
 
 ## 📊 Performance Benchmarks
 
