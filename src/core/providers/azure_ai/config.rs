@@ -175,4 +175,87 @@ mod tests {
         let url = config.build_endpoint_url("/chat/completions").unwrap();
         assert_eq!(url, "https://test.ai.azure.com/chat/completions");
     }
+
+    #[test]
+    fn test_build_endpoint_url_no_base() {
+        // Use Default to get a config without default api_base
+        let config = AzureAIConfig::default();
+        let result = config.build_endpoint_url("chat/completions");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API base URL not set"));
+    }
+
+    #[test]
+    fn test_create_default_headers_with_api_key() {
+        let mut config = AzureAIConfig::new("azure_ai");
+        config.base.api_key = Some("test-api-key".to_string());
+
+        let headers = config.create_default_headers().unwrap();
+        assert_eq!(headers.get("Authorization").unwrap(), "Bearer test-api-key");
+        assert_eq!(headers.get("Content-Type").unwrap(), "application/json");
+        assert_eq!(headers.get("User-Agent").unwrap(), "litellm-rust/0.1.0");
+        assert_eq!(headers.get("api-version").unwrap(), "2024-05-01-preview");
+    }
+
+    #[test]
+    fn test_create_default_headers_no_api_key() {
+        let config = AzureAIConfig::new("azure_ai");
+        let result = config.create_default_headers();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API key not set"));
+    }
+
+    #[test]
+    fn test_timeout() {
+        let config = AzureAIConfig::new("azure_ai");
+        let timeout = config.timeout();
+        assert_eq!(timeout, std::time::Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_validate_success() {
+        let mut config = AzureAIConfig::new("azure_ai");
+        config.base.api_key = Some("test-key".to_string());
+        config.base.api_base = Some("https://test.com".to_string());
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_missing_api_key() {
+        let mut config = AzureAIConfig::new("azure_ai");
+        config.base.api_base = Some("https://test.com".to_string());
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_image_embeddings_endpoint() {
+        assert_eq!(
+            AzureAIEndpointType::ImageEmbeddings.as_path(),
+            "images/embeddings"
+        );
+    }
+
+    #[test]
+    fn test_endpoint_type_equality() {
+        assert_eq!(
+            AzureAIEndpointType::ChatCompletions,
+            AzureAIEndpointType::ChatCompletions
+        );
+        assert_ne!(
+            AzureAIEndpointType::ChatCompletions,
+            AzureAIEndpointType::Embeddings
+        );
+    }
+
+    #[test]
+    fn test_provider_config_trait() {
+        let mut config = AzureAIConfig::new("azure_ai");
+        config.base.api_key = Some("test-key".to_string());
+        config.base.api_base = Some("https://test.com".to_string());
+
+        assert_eq!(config.api_key(), Some("test-key"));
+        assert_eq!(config.api_base(), Some("https://test.com"));
+        assert_eq!(ProviderConfig::timeout(&config), std::time::Duration::from_secs(60));
+        assert_eq!(config.max_retries(), 3);
+    }
 }
