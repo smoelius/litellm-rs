@@ -153,3 +153,99 @@ pub struct AzureModelInfo {
     pub supports_streaming: bool,
     pub api_version: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_azure_config_default() {
+        let config = AzureConfig::default();
+        assert!(config.api_key.is_none());
+        assert!(config.azure_endpoint.is_none());
+        assert_eq!(config.api_version, "2024-02-01");
+        assert!(config.deployment_name.is_none());
+    }
+
+    #[test]
+    fn test_azure_config_builder() {
+        let config = AzureConfig::new()
+            .with_api_key("test-key".to_string())
+            .with_azure_endpoint("https://test.openai.azure.com".to_string())
+            .with_deployment_name("gpt-4".to_string())
+            .with_api_version("2024-03-01".to_string());
+
+        assert_eq!(config.api_key, Some("test-key".to_string()));
+        assert_eq!(
+            config.azure_endpoint,
+            Some("https://test.openai.azure.com".to_string())
+        );
+        assert_eq!(config.deployment_name, Some("gpt-4".to_string()));
+        assert_eq!(config.api_version, "2024-03-01");
+    }
+
+    #[test]
+    fn test_azure_config_effective_deployment_name() {
+        let config = AzureConfig::new().with_deployment_name("my-deployment".to_string());
+        assert_eq!(
+            config.get_effective_deployment_name("gpt-4"),
+            "my-deployment"
+        );
+
+        let config_no_deployment = AzureConfig::new();
+        assert_eq!(config_no_deployment.get_effective_deployment_name("gpt-4"), "gpt-4");
+    }
+
+    #[test]
+    fn test_azure_config_effective_endpoint() {
+        let config =
+            AzureConfig::new().with_azure_endpoint("https://test.openai.azure.com".to_string());
+        assert_eq!(
+            config.get_effective_azure_endpoint(),
+            Some("https://test.openai.azure.com".to_string())
+        );
+    }
+
+    #[test]
+    fn test_azure_config_validation() {
+        use crate::core::traits::ProviderConfig;
+
+        let config = AzureConfig::new();
+        assert!(config.validate().is_err()); // Missing endpoint
+
+        let config_with_endpoint =
+            AzureConfig::new().with_azure_endpoint("https://test.openai.azure.com".to_string());
+        assert!(config_with_endpoint.validate().is_ok());
+    }
+
+    #[test]
+    fn test_azure_config_provider_config_trait() {
+        use crate::core::traits::ProviderConfig;
+
+        let config = AzureConfig::new()
+            .with_api_key("test-key".to_string())
+            .with_azure_endpoint("https://test.openai.azure.com".to_string());
+
+        assert_eq!(config.api_key(), Some("test-key"));
+        assert_eq!(config.api_base(), Some("https://test.openai.azure.com"));
+        assert_eq!(config.timeout(), std::time::Duration::from_secs(60));
+        assert_eq!(config.max_retries(), 3);
+    }
+
+    #[test]
+    fn test_azure_model_info() {
+        let model_info = AzureModelInfo {
+            deployment_name: "gpt-4-deployment".to_string(),
+            model_name: "gpt-4".to_string(),
+            max_tokens: Some(8192),
+            supports_functions: true,
+            supports_streaming: true,
+            api_version: "2024-02-01".to_string(),
+        };
+
+        assert_eq!(model_info.deployment_name, "gpt-4-deployment");
+        assert_eq!(model_info.model_name, "gpt-4");
+        assert!(model_info.supports_functions);
+        assert!(model_info.supports_streaming);
+    }
+}
