@@ -92,3 +92,153 @@ pub fn extract_azure_error_message(response: &serde_json::Value) -> String {
 
 // Re-export ProviderError as AzureError for backward compatibility (temporary)
 pub type AzureError = ProviderError;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_azure_error_mapper_400() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(400, "Invalid request body");
+        assert!(matches!(err, ProviderError::InvalidRequest { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_401() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(401, "");
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_403() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(403, "");
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_404() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(404, "");
+        assert!(matches!(err, ProviderError::ModelNotFound { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_429() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(429, "");
+        assert!(matches!(err, ProviderError::RateLimit { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_500() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(500, "Internal error");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_503() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(503, "Service unavailable");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_unknown() {
+        let mapper = AzureErrorMapper;
+        let err = mapper.map_http_error(418, "I'm a teapot");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_azure_ad_error() {
+        let err = azure_ad_error("token expired");
+        assert!(matches!(err, ProviderError::Authentication { .. }));
+    }
+
+    #[test]
+    fn test_azure_deployment_error() {
+        let err = azure_deployment_error("deployment not found");
+        assert!(matches!(err, ProviderError::ModelNotFound { .. }));
+    }
+
+    #[test]
+    fn test_azure_config_error() {
+        let err = azure_config_error("missing endpoint");
+        assert!(matches!(err, ProviderError::Configuration { .. }));
+    }
+
+    #[test]
+    fn test_azure_api_error() {
+        let err = azure_api_error(500, "server error");
+        assert!(matches!(err, ProviderError::ApiError { .. }));
+    }
+
+    #[test]
+    fn test_azure_header_error() {
+        let err = azure_header_error("missing api key");
+        assert!(matches!(err, ProviderError::InvalidRequest { .. }));
+    }
+
+    #[test]
+    fn test_extract_azure_error_message_with_error_message() {
+        let response = serde_json::json!({
+            "error": {
+                "message": "The model does not exist"
+            }
+        });
+        let msg = extract_azure_error_message(&response);
+        assert_eq!(msg, "The model does not exist");
+    }
+
+    #[test]
+    fn test_extract_azure_error_message_with_code() {
+        // When message is present, it returns the message directly
+        let response = serde_json::json!({
+            "error": {
+                "code": "InvalidRequest",
+                "message": "Missing parameter"
+            }
+        });
+        let msg = extract_azure_error_message(&response);
+        assert_eq!(msg, "Missing parameter");
+    }
+
+    #[test]
+    fn test_extract_azure_error_message_code_only() {
+        // When only code is present (no message as string), it formats with code
+        let response = serde_json::json!({
+            "error": {
+                "code": "InvalidRequest"
+            }
+        });
+        let msg = extract_azure_error_message(&response);
+        assert_eq!(msg, "InvalidRequest: Unknown error");
+    }
+
+    #[test]
+    fn test_extract_azure_error_message_fallback() {
+        let response = serde_json::json!({"status": "error"});
+        let msg = extract_azure_error_message(&response);
+        assert!(msg.contains("status"));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_network_error() {
+        let mapper = AzureErrorMapper;
+        let io_err = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "connection refused");
+        let err = mapper.map_network_error(&io_err);
+        assert!(matches!(err, ProviderError::Network { .. }));
+    }
+
+    #[test]
+    fn test_azure_error_mapper_parsing_error() {
+        let mapper = AzureErrorMapper;
+        let json_err = serde_json::from_str::<String>("invalid").unwrap_err();
+        let err = mapper.map_parsing_error(&json_err);
+        assert!(matches!(err, ProviderError::Serialization { .. }));
+    }
+}
