@@ -264,3 +264,296 @@ impl AzureUtils {
         lower.contains("gpt-4") || lower.contains("gpt-35-turbo") || lower.contains("gpt-3.5-turbo")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_azure_url_chat_completions() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com",
+            "gpt-4-deployment",
+            "2024-02-01",
+            AzureEndpointType::ChatCompletions,
+        );
+        assert_eq!(
+            url,
+            "https://test.openai.azure.com/openai/deployments/gpt-4-deployment/chat/completions?api-version=2024-02-01"
+        );
+    }
+
+    #[test]
+    fn test_build_azure_url_completions() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com",
+            "gpt-4-deployment",
+            "2024-02-01",
+            AzureEndpointType::Completions,
+        );
+        assert!(url.contains("/completions?"));
+        assert!(!url.contains("/chat/"));
+    }
+
+    #[test]
+    fn test_build_azure_url_embeddings() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com",
+            "ada-embedding",
+            "2024-02-01",
+            AzureEndpointType::Embeddings,
+        );
+        assert!(url.contains("/embeddings?"));
+    }
+
+    #[test]
+    fn test_build_azure_url_images() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com",
+            "dalle-3",
+            "2024-02-01",
+            AzureEndpointType::Images,
+        );
+        assert!(url.contains("/images/generations?"));
+    }
+
+    #[test]
+    fn test_build_azure_url_audio() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com",
+            "whisper",
+            "2024-02-01",
+            AzureEndpointType::AudioTranscriptions,
+        );
+        assert!(url.contains("/audio/transcriptions?"));
+    }
+
+    #[test]
+    fn test_build_azure_url_trailing_slash() {
+        let url = AzureUtils::build_azure_url(
+            "https://test.openai.azure.com/",
+            "gpt-4",
+            "2024-02-01",
+            AzureEndpointType::ChatCompletions,
+        );
+        // Should not have double slashes
+        assert!(!url.contains("//openai"));
+    }
+
+    #[test]
+    fn test_create_azure_headers() {
+        let config = AzureConfig::new();
+        let headers = AzureUtils::create_azure_headers(&config, "test-api-key").unwrap();
+
+        assert_eq!(headers.get("api-key").unwrap(), "test-api-key");
+        assert_eq!(headers.get("content-type").unwrap(), "application/json");
+        assert_eq!(headers.get("user-agent").unwrap(), "litellm-rust/1.0.0");
+    }
+
+    #[test]
+    fn test_create_azure_headers_with_custom_headers() {
+        let mut config = AzureConfig::new();
+        config
+            .custom_headers
+            .insert("x-custom-header".to_string(), "custom-value".to_string());
+
+        let headers = AzureUtils::create_azure_headers(&config, "test-api-key").unwrap();
+
+        assert_eq!(headers.get("x-custom-header").unwrap(), "custom-value");
+    }
+
+    #[test]
+    fn test_validate_config_missing_endpoint() {
+        let config = AzureConfig::new();
+        let result = AzureUtils::validate_config(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_config_empty_api_version() {
+        let mut config = AzureConfig::new()
+            .with_azure_endpoint("https://test.openai.azure.com".to_string());
+        config.api_version = String::new();
+
+        let result = AzureUtils::validate_config(&config);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_config_success() {
+        let config = AzureConfig::new()
+            .with_azure_endpoint("https://test.openai.azure.com".to_string());
+
+        let result = AzureUtils::validate_config(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_extract_deployment_from_model_azure_prefix() {
+        let deployment = AzureUtils::extract_deployment_from_model("azure/gpt-4");
+        assert_eq!(deployment, Some("gpt-4".to_string()));
+    }
+
+    #[test]
+    fn test_extract_deployment_from_model_other_prefix() {
+        let deployment = AzureUtils::extract_deployment_from_model("openai/gpt-4");
+        assert_eq!(deployment, Some("gpt-4".to_string()));
+    }
+
+    #[test]
+    fn test_extract_deployment_from_model_no_prefix() {
+        let deployment = AzureUtils::extract_deployment_from_model("gpt-4-deployment");
+        assert_eq!(deployment, Some("gpt-4-deployment".to_string()));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt4() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-4");
+        assert_eq!(info.deployment_name, "gpt-4");
+        assert_eq!(info.model_name, "gpt-4");
+        assert!(info.supports_functions);
+        assert!(info.supports_streaming);
+        assert_eq!(info.max_tokens, Some(8192));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt4_turbo() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-4-turbo-1106");
+        assert_eq!(info.model_name, "gpt-4-1106-preview");
+        assert_eq!(info.max_tokens, Some(128000));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt4_32k() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-4-32k");
+        assert_eq!(info.max_tokens, Some(32768));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt35() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-35-turbo");
+        assert_eq!(info.model_name, "gpt-3.5-turbo");
+        assert!(info.supports_functions);
+        assert_eq!(info.max_tokens, Some(4096));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt35_16k() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-35-turbo-16k");
+        assert_eq!(info.max_tokens, Some(16384));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_gpt35_1106() {
+        let info = AzureUtils::get_model_info_from_deployment("gpt-35-turbo-1106");
+        assert_eq!(info.model_name, "gpt-3.5-turbo-1106");
+        assert_eq!(info.max_tokens, Some(16385));
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_embedding() {
+        let info = AzureUtils::get_model_info_from_deployment("text-embedding-ada-002");
+        assert_eq!(info.model_name, "text-embedding-ada-002");
+        assert!(info.max_tokens.is_none());
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_dalle() {
+        let info = AzureUtils::get_model_info_from_deployment("dall-e-3");
+        assert_eq!(info.model_name, "dall-e-3");
+
+        let info2 = AzureUtils::get_model_info_from_deployment("dall-e-2");
+        assert_eq!(info2.model_name, "dall-e-2");
+    }
+
+    #[test]
+    fn test_get_model_info_from_deployment_unknown() {
+        let info = AzureUtils::get_model_info_from_deployment("custom-deployment");
+        assert_eq!(info.deployment_name, "custom-deployment");
+        assert_eq!(info.model_name, "custom-deployment");
+        assert!(info.max_tokens.is_none());
+    }
+
+    #[test]
+    fn test_process_azure_headers_rate_limits() {
+        let mut headers = HeaderMap::new();
+        headers.insert("x-ratelimit-limit-requests", "100".parse().unwrap());
+        headers.insert("x-ratelimit-remaining-requests", "90".parse().unwrap());
+        headers.insert("x-ratelimit-reset-requests", "60".parse().unwrap());
+        headers.insert("x-ratelimit-limit-tokens", "10000".parse().unwrap());
+        headers.insert("x-ratelimit-remaining-tokens", "9000".parse().unwrap());
+        headers.insert("x-ratelimit-reset-tokens", "30".parse().unwrap());
+        headers.insert("x-request-id", "abc-123".parse().unwrap());
+
+        let processed = AzureUtils::process_azure_headers(&headers);
+
+        assert_eq!(
+            processed.get("x-ratelimit-limit-requests"),
+            Some(&"100".to_string())
+        );
+        assert_eq!(
+            processed.get("x-ratelimit-remaining-requests"),
+            Some(&"90".to_string())
+        );
+        assert_eq!(
+            processed.get("x-ratelimit-limit-tokens"),
+            Some(&"10000".to_string())
+        );
+        assert_eq!(
+            processed.get("x-request-id"),
+            Some(&"abc-123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_process_azure_headers_empty() {
+        let headers = HeaderMap::new();
+        let processed = AzureUtils::process_azure_headers(&headers);
+        assert!(processed.is_empty());
+    }
+
+    #[test]
+    fn test_endpoint_type_equality() {
+        assert_eq!(
+            AzureEndpointType::ChatCompletions,
+            AzureEndpointType::ChatCompletions
+        );
+        assert_ne!(
+            AzureEndpointType::ChatCompletions,
+            AzureEndpointType::Completions
+        );
+    }
+
+    #[test]
+    fn test_all_endpoint_types() {
+        let endpoints = vec![
+            (AzureEndpointType::ChatCompletions, "chat/completions"),
+            (AzureEndpointType::Completions, "completions"),
+            (AzureEndpointType::Embeddings, "embeddings"),
+            (AzureEndpointType::Images, "images/generations"),
+            (AzureEndpointType::ImageEdits, "images/edits"),
+            (AzureEndpointType::ImageVariations, "images/variations"),
+            (AzureEndpointType::AudioSpeech, "audio/speech"),
+            (AzureEndpointType::AudioTranscriptions, "audio/transcriptions"),
+            (AzureEndpointType::AudioTranslations, "audio/translations"),
+            (AzureEndpointType::Files, "files"),
+            (AzureEndpointType::FineTuning, "fine_tuning/jobs"),
+            (AzureEndpointType::Models, "models"),
+        ];
+
+        for (endpoint_type, expected_path) in endpoints {
+            let url = AzureUtils::build_azure_url(
+                "https://test.openai.azure.com",
+                "deployment",
+                "2024-02-01",
+                endpoint_type,
+            );
+            assert!(
+                url.contains(expected_path),
+                "Expected {} to contain {}",
+                url,
+                expected_path
+            );
+        }
+    }
+}

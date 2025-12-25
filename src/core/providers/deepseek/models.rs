@@ -372,4 +372,191 @@ mod tests {
         let tool_models = registry.get_models_with_feature(&ModelFeature::ToolCalling);
         assert!(!tool_models.is_empty());
     }
+
+    #[test]
+    fn test_default_impl() {
+        let registry = DeepSeekModelRegistry::default();
+        assert!(!registry.get_all_models().is_empty());
+    }
+
+    #[test]
+    fn test_get_model_spec() {
+        let registry = get_deepseek_registry();
+        let spec = registry.get_model_spec("deepseek-chat");
+        assert!(spec.is_some());
+        let spec = spec.unwrap();
+        assert_eq!(spec.model_info.provider, "deepseek");
+    }
+
+    #[test]
+    fn test_get_model_spec_nonexistent() {
+        let registry = get_deepseek_registry();
+        let spec = registry.get_model_spec("nonexistent-model");
+        assert!(spec.is_none());
+    }
+
+    #[test]
+    fn test_reasoning_model_detection() {
+        let registry = get_deepseek_registry();
+
+        // Check if any reasoning model exists in the registry
+        let reasoning_models = registry.get_models_with_feature(&ModelFeature::ReasoningMode);
+
+        // If we have reasoning models, verify the feature detection works correctly
+        // The registry may load from pricing DB which may not have R1 models
+        for model in &reasoning_models {
+            assert!(registry.supports_feature(model, &ModelFeature::ReasoningMode));
+        }
+
+        // Regular chat model should not have reasoning feature
+        if registry.get_model_spec("deepseek-chat").is_some() {
+            assert!(!registry.supports_feature("deepseek-chat", &ModelFeature::ReasoningMode));
+        }
+    }
+
+    #[test]
+    fn test_model_config() {
+        let registry = get_deepseek_registry();
+
+        if let Some(spec) = registry.get_model_spec("deepseek-chat") {
+            // Chat model should have high concurrency
+            assert_eq!(spec.config.max_concurrent_requests, Some(10));
+        }
+
+        if let Some(spec) = registry.get_model_spec("deepseek-reasoner") {
+            // Reasoner should have lower concurrency
+            assert_eq!(spec.config.max_concurrent_requests, Some(3));
+        }
+    }
+
+    #[test]
+    fn test_reasoning_model_special_formatting() {
+        let registry = get_deepseek_registry();
+
+        // Check that the create_config function works correctly
+        // by verifying that models with "reasoning" in their ID have special formatting
+        for model in registry.get_all_models() {
+            let spec = registry.get_model_spec(&model.id).unwrap();
+            // Models containing "reasoning" (but not just "r1") should have special formatting
+            // This is because the create_config check is: model.id.contains("reasoning")
+            if model.id.contains("reasoning") {
+                assert!(
+                    spec.config.requires_special_formatting,
+                    "Model {} should have special formatting",
+                    model.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_custom_params() {
+        let registry = get_deepseek_registry();
+
+        // Test custom params for a reasoning model if it exists
+        for model in registry.get_all_models() {
+            if model.id.contains("reasoning") || model.id.contains("reasoner") {
+                let params = registry.get_custom_params(&model.id);
+                assert!(params.is_some());
+                break;
+            }
+        }
+
+        let params = registry.get_custom_params("nonexistent-model");
+        assert!(params.is_none());
+    }
+
+    #[test]
+    fn test_models_with_reasoning() {
+        let registry = get_deepseek_registry();
+        let reasoning_models = registry.get_models_with_feature(&ModelFeature::ReasoningMode);
+
+        // Reasoning models should either contain "r1", "reasoning", or "reasoner"
+        // Or there may be no reasoning models in the pricing DB
+        for model in &reasoning_models {
+            let lower = model.to_lowercase();
+            assert!(
+                lower.contains("r1")
+                    || lower.contains("reasoning")
+                    || lower.contains("reasoner"),
+                "Model {} should be a reasoning model",
+                model
+            );
+        }
+    }
+
+    #[test]
+    fn test_model_feature_equality() {
+        assert_eq!(ModelFeature::ReasoningMode, ModelFeature::ReasoningMode);
+        assert_ne!(ModelFeature::ReasoningMode, ModelFeature::FunctionCalling);
+    }
+
+    #[test]
+    fn test_model_info_properties() {
+        let registry = get_deepseek_registry();
+        let models = registry.get_all_models();
+
+        for model in models {
+            assert!(!model.id.is_empty());
+            assert!(!model.name.is_empty());
+            assert_eq!(model.provider, "deepseek");
+            assert!(model.max_context_length > 0);
+            assert_eq!(model.currency, "USD");
+            assert!(model.input_cost_per_1k_tokens.is_some());
+            assert!(model.output_cost_per_1k_tokens.is_some());
+        }
+    }
+
+    #[test]
+    fn test_global_registry() {
+        let registry1 = get_deepseek_registry();
+        let registry2 = get_deepseek_registry();
+
+        // Should be the same instance (OnceLock)
+        assert_eq!(
+            registry1.get_all_models().len(),
+            registry2.get_all_models().len()
+        );
+    }
+
+    #[test]
+    fn test_deepseek_chat_model() {
+        let registry = get_deepseek_registry();
+        let spec = registry.get_model_spec("deepseek-chat").unwrap();
+
+        assert_eq!(spec.model_info.max_context_length, 128_000);
+        assert!(registry.supports_feature("deepseek-chat", &ModelFeature::ToolCalling));
+        assert!(registry.supports_feature("deepseek-chat", &ModelFeature::FunctionCalling));
+    }
+
+    #[test]
+    fn test_distill_models() {
+        let registry = get_deepseek_registry();
+
+        // Check if any distill models exist (may be loaded from pricing DB)
+        let models = registry.get_all_models();
+        let distill_count = models.iter().filter(|m| m.id.contains("distill")).count();
+
+        // If we have distill models, verify they have proper properties
+        for model in models {
+            if model.id.contains("distill") {
+                assert!(!model.name.is_empty());
+                assert_eq!(model.provider, "deepseek");
+            }
+        }
+
+        // Just verify the registry loads without error - distill models
+        // may or may not exist depending on the pricing database
+        assert!(
+            registry.get_all_models().len() > 0,
+            "Registry should have at least some models"
+        );
+    }
+
+    #[test]
+    fn test_supports_feature_nonexistent() {
+        let registry = get_deepseek_registry();
+        assert!(!registry.supports_feature("nonexistent", &ModelFeature::ReasoningMode));
+        assert!(!registry.supports_feature("nonexistent", &ModelFeature::ToolCalling));
+    }
 }
