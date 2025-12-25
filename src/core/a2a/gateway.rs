@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 
 use super::config::{A2AGatewayConfig, AgentConfig, AgentProvider};
 use super::error::{A2AError, A2AResult};
-use super::message::{A2AMessage, A2AResponse, Message, TaskResult, TaskState};
+use super::message::{A2AMessage, A2AResponse, TaskResult};
 use super::provider::{get_provider_adapter, A2AProviderAdapter};
 use super::registry::{AgentRegistry, AgentState, RegistryStats};
 

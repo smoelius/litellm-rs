@@ -4,10 +4,12 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::time::Duration;
 
 use super::config::{AgentConfig, AgentProvider};
 use super::error::{A2AError, A2AResult};
-use super::message::{A2AMessage, A2AResponse, Message, TaskResult};
+use super::message::{A2AMessage, A2AResponse, TaskResult};
+use crate::utils::net::http::get_client_with_timeout;
 
 /// Trait for A2A provider implementations
 #[async_trait]
@@ -40,21 +42,39 @@ pub trait A2AProviderAdapter: Send + Sync {
 }
 
 /// Generic A2A provider (standard JSON-RPC 2.0)
+///
+/// Uses a shared HTTP client pool for optimal connection reuse.
 pub struct GenericA2AProvider {
-    client: reqwest::Client,
+    /// Cached client for the default timeout (60s)
+    default_client: Arc<reqwest::Client>,
 }
 
 impl GenericA2AProvider {
-    /// Create a new generic provider
+    /// Create a new generic provider with shared HTTP client
     pub fn new() -> Self {
+        // Use the shared client pool with default A2A timeout (60s)
         Self {
-            client: reqwest::Client::new(),
+            default_client: get_client_with_timeout(Duration::from_secs(60)),
         }
     }
 
-    /// Create with custom HTTP client
+    /// Create with custom HTTP client (for testing)
     pub fn with_client(client: reqwest::Client) -> Self {
-        Self { client }
+        Self {
+            default_client: Arc::new(client),
+        }
+    }
+
+    /// Get the appropriate client for the given timeout
+    fn get_client(&self, timeout_ms: u64) -> Arc<reqwest::Client> {
+        let timeout_secs = timeout_ms / 1000;
+        if timeout_secs == 60 {
+            // Use the default cached client
+            self.default_client.clone()
+        } else {
+            // Get from global cache for other timeouts
+            get_client_with_timeout(Duration::from_secs(timeout_secs))
+        }
     }
 
     /// Build request with authentication
@@ -63,11 +83,8 @@ impl GenericA2AProvider {
         config: &AgentConfig,
         message: &A2AMessage,
     ) -> reqwest::RequestBuilder {
-        let mut request = self
-            .client
-            .post(&config.url)
-            .timeout(std::time::Duration::from_millis(config.timeout_ms))
-            .json(message);
+        let client = self.get_client(config.timeout_ms);
+        let mut request = client.post(&config.url).json(message);
 
         // Add API key if present
         if let Some(ref api_key) = config.api_key {

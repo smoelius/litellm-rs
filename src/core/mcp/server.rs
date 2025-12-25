@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::RwLock;
 
 use super::config::McpServerConfig;
@@ -13,6 +14,7 @@ use super::protocol::{
 };
 use super::tools::{Tool, ToolCall, ToolList, ToolResult};
 use super::transport::Transport;
+use crate::utils::net::http::get_client_with_timeout;
 
 /// MCP Server connection state
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,6 +30,8 @@ pub enum ServerState {
 }
 
 /// MCP Server connection
+///
+/// Uses a shared HTTP client pool for optimal connection reuse.
 #[derive(Debug)]
 pub struct McpServer {
     /// Server configuration
@@ -36,8 +40,11 @@ pub struct McpServer {
     /// Connection state
     state: RwLock<ServerState>,
 
-    /// HTTP client (for HTTP/SSE transports)
-    http_client: reqwest::Client,
+    /// HTTP client from shared pool (for HTTP/SSE transports)
+    http_client: Arc<reqwest::Client>,
+
+    /// Custom headers for this server
+    custom_headers: reqwest::header::HeaderMap,
 
     /// Cached tools list
     tools_cache: RwLock<Option<Vec<Tool>>>,
@@ -54,10 +61,11 @@ impl McpServer {
     pub fn new(config: McpServerConfig) -> McpResult<Self> {
         config.validate().map_err(|e| McpError::ConfigurationError { message: e })?;
 
-        let mut client_builder = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_millis(config.timeout_ms));
+        // Get shared client with appropriate timeout
+        let timeout_secs = config.timeout_ms / 1000;
+        let http_client = get_client_with_timeout(Duration::from_secs(timeout_secs.max(1)));
 
-        // Add static headers
+        // Build custom headers for this server
         let mut headers = reqwest::header::HeaderMap::new();
         for (key, value) in &config.static_headers {
             if let (Ok(name), Ok(val)) = (
@@ -81,18 +89,11 @@ impl McpServer {
             }
         }
 
-        client_builder = client_builder.default_headers(headers);
-
-        let http_client = client_builder
-            .build()
-            .map_err(|e| McpError::ConfigurationError {
-                message: format!("Failed to create HTTP client: {}", e),
-            })?;
-
         Ok(Self {
             config,
             state: RwLock::new(ServerState::Disconnected),
             http_client,
+            custom_headers: headers,
             tools_cache: RwLock::new(None),
             capabilities: RwLock::new(None),
             request_id: std::sync::atomic::AtomicU64::new(1),
@@ -278,6 +279,7 @@ impl McpServer {
         let response = self
             .http_client
             .post(&self.config.url)
+            .headers(self.custom_headers.clone())
             .json(&request)
             .send()
             .await

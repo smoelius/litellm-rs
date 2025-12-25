@@ -229,7 +229,6 @@ pub type AgentRegistryHandle = Arc<AgentRegistry>;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::a2a::config::AgentProvider;
 
     #[tokio::test]
     async fn test_registry_creation() {
