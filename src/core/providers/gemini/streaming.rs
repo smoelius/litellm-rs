@@ -512,4 +512,247 @@ mod tests {
             &crate::core::types::responses::FinishReason::Stop
         );
     }
+
+    #[test]
+    fn test_sse_empty_line() {
+        let event = GeminiSSEParser::parse_event("");
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn test_sse_comment_line() {
+        let event = GeminiSSEParser::parse_event(": this is a comment");
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn test_sse_event_type_line() {
+        let event = GeminiSSEParser::parse_event("event: message");
+        assert!(event.is_none());
+    }
+
+    #[test]
+    fn test_sse_ping_event() {
+        let event = GeminiSSEParser::parse_event("data: ");
+        assert!(event.is_some());
+        assert!(matches!(event.unwrap(), GeminiSSEEvent::Ping));
+    }
+
+    #[test]
+    fn test_sse_unknown_json() {
+        let line = r#"data: {"unknown_field": "value"}"#;
+        let event = GeminiSSEParser::parse_event(line);
+        assert!(event.is_some());
+        assert!(matches!(event.unwrap(), GeminiSSEEvent::Unknown(_)));
+    }
+
+    #[test]
+    fn test_sse_invalid_json() {
+        let line = "data: not valid json";
+        let event = GeminiSSEParser::parse_event(line);
+        assert!(event.is_some());
+        assert!(matches!(event.unwrap(), GeminiSSEEvent::Unknown(_)));
+    }
+
+    #[test]
+    fn test_chunk_transformation_with_finish_reason_stop() {
+        let response = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": "Done."}]
+                },
+                "finishReason": "STOP"
+            }]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            chunk.choices[0].finish_reason.as_ref().unwrap(),
+            &crate::core::types::responses::FinishReason::Stop
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_with_finish_reason_max_tokens() {
+        let response = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": "..."}]
+                },
+                "finishReason": "MAX_TOKENS"
+            }]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            chunk.choices[0].finish_reason.as_ref().unwrap(),
+            &crate::core::types::responses::FinishReason::Length
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_with_finish_reason_safety() {
+        let response = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": "..."}]
+                },
+                "finishReason": "SAFETY"
+            }]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            chunk.choices[0].finish_reason.as_ref().unwrap(),
+            &crate::core::types::responses::FinishReason::ContentFilter
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_with_finish_reason_recitation() {
+        let response = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [{"text": "..."}]
+                },
+                "finishReason": "RECITATION"
+            }]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            chunk.choices[0].finish_reason.as_ref().unwrap(),
+            &crate::core::types::responses::FinishReason::ContentFilter
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_ping_event() {
+        let event = GeminiSSEEvent::Ping;
+        let result = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_chunk_transformation_unknown_event() {
+        let event = GeminiSSEEvent::Unknown("some data".to_string());
+        let result = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none());
+    }
+
+    #[test]
+    fn test_chunk_transformation_done_event() {
+        let event = GeminiSSEEvent::Done;
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(chunk.choices.len(), 1);
+        assert_eq!(
+            chunk.choices[0].finish_reason.as_ref().unwrap(),
+            &crate::core::types::responses::FinishReason::Stop
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_empty_candidates() {
+        let response = json!({
+            "candidates": []
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let result = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id");
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_none()); // Empty candidates should be skipped
+    }
+
+    #[test]
+    fn test_chunk_transformation_multiple_parts() {
+        let response = json!({
+            "candidates": [{
+                "content": {
+                    "parts": [
+                        {"text": "Hello"},
+                        {"text": " "},
+                        {"text": "world"}
+                    ]
+                }
+            }]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(
+            chunk.choices[0].delta.content.as_ref().unwrap(),
+            "Hello world"
+        );
+    }
+
+    #[test]
+    fn test_chunk_transformation_multiple_candidates() {
+        let response = json!({
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [{"text": "Response 1"}]
+                    }
+                },
+                {
+                    "content": {
+                        "parts": [{"text": "Response 2"}]
+                    }
+                }
+            ]
+        });
+
+        let event = GeminiSSEEvent::GenerateContentResponse(response);
+        let chunk = GeminiSSEParser::transform_to_chat_chunk(&event, "gemini-pro", "test-id")
+            .unwrap()
+            .unwrap();
+
+        assert_eq!(chunk.choices.len(), 2);
+        assert_eq!(chunk.choices[0].index, 0);
+        assert_eq!(chunk.choices[1].index, 1);
+        assert_eq!(
+            chunk.choices[0].delta.content.as_ref().unwrap(),
+            "Response 1"
+        );
+        assert_eq!(
+            chunk.choices[1].delta.content.as_ref().unwrap(),
+            "Response 2"
+        );
+    }
+
+    #[test]
+    fn test_current_timestamp_secs() {
+        let ts = current_timestamp_secs();
+        assert!(ts > 0);
+    }
+
+    #[test]
+    fn test_current_timestamp_nanos() {
+        let ts = current_timestamp_nanos();
+        assert!(ts > 0);
+    }
 }
