@@ -77,3 +77,56 @@ impl From<&str> for MessageContent {
         Self::Text(s.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_message_role_display() {
+        assert_eq!(MessageRole::System.to_string(), "system");
+        assert_eq!(MessageRole::User.to_string(), "user");
+        assert_eq!(MessageRole::Assistant.to_string(), "assistant");
+        assert_eq!(MessageRole::Tool.to_string(), "tool");
+        assert_eq!(MessageRole::Function.to_string(), "function");
+    }
+
+    #[test]
+    fn test_message_role_serialization() {
+        let role = MessageRole::User;
+        let json = serde_json::to_string(&role).unwrap();
+        assert_eq!(json, "\"user\"");
+
+        let deserialized: MessageRole = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, MessageRole::User);
+    }
+
+    #[test]
+    fn test_message_role_is_empty() {
+        assert!(!MessageRole::System.is_empty());
+        assert!(!MessageRole::User.is_empty());
+        assert!(!MessageRole::Assistant.is_empty());
+    }
+
+    #[test]
+    fn test_message_content_text() {
+        let content = MessageContent::Text("Hello".to_string());
+        assert_eq!(content.to_string(), "Hello");
+    }
+
+    #[test]
+    fn test_message_content_from_string() {
+        let content: MessageContent = "Hello".into();
+        assert_eq!(content.to_string(), "Hello");
+
+        let content: MessageContent = String::from("World").into();
+        assert_eq!(content.to_string(), "World");
+    }
+
+    #[test]
+    fn test_message_content_serialization() {
+        let content = MessageContent::Text("Test message".to_string());
+        let json = serde_json::to_string(&content).unwrap();
+        assert_eq!(json, "\"Test message\"");
+    }
+}

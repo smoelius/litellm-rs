@@ -101,3 +101,98 @@ pub struct ResponseFormat {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response_type: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_tool_type_serialization() {
+        let tool_type = ToolType::Function;
+        let json = serde_json::to_string(&tool_type).unwrap();
+        assert_eq!(json, "\"function\"");
+    }
+
+    #[test]
+    fn test_tool_definition() {
+        let tool = Tool {
+            tool_type: ToolType::Function,
+            function: FunctionDefinition {
+                name: "get_weather".to_string(),
+                description: Some("Get current weather".to_string()),
+                parameters: Some(json!({
+                    "type": "object",
+                    "properties": {
+                        "location": {"type": "string"}
+                    }
+                })),
+            },
+        };
+
+        let json = serde_json::to_value(&tool).unwrap();
+        assert_eq!(json["type"], "function");
+        assert_eq!(json["function"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn test_tool_choice_string() {
+        let choice = ToolChoice::String("auto".to_string());
+        let json = serde_json::to_string(&choice).unwrap();
+        assert_eq!(json, "\"auto\"");
+    }
+
+    #[test]
+    fn test_tool_choice_specific() {
+        let choice = ToolChoice::Specific {
+            choice_type: "function".to_string(),
+            function: Some(FunctionChoice {
+                name: "my_function".to_string(),
+            }),
+        };
+
+        let json = serde_json::to_value(&choice).unwrap();
+        assert_eq!(json["type"], "function");
+        assert_eq!(json["function"]["name"], "my_function");
+    }
+
+    #[test]
+    fn test_tool_call() {
+        let call = ToolCall {
+            id: "call_123".to_string(),
+            tool_type: "function".to_string(),
+            function: FunctionCall {
+                name: "get_weather".to_string(),
+                arguments: "{\"location\": \"NYC\"}".to_string(),
+            },
+        };
+
+        let json = serde_json::to_value(&call).unwrap();
+        assert_eq!(json["id"], "call_123");
+        assert_eq!(json["type"], "function");
+        assert_eq!(json["function"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn test_function_call() {
+        let call = FunctionCall {
+            name: "calculate".to_string(),
+            arguments: "{\"x\": 1, \"y\": 2}".to_string(),
+        };
+
+        assert_eq!(call.name, "calculate");
+        assert!(call.arguments.contains("x"));
+    }
+
+    #[test]
+    fn test_response_format() {
+        let format = ResponseFormat {
+            format_type: "json_object".to_string(),
+            json_schema: None,
+            response_type: None,
+        };
+
+        let json = serde_json::to_value(&format).unwrap();
+        assert_eq!(json["type"], "json_object");
+    }
+}

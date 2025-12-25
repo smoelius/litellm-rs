@@ -266,3 +266,93 @@ impl ChatRequest {
         total
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_chat_message_default() {
+        let msg = ChatMessage::default();
+        assert_eq!(msg.role, MessageRole::User);
+        assert!(msg.content.is_none());
+        assert!(msg.thinking.is_none());
+        assert!(msg.name.is_none());
+        assert!(msg.tool_calls.is_none());
+    }
+
+    #[test]
+    fn test_chat_message_has_thinking() {
+        let msg = ChatMessage::default();
+        assert!(!msg.has_thinking());
+    }
+
+    #[test]
+    fn test_chat_request_new() {
+        let request = ChatRequest::new("gpt-4");
+        assert_eq!(request.model, "gpt-4");
+        assert!(request.messages.is_empty());
+        assert!(!request.stream);
+    }
+
+    #[test]
+    fn test_chat_request_add_messages() {
+        let request = ChatRequest::new("gpt-4")
+            .add_system_message("You are a helpful assistant")
+            .add_user_message("Hello")
+            .add_assistant_message("Hi there!");
+
+        assert_eq!(request.messages.len(), 3);
+        assert_eq!(request.messages[0].role, MessageRole::System);
+        assert_eq!(request.messages[1].role, MessageRole::User);
+        assert_eq!(request.messages[2].role, MessageRole::Assistant);
+    }
+
+    #[test]
+    fn test_chat_request_with_temperature() {
+        let request = ChatRequest::new("gpt-4").with_temperature(0.7);
+        assert_eq!(request.temperature, Some(0.7));
+    }
+
+    #[test]
+    fn test_chat_request_with_max_tokens() {
+        let request = ChatRequest::new("gpt-4").with_max_tokens(100);
+        assert_eq!(request.max_tokens, Some(100));
+    }
+
+    #[test]
+    fn test_chat_request_with_streaming() {
+        let request = ChatRequest::new("gpt-4").with_streaming();
+        assert!(request.stream);
+    }
+
+    #[test]
+    fn test_chat_request_serialization() {
+        let request = ChatRequest::new("gpt-4")
+            .add_user_message("Hello")
+            .with_temperature(0.5);
+
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(json["model"], "gpt-4");
+        assert_eq!(json["temperature"], 0.5);
+        assert!(json["messages"].is_array());
+    }
+
+    #[test]
+    fn test_chat_request_estimate_tokens() {
+        let request = ChatRequest::new("gpt-4")
+            .add_user_message("Hello, world!");
+
+        let tokens = request.estimate_input_tokens();
+        assert!(tokens > 0);
+    }
+
+    #[test]
+    fn test_chat_request_default() {
+        let request = ChatRequest::default();
+        assert!(request.model.is_empty());
+        assert!(request.messages.is_empty());
+        assert!(request.temperature.is_none());
+        assert!(!request.stream);
+    }
+}
