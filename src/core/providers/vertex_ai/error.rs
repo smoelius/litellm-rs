@@ -169,3 +169,129 @@ impl crate::core::types::errors::ProviderErrorTrait for VertexAIError {
         Self::UnsupportedFeature(format!("Feature not implemented: {}", feature))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::types::errors::ProviderErrorTrait;
+
+    #[test]
+    fn test_vertex_error_display() {
+        let err = VertexAIError::Authentication("bad key".to_string());
+        assert_eq!(err.to_string(), "Authentication failed: bad key");
+
+        let err = VertexAIError::Configuration("missing project".to_string());
+        assert_eq!(err.to_string(), "Configuration error: missing project");
+
+        let err = VertexAIError::Network("connection refused".to_string());
+        assert_eq!(err.to_string(), "Network error: connection refused");
+
+        let err = VertexAIError::ApiError {
+            status_code: 500,
+            message: "server error".to_string(),
+        };
+        assert_eq!(err.to_string(), "API error (status 500): server error");
+
+        let err = VertexAIError::RateLimitExceeded;
+        assert_eq!(err.to_string(), "Rate limit exceeded");
+
+        let err = VertexAIError::ServiceUnavailable;
+        assert_eq!(err.to_string(), "Vertex AI service is temporarily unavailable");
+
+        let err = VertexAIError::Timeout(30);
+        assert_eq!(err.to_string(), "Request timed out after 30 seconds");
+
+        let err = VertexAIError::ContextLengthExceeded { max: 4096, actual: 5000 };
+        assert_eq!(err.to_string(), "Context length exceeded: max 4096, got 5000");
+    }
+
+    #[test]
+    fn test_vertex_error_type() {
+        assert_eq!(VertexAIError::Authentication("".to_string()).error_type(), "authentication");
+        assert_eq!(VertexAIError::Configuration("".to_string()).error_type(), "configuration");
+        assert_eq!(VertexAIError::Network("".to_string()).error_type(), "network");
+        assert_eq!(VertexAIError::ApiError { status_code: 500, message: "".to_string() }.error_type(), "api_error");
+        assert_eq!(VertexAIError::ResponseParsing("".to_string()).error_type(), "parsing");
+        assert_eq!(VertexAIError::UnsupportedModel("".to_string()).error_type(), "unsupported_model");
+        assert_eq!(VertexAIError::UnsupportedFeature("".to_string()).error_type(), "unsupported_feature");
+        assert_eq!(VertexAIError::InvalidRequest("".to_string()).error_type(), "invalid_request");
+        assert_eq!(VertexAIError::RateLimitExceeded.error_type(), "rate_limit");
+        assert_eq!(VertexAIError::QuotaExceeded("".to_string()).error_type(), "quota_exceeded");
+        assert_eq!(VertexAIError::TokenLimitExceeded("".to_string()).error_type(), "token_limit");
+        assert_eq!(VertexAIError::ContextLengthExceeded { max: 0, actual: 0 }.error_type(), "context_length");
+        assert_eq!(VertexAIError::ContentFiltered.error_type(), "content_filtered");
+        assert_eq!(VertexAIError::ServiceUnavailable.error_type(), "service_unavailable");
+        assert_eq!(VertexAIError::Timeout(0).error_type(), "timeout");
+        assert_eq!(VertexAIError::FeatureDisabled("".to_string()).error_type(), "feature_disabled");
+        assert_eq!(VertexAIError::Other("".to_string()).error_type(), "other");
+    }
+
+    #[test]
+    fn test_vertex_error_is_retryable() {
+        assert!(VertexAIError::Network("".to_string()).is_retryable());
+        assert!(VertexAIError::RateLimitExceeded.is_retryable());
+        assert!(VertexAIError::ServiceUnavailable.is_retryable());
+        assert!(VertexAIError::Timeout(30).is_retryable());
+        assert!(VertexAIError::ApiError { status_code: 500, message: "".to_string() }.is_retryable());
+        assert!(VertexAIError::ApiError { status_code: 503, message: "".to_string() }.is_retryable());
+
+        assert!(!VertexAIError::Authentication("".to_string()).is_retryable());
+        assert!(!VertexAIError::Configuration("".to_string()).is_retryable());
+        assert!(!VertexAIError::InvalidRequest("".to_string()).is_retryable());
+        assert!(!VertexAIError::ApiError { status_code: 400, message: "".to_string() }.is_retryable());
+    }
+
+    #[test]
+    fn test_vertex_error_retry_delay() {
+        assert_eq!(VertexAIError::RateLimitExceeded.retry_delay(), Some(60));
+        assert_eq!(VertexAIError::ServiceUnavailable.retry_delay(), Some(30));
+        assert_eq!(VertexAIError::Network("".to_string()).retry_delay(), Some(5));
+        assert_eq!(VertexAIError::Timeout(30).retry_delay(), Some(5));
+        assert_eq!(VertexAIError::ApiError { status_code: 500, message: "".to_string() }.retry_delay(), Some(10));
+        assert_eq!(VertexAIError::Authentication("".to_string()).retry_delay(), None);
+    }
+
+    #[test]
+    fn test_vertex_error_status_code() {
+        assert_eq!(VertexAIError::ApiError { status_code: 500, message: "".to_string() }.status_code(), Some(500));
+        assert_eq!(VertexAIError::RateLimitExceeded.status_code(), Some(429));
+        assert_eq!(VertexAIError::ServiceUnavailable.status_code(), Some(503));
+        assert_eq!(VertexAIError::Authentication("".to_string()).status_code(), None);
+    }
+
+    #[test]
+    fn test_vertex_error_http_status() {
+        assert_eq!(VertexAIError::ApiError { status_code: 500, message: "".to_string() }.http_status(), 500);
+        assert_eq!(VertexAIError::RateLimitExceeded.http_status(), 429);
+        assert_eq!(VertexAIError::ServiceUnavailable.http_status(), 503);
+        assert_eq!(VertexAIError::Authentication("".to_string()).http_status(), 0);
+    }
+
+    #[test]
+    fn test_vertex_error_factory_methods() {
+        let err = VertexAIError::not_supported("vision");
+        assert!(matches!(err, VertexAIError::UnsupportedFeature(_)));
+
+        let err = VertexAIError::authentication_failed("bad key");
+        assert!(matches!(err, VertexAIError::Authentication(_)));
+
+        let err = VertexAIError::rate_limited(Some(60));
+        assert!(matches!(err, VertexAIError::RateLimitExceeded));
+
+        let err = VertexAIError::network_error("timeout");
+        assert!(matches!(err, VertexAIError::Network(_)));
+
+        let err = VertexAIError::parsing_error("invalid json");
+        assert!(matches!(err, VertexAIError::ResponseParsing(_)));
+
+        let err = VertexAIError::not_implemented("feature");
+        assert!(matches!(err, VertexAIError::UnsupportedFeature(_)));
+    }
+
+    #[test]
+    fn test_vertex_error_from_serde_error() {
+        let json_err = serde_json::from_str::<String>("invalid").unwrap_err();
+        let err: VertexAIError = json_err.into();
+        assert!(matches!(err, VertexAIError::ResponseParsing(_)));
+    }
+}

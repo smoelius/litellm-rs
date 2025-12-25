@@ -434,3 +434,169 @@ impl VertexAuth {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_access_token_is_expired() {
+        // Token that expires in the future (not expired)
+        let token = AccessToken {
+            token: "test-token".to_string(),
+            expires_at: Utc::now() + Duration::hours(1),
+            token_type: "Bearer".to_string(),
+        };
+        assert!(!token.is_expired());
+
+        // Token that expires in 4 minutes (within 5 min buffer, so expired)
+        let token = AccessToken {
+            token: "test-token".to_string(),
+            expires_at: Utc::now() + Duration::minutes(4),
+            token_type: "Bearer".to_string(),
+        };
+        assert!(token.is_expired());
+
+        // Token that already expired
+        let token = AccessToken {
+            token: "test-token".to_string(),
+            expires_at: Utc::now() - Duration::hours(1),
+            token_type: "Bearer".to_string(),
+        };
+        assert!(token.is_expired());
+    }
+
+    #[test]
+    fn test_vertex_credentials_variants() {
+        let _creds = VertexCredentials::AccessToken("test-token".to_string());
+        let _creds = VertexCredentials::ApplicationDefault;
+    }
+
+    #[test]
+    fn test_vertex_auth_new() {
+        let auth = VertexAuth::new(VertexCredentials::AccessToken("test-token".to_string()));
+        // Just verify it can be created
+        assert!(format!("{:?}", auth).contains("VertexAuth"));
+    }
+
+    #[test]
+    fn test_service_account_key_structure() {
+        let json = r#"{
+            "type": "service_account",
+            "project_id": "test-project",
+            "private_key_id": "key-id",
+            "private_key": "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----\n",
+            "client_email": "test@test.iam.gserviceaccount.com",
+            "client_id": "123456789",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test"
+        }"#;
+
+        let key: ServiceAccountKey = serde_json::from_str(json).unwrap();
+        assert_eq!(key.key_type, "service_account");
+        assert_eq!(key.project_id, "test-project");
+        assert_eq!(key.client_email, "test@test.iam.gserviceaccount.com");
+    }
+
+    #[test]
+    fn test_authorized_user_credentials_structure() {
+        let json = r#"{
+            "client_id": "123.apps.googleusercontent.com",
+            "client_secret": "secret",
+            "refresh_token": "refresh-token",
+            "type": "authorized_user"
+        }"#;
+
+        let creds: AuthorizedUserCredentials = serde_json::from_str(json).unwrap();
+        assert_eq!(creds.cred_type, "authorized_user");
+        assert_eq!(creds.client_id, "123.apps.googleusercontent.com");
+    }
+
+    #[test]
+    fn test_credential_source_structure() {
+        let source = CredentialSource {
+            file: Some("/path/to/token".to_string()),
+            url: None,
+            headers: None,
+            environment_id: None,
+            regional_cred_verification_url: None,
+        };
+        assert_eq!(source.file, Some("/path/to/token".to_string()));
+
+        let source_with_url = CredentialSource {
+            file: None,
+            url: Some("https://metadata.example.com/token".to_string()),
+            headers: Some({
+                let mut h = HashMap::new();
+                h.insert("Authorization".to_string(), "Bearer token".to_string());
+                h
+            }),
+            environment_id: None,
+            regional_cred_verification_url: None,
+        };
+        assert!(source_with_url.headers.is_some());
+    }
+
+    #[test]
+    fn test_parse_credentials_service_account() {
+        let json = r#"{
+            "type": "service_account",
+            "project_id": "test-project",
+            "private_key_id": "key-id",
+            "private_key": "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----\n",
+            "client_email": "test@test.iam.gserviceaccount.com",
+            "client_id": "123456789",
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/test"
+        }"#;
+
+        let creds = VertexAuth::parse_credentials(json).unwrap();
+        assert!(matches!(creds, VertexCredentials::ServiceAccount(_)));
+    }
+
+    #[test]
+    fn test_parse_credentials_authorized_user() {
+        let json = r#"{
+            "client_id": "123.apps.googleusercontent.com",
+            "client_secret": "secret",
+            "refresh_token": "refresh-token",
+            "type": "authorized_user"
+        }"#;
+
+        let creds = VertexAuth::parse_credentials(json).unwrap();
+        assert!(matches!(creds, VertexCredentials::AuthorizedUser(_)));
+    }
+
+    #[test]
+    fn test_parse_credentials_unknown_type() {
+        let json = r#"{"type": "unknown_type"}"#;
+        let result = VertexAuth::parse_credentials(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_workload_identity_config_structure() {
+        let config = WorkloadIdentityConfig {
+            config_type: "external_account".to_string(),
+            audience: "//iam.googleapis.com/projects/123/locations/global/workloadIdentityPools/pool/providers/provider".to_string(),
+            subject_token_type: "urn:ietf:params:oauth:token-type:jwt".to_string(),
+            service_account_impersonation_url: None,
+            token_url: "https://sts.googleapis.com/v1/token".to_string(),
+            credential_source: CredentialSource {
+                file: Some("/var/run/secrets/token".to_string()),
+                url: None,
+                headers: None,
+                environment_id: None,
+                regional_cred_verification_url: None,
+            },
+            quota_project_id: Some("test-project".to_string()),
+        };
+
+        assert_eq!(config.config_type, "external_account");
+        assert!(config.quota_project_id.is_some());
+    }
+}
