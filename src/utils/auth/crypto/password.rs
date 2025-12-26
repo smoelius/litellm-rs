@@ -32,3 +32,102 @@ pub fn verify_password(password: &str, hash: &str) -> Result<bool> {
         ))),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== hash_password Tests ====================
+
+    #[test]
+    fn test_hash_password_produces_hash() {
+        let password = "my-secure-password";
+        let hash = hash_password(password).unwrap();
+
+        assert!(!hash.is_empty());
+        // Argon2 hashes start with $argon2
+        assert!(hash.starts_with("$argon2"));
+    }
+
+    #[test]
+    fn test_hash_password_unique_each_time() {
+        let password = "same-password";
+
+        let hash1 = hash_password(password).unwrap();
+        let hash2 = hash_password(password).unwrap();
+
+        // Different salts should produce different hashes
+        assert_ne!(hash1, hash2);
+    }
+
+    #[test]
+    fn test_hash_password_empty() {
+        let hash = hash_password("").unwrap();
+        assert!(hash.starts_with("$argon2"));
+    }
+
+    #[test]
+    fn test_hash_password_long() {
+        let password = "x".repeat(1000);
+        let hash = hash_password(&password).unwrap();
+        assert!(hash.starts_with("$argon2"));
+    }
+
+    #[test]
+    fn test_hash_password_unicode() {
+        let password = "密码🔐пароль";
+        let hash = hash_password(password).unwrap();
+        assert!(hash.starts_with("$argon2"));
+    }
+
+    // ==================== verify_password Tests ====================
+
+    #[test]
+    fn test_verify_password_correct() {
+        let password = "correct-password";
+        let hash = hash_password(password).unwrap();
+
+        let is_valid = verify_password(password, &hash).unwrap();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_verify_password_incorrect() {
+        let password = "original-password";
+        let hash = hash_password(password).unwrap();
+
+        let is_valid = verify_password("wrong-password", &hash).unwrap();
+        assert!(!is_valid);
+    }
+
+    #[test]
+    fn test_verify_password_invalid_hash() {
+        let result = verify_password("password", "not-a-valid-hash");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_verify_password_empty_password() {
+        let hash = hash_password("").unwrap();
+        let is_valid = verify_password("", &hash).unwrap();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_verify_password_unicode() {
+        let password = "密码🔐пароль";
+        let hash = hash_password(password).unwrap();
+
+        let is_valid = verify_password(password, &hash).unwrap();
+        assert!(is_valid);
+    }
+
+    #[test]
+    fn test_verify_password_case_sensitive() {
+        let password = "CaseSensitive";
+        let hash = hash_password(password).unwrap();
+
+        let is_valid = verify_password("casesensitive", &hash).unwrap();
+        assert!(!is_valid);
+    }
+}

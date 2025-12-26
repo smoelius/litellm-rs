@@ -83,3 +83,201 @@ impl ModelUtils {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== get_model_pricing Tests ====================
+
+    #[test]
+    fn test_get_model_pricing_gpt4_turbo() {
+        let pricing = ModelUtils::get_model_pricing("gpt-4-turbo-preview");
+        assert!(pricing.is_some());
+        let (input, output) = pricing.unwrap();
+        assert!((input - 0.01).abs() < f64::EPSILON);
+        assert!((output - 0.03).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_get_model_pricing_gpt4() {
+        let pricing = ModelUtils::get_model_pricing("gpt-4");
+        assert!(pricing.is_some());
+        let (input, output) = pricing.unwrap();
+        assert!((input - 0.03).abs() < f64::EPSILON);
+        assert!((output - 0.06).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_get_model_pricing_gpt35() {
+        let pricing = ModelUtils::get_model_pricing("gpt-3.5-turbo");
+        assert!(pricing.is_some());
+        let (input, output) = pricing.unwrap();
+        assert!((input - 0.0015).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_get_model_pricing_claude_opus() {
+        let pricing = ModelUtils::get_model_pricing("claude-3-opus-20240229");
+        assert!(pricing.is_some());
+    }
+
+    #[test]
+    fn test_get_model_pricing_claude_sonnet() {
+        let pricing = ModelUtils::get_model_pricing("claude-3-sonnet");
+        assert!(pricing.is_some());
+    }
+
+    #[test]
+    fn test_get_model_pricing_claude_haiku() {
+        let pricing = ModelUtils::get_model_pricing("claude-3-haiku");
+        assert!(pricing.is_some());
+    }
+
+    #[test]
+    fn test_get_model_pricing_gemini() {
+        let pricing = ModelUtils::get_model_pricing("gemini-pro");
+        assert!(pricing.is_some());
+    }
+
+    #[test]
+    fn test_get_model_pricing_unknown() {
+        let pricing = ModelUtils::get_model_pricing("unknown-model-xyz");
+        assert!(pricing.is_none());
+    }
+
+    #[test]
+    fn test_get_model_pricing_case_insensitive() {
+        let pricing = ModelUtils::get_model_pricing("GPT-4-TURBO");
+        assert!(pricing.is_some());
+    }
+
+    // ==================== get_model_aliases Tests ====================
+
+    #[test]
+    fn test_get_model_aliases_gpt4() {
+        let aliases = ModelUtils::get_model_aliases("gpt-4");
+        assert!(!aliases.is_empty());
+        assert!(aliases.iter().any(|a| a.contains("openai")));
+    }
+
+    #[test]
+    fn test_get_model_aliases_claude() {
+        let aliases = ModelUtils::get_model_aliases("claude-3-opus");
+        assert!(!aliases.is_empty());
+        assert!(aliases.iter().any(|a| a.contains("anthropic")));
+    }
+
+    #[test]
+    fn test_get_model_aliases_gemini() {
+        let aliases = ModelUtils::get_model_aliases("gemini-pro");
+        assert!(!aliases.is_empty());
+        assert!(aliases.iter().any(|a| a.contains("google")));
+    }
+
+    #[test]
+    fn test_get_model_aliases_unknown() {
+        let aliases = ModelUtils::get_model_aliases("unknown-model");
+        assert!(aliases.is_empty());
+    }
+
+    // ==================== is_chat_model Tests ====================
+
+    #[test]
+    fn test_is_chat_model_gpt() {
+        assert!(ModelUtils::is_chat_model("gpt-4-turbo"));
+        assert!(ModelUtils::is_chat_model("gpt-3.5-turbo"));
+    }
+
+    #[test]
+    fn test_is_chat_model_claude() {
+        assert!(ModelUtils::is_chat_model("claude-3-opus"));
+        assert!(ModelUtils::is_chat_model("claude-2.1"));
+    }
+
+    #[test]
+    fn test_is_chat_model_gemini() {
+        assert!(ModelUtils::is_chat_model("gemini-pro"));
+    }
+
+    #[test]
+    fn test_is_chat_model_command() {
+        assert!(ModelUtils::is_chat_model("command-r-plus"));
+    }
+
+    #[test]
+    fn test_is_chat_model_llama() {
+        assert!(ModelUtils::is_chat_model("llama-2-70b"));
+    }
+
+    #[test]
+    fn test_is_chat_model_mistral() {
+        assert!(ModelUtils::is_chat_model("mistral-large"));
+    }
+
+    #[test]
+    fn test_is_chat_model_false() {
+        assert!(!ModelUtils::is_chat_model("text-embedding-ada-002"));
+    }
+
+    // ==================== is_completion_model Tests ====================
+
+    #[test]
+    fn test_is_completion_model_davinci() {
+        assert!(ModelUtils::is_completion_model("text-davinci-003"));
+        assert!(ModelUtils::is_completion_model("davinci"));
+    }
+
+    #[test]
+    fn test_is_completion_model_curie() {
+        assert!(ModelUtils::is_completion_model("text-curie-001"));
+        assert!(ModelUtils::is_completion_model("curie"));
+    }
+
+    #[test]
+    fn test_is_completion_model_babbage() {
+        assert!(ModelUtils::is_completion_model("text-babbage-001"));
+    }
+
+    #[test]
+    fn test_is_completion_model_ada() {
+        assert!(ModelUtils::is_completion_model("text-ada-001"));
+    }
+
+    #[test]
+    fn test_is_completion_model_false() {
+        assert!(!ModelUtils::is_completion_model("gpt-4"));
+    }
+
+    // ==================== get_recommended_temperature Tests ====================
+
+    #[test]
+    fn test_get_recommended_temperature_gpt() {
+        let temp = ModelUtils::get_recommended_temperature("gpt-4");
+        assert!((temp - 0.7).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_get_recommended_temperature_claude() {
+        let temp = ModelUtils::get_recommended_temperature("claude-3-opus");
+        assert!((temp - 0.9).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_get_recommended_temperature_gemini() {
+        let temp = ModelUtils::get_recommended_temperature("gemini-pro");
+        assert!((temp - 0.8).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_get_recommended_temperature_command() {
+        let temp = ModelUtils::get_recommended_temperature("command-r");
+        assert!((temp - 0.8).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_get_recommended_temperature_unknown() {
+        let temp = ModelUtils::get_recommended_temperature("unknown-model");
+        assert!((temp - 0.7).abs() < f32::EPSILON);
+    }
+}
