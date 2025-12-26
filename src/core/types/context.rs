@@ -89,3 +89,218 @@ impl RequestContext {
         self.start_time.elapsed().unwrap_or_default()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== RequestContext Default Tests ====================
+
+    #[test]
+    fn test_request_context_default() {
+        let ctx = RequestContext::default();
+
+        assert!(!ctx.request_id.is_empty());
+        assert!(ctx.user_id.is_none());
+        assert!(ctx.client_ip.is_none());
+        assert!(ctx.user_agent.is_none());
+        assert!(ctx.headers.is_empty());
+        assert!(ctx.metadata.is_empty());
+        assert!(ctx.trace_id.is_none());
+        assert!(ctx.span_id.is_none());
+    }
+
+    #[test]
+    fn test_request_context_new() {
+        let ctx = RequestContext::new();
+
+        assert!(!ctx.request_id.is_empty());
+    }
+
+    #[test]
+    fn test_request_context_unique_ids() {
+        let ctx1 = RequestContext::new();
+        let ctx2 = RequestContext::new();
+
+        assert_ne!(ctx1.request_id, ctx2.request_id);
+    }
+
+    // ==================== Builder Pattern Tests ====================
+
+    #[test]
+    fn test_with_user_id() {
+        let ctx = RequestContext::new().with_user_id("user-123");
+
+        assert_eq!(ctx.user_id, Some("user-123".to_string()));
+    }
+
+    #[test]
+    fn test_with_user_id_string_owned() {
+        let ctx = RequestContext::new().with_user_id(String::from("user-456"));
+
+        assert_eq!(ctx.user_id, Some("user-456".to_string()));
+    }
+
+    #[test]
+    fn test_with_client_ip() {
+        let ctx = RequestContext::new().with_client_ip("192.168.1.1");
+
+        assert_eq!(ctx.client_ip, Some("192.168.1.1".to_string()));
+    }
+
+    #[test]
+    fn test_with_client_ip_ipv6() {
+        let ctx = RequestContext::new().with_client_ip("::1");
+
+        assert_eq!(ctx.client_ip, Some("::1".to_string()));
+    }
+
+    #[test]
+    fn test_with_user_agent() {
+        let ctx = RequestContext::new().with_user_agent("Mozilla/5.0");
+
+        assert_eq!(ctx.user_agent, Some("Mozilla/5.0".to_string()));
+    }
+
+    #[test]
+    fn test_with_header() {
+        let ctx = RequestContext::new().with_header("Authorization", "Bearer token");
+
+        assert_eq!(
+            ctx.headers.get("Authorization"),
+            Some(&"Bearer token".to_string())
+        );
+    }
+
+    #[test]
+    fn test_with_multiple_headers() {
+        let ctx = RequestContext::new()
+            .with_header("Content-Type", "application/json")
+            .with_header("Accept", "application/json")
+            .with_header("X-Request-ID", "req-123");
+
+        assert_eq!(ctx.headers.len(), 3);
+        assert_eq!(
+            ctx.headers.get("Content-Type"),
+            Some(&"application/json".to_string())
+        );
+    }
+
+    #[test]
+    fn test_with_metadata() {
+        let ctx = RequestContext::new().with_metadata("key", serde_json::json!("value"));
+
+        assert_eq!(ctx.metadata.get("key"), Some(&serde_json::json!("value")));
+    }
+
+    #[test]
+    fn test_with_metadata_complex_value() {
+        let ctx = RequestContext::new().with_metadata(
+            "config",
+            serde_json::json!({"enabled": true, "count": 5}),
+        );
+
+        let config = ctx.metadata.get("config").unwrap();
+        assert_eq!(config["enabled"], true);
+        assert_eq!(config["count"], 5);
+    }
+
+    #[test]
+    fn test_with_trace_id() {
+        let ctx = RequestContext::new().with_trace_id("trace-abc-123");
+
+        assert_eq!(ctx.trace_id, Some("trace-abc-123".to_string()));
+    }
+
+    // ==================== Chaining Tests ====================
+
+    #[test]
+    fn test_builder_chaining() {
+        let ctx = RequestContext::new()
+            .with_user_id("user-1")
+            .with_client_ip("10.0.0.1")
+            .with_user_agent("TestAgent/1.0")
+            .with_header("X-Custom", "value")
+            .with_metadata("priority", serde_json::json!(1))
+            .with_trace_id("trace-001");
+
+        assert_eq!(ctx.user_id, Some("user-1".to_string()));
+        assert_eq!(ctx.client_ip, Some("10.0.0.1".to_string()));
+        assert_eq!(ctx.user_agent, Some("TestAgent/1.0".to_string()));
+        assert_eq!(ctx.headers.get("X-Custom"), Some(&"value".to_string()));
+        assert_eq!(ctx.metadata.get("priority"), Some(&serde_json::json!(1)));
+        assert_eq!(ctx.trace_id, Some("trace-001".to_string()));
+    }
+
+    // ==================== Elapsed Time Tests ====================
+
+    #[test]
+    fn test_elapsed_returns_duration() {
+        let ctx = RequestContext::new();
+
+        // Give a small delay
+        std::thread::sleep(std::time::Duration::from_millis(10));
+
+        let elapsed = ctx.elapsed();
+        assert!(elapsed.as_millis() >= 10);
+    }
+
+    #[test]
+    fn test_elapsed_is_non_negative() {
+        let ctx = RequestContext::new();
+        let elapsed = ctx.elapsed();
+
+        assert!(elapsed >= Duration::ZERO);
+    }
+
+    // ==================== Clone Tests ====================
+
+    #[test]
+    fn test_request_context_clone() {
+        let ctx = RequestContext::new()
+            .with_user_id("user-clone")
+            .with_client_ip("127.0.0.1");
+
+        let cloned = ctx.clone();
+
+        assert_eq!(ctx.request_id, cloned.request_id);
+        assert_eq!(ctx.user_id, cloned.user_id);
+        assert_eq!(ctx.client_ip, cloned.client_ip);
+    }
+
+    // ==================== Edge Cases ====================
+
+    #[test]
+    fn test_empty_user_id() {
+        let ctx = RequestContext::new().with_user_id("");
+
+        assert_eq!(ctx.user_id, Some("".to_string()));
+    }
+
+    #[test]
+    fn test_header_override() {
+        let ctx = RequestContext::new()
+            .with_header("Key", "value1")
+            .with_header("Key", "value2");
+
+        assert_eq!(ctx.headers.get("Key"), Some(&"value2".to_string()));
+    }
+
+    #[test]
+    fn test_metadata_override() {
+        let ctx = RequestContext::new()
+            .with_metadata("key", serde_json::json!(1))
+            .with_metadata("key", serde_json::json!(2));
+
+        assert_eq!(ctx.metadata.get("key"), Some(&serde_json::json!(2)));
+    }
+
+    #[test]
+    fn test_request_id_is_uuid_format() {
+        let ctx = RequestContext::new();
+
+        // UUID format: 8-4-4-4-12 (36 chars with hyphens)
+        assert_eq!(ctx.request_id.len(), 36);
+        assert!(ctx.request_id.contains('-'));
+    }
+}
