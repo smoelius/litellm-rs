@@ -177,3 +177,274 @@ pub fn warn_insecure_config(config: &AuthConfig) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== RbacConfig Tests ====================
+
+    #[test]
+    fn test_rbac_config_default() {
+        let config = RbacConfig::default();
+        assert!(!config.enabled);
+        assert_eq!(config.default_role, "user");
+        assert!(!config.admin_roles.is_empty());
+    }
+
+    #[test]
+    fn test_rbac_config_structure() {
+        let config = RbacConfig {
+            enabled: true,
+            default_role: "viewer".to_string(),
+            admin_roles: vec!["admin".to_string(), "superadmin".to_string()],
+        };
+        assert!(config.enabled);
+        assert_eq!(config.default_role, "viewer");
+        assert_eq!(config.admin_roles.len(), 2);
+    }
+
+    #[test]
+    fn test_rbac_config_serialization() {
+        let config = RbacConfig {
+            enabled: true,
+            default_role: "editor".to_string(),
+            admin_roles: vec!["admin".to_string()],
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["enabled"], true);
+        assert_eq!(json["default_role"], "editor");
+    }
+
+    #[test]
+    fn test_rbac_config_deserialization() {
+        let json = r#"{"enabled": true, "default_role": "guest", "admin_roles": ["admin"]}"#;
+        let config: RbacConfig = serde_json::from_str(json).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.default_role, "guest");
+    }
+
+    #[test]
+    fn test_rbac_config_merge_enabled() {
+        let base = RbacConfig::default();
+        let other = RbacConfig {
+            enabled: true,
+            default_role: "user".to_string(),
+            admin_roles: default_admin_roles(),
+        };
+        let merged = base.merge(other);
+        assert!(merged.enabled);
+    }
+
+    #[test]
+    fn test_rbac_config_merge_role() {
+        let base = RbacConfig::default();
+        let other = RbacConfig {
+            enabled: false,
+            default_role: "custom_role".to_string(),
+            admin_roles: default_admin_roles(),
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.default_role, "custom_role");
+    }
+
+    #[test]
+    fn test_rbac_config_clone() {
+        let config = RbacConfig {
+            enabled: true,
+            default_role: "clone_test".to_string(),
+            admin_roles: vec!["admin".to_string()],
+        };
+        let cloned = config.clone();
+        assert_eq!(config.enabled, cloned.enabled);
+        assert_eq!(config.default_role, cloned.default_role);
+    }
+
+    // ==================== AuthConfig Tests ====================
+
+    #[test]
+    fn test_auth_config_default() {
+        let config = AuthConfig::default();
+        assert!(config.enable_jwt);
+        assert!(config.enable_api_key);
+        assert!(config.jwt_secret.len() >= 64);
+        assert_eq!(config.jwt_expiration, 86400); // 24 hours
+        assert_eq!(config.api_key_header, "Authorization");
+    }
+
+    #[test]
+    fn test_auth_config_structure() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: false,
+            jwt_secret: "A".repeat(64),
+            jwt_expiration: 7200,
+            api_key_header: "Authorization".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.enable_jwt);
+        assert!(!config.enable_api_key);
+        assert_eq!(config.jwt_expiration, 7200);
+    }
+
+    #[test]
+    fn test_auth_config_serialization() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "X".repeat(64),
+            jwt_expiration: 1800,
+            api_key_header: "X-Token".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["enable_jwt"], true);
+        assert_eq!(json["jwt_expiration"], 1800);
+    }
+
+    #[test]
+    fn test_auth_config_validate_short_secret() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "short".to_string(),
+            jwt_expiration: 3600,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_default_secret() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "your-secret-key".to_string(),
+            jwt_expiration: 3600,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_weak_secret() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "a".repeat(64), // all lowercase
+            jwt_expiration: 3600,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_short_expiration() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: generate_secure_jwt_secret(),
+            jwt_expiration: 100, // less than 300
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_long_expiration() {
+        let config = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: generate_secure_jwt_secret(),
+            jwt_expiration: 86400 * 31, // more than 30 days
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_empty_header() {
+        let config = AuthConfig {
+            enable_jwt: false,
+            enable_api_key: true,
+            jwt_secret: generate_secure_jwt_secret(),
+            jwt_expiration: 3600,
+            api_key_header: "".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_auth_config_validate_success() {
+        let config = AuthConfig::default();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_auth_config_is_production_ready() {
+        let config = AuthConfig::default();
+        assert!(config.is_production_ready());
+
+        let disabled = AuthConfig {
+            enable_jwt: false,
+            enable_api_key: false,
+            jwt_secret: generate_secure_jwt_secret(),
+            jwt_expiration: 3600,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        assert!(!disabled.is_production_ready());
+    }
+
+    #[test]
+    fn test_auth_config_merge_jwt_secret() {
+        let base = AuthConfig::default();
+        let other = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "CustomSecret123!@#456789ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".to_string(),
+            jwt_expiration: 3600,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        let merged = base.merge(other);
+        assert!(merged.jwt_secret.contains("CustomSecret123"));
+    }
+
+    #[test]
+    fn test_auth_config_merge_expiration() {
+        let base = AuthConfig::default();
+        let other = AuthConfig {
+            enable_jwt: true,
+            enable_api_key: true,
+            jwt_secret: "your-secret-key".to_string(),
+            jwt_expiration: 7200,
+            api_key_header: "X-API-Key".to_string(),
+            rbac: RbacConfig::default(),
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.jwt_expiration, 7200);
+    }
+
+    #[test]
+    fn test_auth_config_clone() {
+        let config = AuthConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.enable_jwt, cloned.enable_jwt);
+        assert_eq!(config.jwt_expiration, cloned.jwt_expiration);
+    }
+
+    #[test]
+    fn test_generate_secure_jwt_secret() {
+        let secret = generate_secure_jwt_secret();
+        assert_eq!(secret.len(), 64);
+        assert!(secret.chars().any(|c| c.is_ascii_uppercase()));
+        assert!(secret.chars().any(|c| c.is_ascii_lowercase()));
+    }
+}

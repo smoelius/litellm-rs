@@ -135,3 +135,230 @@ impl RedisConfig {
 fn default_redis_enabled() -> bool {
     true
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== DatabaseConfig Tests ====================
+
+    #[test]
+    fn test_database_config_default() {
+        let config = DatabaseConfig::default();
+        assert_eq!(config.url, "postgresql://localhost/litellm");
+        assert_eq!(config.max_connections, 10);
+        assert_eq!(config.connection_timeout, 5);
+        assert!(!config.ssl);
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_database_config_structure() {
+        let config = DatabaseConfig {
+            url: "postgresql://user:pass@host/db".to_string(),
+            max_connections: 20,
+            connection_timeout: 60,
+            ssl: true,
+            enabled: true,
+        };
+        assert!(config.ssl);
+        assert!(config.enabled);
+        assert_eq!(config.max_connections, 20);
+    }
+
+    #[test]
+    fn test_database_config_serialization() {
+        let config = DatabaseConfig {
+            url: "postgresql://test".to_string(),
+            max_connections: 15,
+            connection_timeout: 45,
+            ssl: true,
+            enabled: true,
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["url"], "postgresql://test");
+        assert_eq!(json["max_connections"], 15);
+        assert_eq!(json["ssl"], true);
+    }
+
+    #[test]
+    fn test_database_config_deserialization() {
+        let json = r#"{"url": "postgresql://prod/app", "max_connections": 50, "connection_timeout": 120, "ssl": true, "enabled": true}"#;
+        let config: DatabaseConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.url, "postgresql://prod/app");
+        assert!(config.ssl);
+    }
+
+    #[test]
+    fn test_database_config_merge_url() {
+        let base = DatabaseConfig::default();
+        let other = DatabaseConfig {
+            url: "postgresql://new-host/new-db".to_string(),
+            max_connections: 10,
+            connection_timeout: 30,
+            ssl: false,
+            enabled: false,
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.url, "postgresql://new-host/new-db");
+    }
+
+    #[test]
+    fn test_database_config_merge_ssl() {
+        let base = DatabaseConfig::default();
+        let other = DatabaseConfig {
+            url: "postgresql://localhost/litellm".to_string(),
+            max_connections: 10,
+            connection_timeout: 30,
+            ssl: true,
+            enabled: false,
+        };
+        let merged = base.merge(other);
+        assert!(merged.ssl);
+    }
+
+    #[test]
+    fn test_database_config_clone() {
+        let config = DatabaseConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.url, cloned.url);
+        assert_eq!(config.max_connections, cloned.max_connections);
+    }
+
+    // ==================== RedisConfig Tests ====================
+
+    #[test]
+    fn test_redis_config_default() {
+        let config = RedisConfig::default();
+        assert_eq!(config.url, "redis://localhost:6379");
+        assert!(config.enabled);
+        assert_eq!(config.max_connections, 20);
+        assert_eq!(config.connection_timeout, 5);
+        assert!(!config.cluster);
+    }
+
+    #[test]
+    fn test_redis_config_structure() {
+        let config = RedisConfig {
+            url: "redis://redis-cluster:6379".to_string(),
+            enabled: true,
+            max_connections: 200,
+            connection_timeout: 60,
+            cluster: true,
+        };
+        assert!(config.cluster);
+        assert_eq!(config.max_connections, 200);
+    }
+
+    #[test]
+    fn test_redis_config_serialization() {
+        let config = RedisConfig {
+            url: "redis://cache:6379".to_string(),
+            enabled: true,
+            max_connections: 50,
+            connection_timeout: 15,
+            cluster: false,
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["url"], "redis://cache:6379");
+        assert_eq!(json["max_connections"], 50);
+    }
+
+    #[test]
+    fn test_redis_config_deserialization() {
+        let json = r#"{"url": "redis://prod:6379", "enabled": true, "max_connections": 150, "connection_timeout": 20, "cluster": true}"#;
+        let config: RedisConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.url, "redis://prod:6379");
+        assert!(config.cluster);
+    }
+
+    #[test]
+    fn test_redis_config_merge_url() {
+        let base = RedisConfig::default();
+        let other = RedisConfig {
+            url: "redis://new-redis:6379".to_string(),
+            enabled: true,
+            max_connections: 100,
+            connection_timeout: 30,
+            cluster: false,
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.url, "redis://new-redis:6379");
+    }
+
+    #[test]
+    fn test_redis_config_merge_cluster() {
+        let base = RedisConfig::default();
+        let other = RedisConfig {
+            url: "redis://localhost:6379".to_string(),
+            enabled: true,
+            max_connections: 100,
+            connection_timeout: 30,
+            cluster: true,
+        };
+        let merged = base.merge(other);
+        assert!(merged.cluster);
+    }
+
+    #[test]
+    fn test_redis_config_clone() {
+        let config = RedisConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.url, cloned.url);
+        assert_eq!(config.enabled, cloned.enabled);
+    }
+
+    // ==================== StorageConfig Tests ====================
+
+    #[test]
+    fn test_storage_config_default() {
+        let config = StorageConfig::default();
+        assert_eq!(config.database.url, "postgresql://localhost/litellm");
+        assert_eq!(config.redis.url, "redis://localhost:6379");
+        assert!(config.vector_db.is_none());
+    }
+
+    #[test]
+    fn test_storage_config_structure() {
+        let config = StorageConfig {
+            database: DatabaseConfig::default(),
+            redis: RedisConfig::default(),
+            vector_db: None,
+        };
+        assert!(config.vector_db.is_none());
+    }
+
+    #[test]
+    fn test_storage_config_serialization() {
+        let config = StorageConfig::default();
+        let json = serde_json::to_value(&config).unwrap();
+        assert!(json["database"].is_object());
+        assert!(json["redis"].is_object());
+    }
+
+    #[test]
+    fn test_storage_config_merge() {
+        let base = StorageConfig::default();
+        let other = StorageConfig {
+            database: DatabaseConfig {
+                url: "postgresql://new/db".to_string(),
+                max_connections: 10,
+                connection_timeout: 30,
+                ssl: false,
+                enabled: false,
+            },
+            redis: RedisConfig::default(),
+            vector_db: None,
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.database.url, "postgresql://new/db");
+    }
+
+    #[test]
+    fn test_storage_config_clone() {
+        let config = StorageConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.database.url, cloned.database.url);
+        assert_eq!(config.redis.url, cloned.redis.url);
+    }
+}
