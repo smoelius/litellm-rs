@@ -164,8 +164,8 @@ mod tests {
         });
     }
 
-    #[test]
-    fn test_log_auth_event_success_with_all_fields() {
+    #[tokio::test]
+    async fn test_log_auth_event_success_with_all_fields() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -181,8 +181,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_auth_event_failure_with_minimal_fields() {
+    #[tokio::test]
+    async fn test_log_auth_event_failure_with_minimal_fields() {
         setup_logger();
 
         SecurityLogger::log_auth_event("login", None, None, None, false, None);
@@ -190,8 +190,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_auth_event_with_ip_address_only() {
+    #[tokio::test]
+    async fn test_log_auth_event_with_ip_address_only() {
         setup_logger();
 
         SecurityLogger::log_auth_event("api_key_auth", None, Some("10.0.0.1"), None, true, None);
@@ -199,8 +199,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_auth_event_with_user_agent_only() {
+    #[tokio::test]
+    async fn test_log_auth_event_with_user_agent_only() {
         setup_logger();
 
         SecurityLogger::log_auth_event("jwt_auth", None, None, Some("curl/7.68.0"), true, None);
@@ -208,8 +208,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_auth_event_with_long_user_agent() {
+    #[tokio::test]
+    async fn test_log_auth_event_with_long_user_agent() {
         setup_logger();
 
         // Create a user agent string longer than 200 characters
@@ -226,8 +226,8 @@ mod tests {
         // Test passes if no panic occurs - user agent should be truncated
     }
 
-    #[test]
-    fn test_log_auth_event_with_details() {
+    #[tokio::test]
+    async fn test_log_auth_event_with_details() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -243,8 +243,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_auth_event_different_event_types() {
+    #[tokio::test]
+    async fn test_log_auth_event_different_event_types() {
         setup_logger();
 
         let event_types = vec!["login", "logout", "token_refresh", "2fa", "sso"];
@@ -255,8 +255,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_authz_event_granted() {
+    #[tokio::test]
+    async fn test_log_authz_event_granted() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -265,8 +265,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_authz_event_denied() {
+    #[tokio::test]
+    async fn test_log_authz_event_denied() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -281,14 +281,14 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_authz_event_with_reason() {
+    #[tokio::test]
+    async fn test_log_authz_event_with_reason() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
         SecurityLogger::log_authz_event(
             user_id,
-            "/api/secrets",
+            "/api/data",
             "delete",
             false,
             Some("User not in admin role"),
@@ -297,8 +297,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_authz_event_different_actions() {
+    #[tokio::test]
+    async fn test_log_authz_event_different_actions() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -310,8 +310,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_authz_event_different_resources() {
+    #[tokio::test]
+    async fn test_log_authz_event_different_resources() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -328,8 +328,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_critical() {
+    #[tokio::test]
+    async fn test_log_security_violation_critical() {
         setup_logger();
 
         SecurityLogger::log_security_violation(
@@ -344,8 +344,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_high() {
+    #[tokio::test]
+    async fn test_log_security_violation_high() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -361,8 +361,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_medium() {
+    #[tokio::test]
+    async fn test_log_security_violation_medium() {
         setup_logger();
 
         SecurityLogger::log_security_violation(
@@ -377,8 +377,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_low() {
+    #[tokio::test]
+    async fn test_log_security_violation_low() {
         setup_logger();
 
         SecurityLogger::log_security_violation(
@@ -393,8 +393,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_unknown_severity() {
+    #[tokio::test]
+    async fn test_log_security_violation_unknown_severity() {
         setup_logger();
 
         SecurityLogger::log_security_violation(
@@ -409,8 +409,8 @@ mod tests {
         // Test passes if no panic occurs - should default to INFO level
     }
 
-    #[test]
-    fn test_log_security_violation_with_additional_data() {
+    #[tokio::test]
+    async fn test_log_security_violation_with_additional_data() {
         setup_logger();
 
         let mut additional_data = HashMap::new();
@@ -440,8 +440,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_with_complex_additional_data() {
+    #[tokio::test]
+    async fn test_log_security_violation_with_complex_additional_data() {
         setup_logger();
 
         let mut additional_data = HashMap::new();
@@ -466,8 +466,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_case_insensitive_severity() {
+    #[tokio::test]
+    async fn test_log_security_violation_case_insensitive_severity() {
         setup_logger();
 
         let severities = vec![
@@ -491,13 +491,13 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_different_types() {
+    #[tokio::test]
+    async fn test_log_security_violation_different_types() {
         setup_logger();
 
         let violation_types = vec![
             "xss_attack",
-            "csrf_token_missing",
+            "csrf_missing",
             "path_traversal",
             "command_injection",
             "xxe_attack",
@@ -517,8 +517,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_log_security_violation_empty_additional_data() {
+    #[tokio::test]
+    async fn test_log_security_violation_empty_additional_data() {
         setup_logger();
 
         let additional_data = HashMap::new();
@@ -553,8 +553,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_user_agent_truncation_boundary() {
+    #[tokio::test]
+    async fn test_user_agent_truncation_boundary() {
         setup_logger();
 
         // Test exactly 200 characters
@@ -572,8 +572,8 @@ mod tests {
         // Test passes if no panic occurs
     }
 
-    #[test]
-    fn test_edge_cases_with_special_characters() {
+    #[tokio::test]
+    async fn test_edge_cases_with_special_characters() {
         setup_logger();
 
         let user_id = Uuid::new_v4();
@@ -593,7 +593,7 @@ mod tests {
             "/api/resource?param=value&other=test",
             "read|write",
             true,
-            Some("Reason: <script>alert('xss')</script>"),
+            Some("Reason: <tag>content</tag>"),
         );
 
         SecurityLogger::log_security_violation(
