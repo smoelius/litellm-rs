@@ -83,3 +83,174 @@ impl Default for RetryConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== CircuitState Tests ====================
+
+    #[test]
+    fn test_circuit_state_closed() {
+        let state = CircuitState::Closed;
+        assert_eq!(state, CircuitState::Closed);
+    }
+
+    #[test]
+    fn test_circuit_state_open() {
+        let state = CircuitState::Open;
+        assert_eq!(state, CircuitState::Open);
+    }
+
+    #[test]
+    fn test_circuit_state_half_open() {
+        let state = CircuitState::HalfOpen;
+        assert_eq!(state, CircuitState::HalfOpen);
+    }
+
+    #[test]
+    fn test_circuit_state_clone() {
+        let state = CircuitState::HalfOpen;
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+    }
+
+    // ==================== CircuitBreakerConfig Default Tests ====================
+
+    #[test]
+    fn test_circuit_breaker_config_default() {
+        let config = CircuitBreakerConfig::default();
+        assert_eq!(config.failure_threshold, 5);
+        assert_eq!(config.success_threshold, 3);
+        assert_eq!(config.min_requests, 10);
+        assert_eq!(config.timeout, Duration::from_secs(60));
+        assert_eq!(config.window_size, Duration::from_secs(60));
+    }
+
+    #[test]
+    fn test_circuit_breaker_config_custom() {
+        let config = CircuitBreakerConfig {
+            failure_threshold: 10,
+            success_threshold: 5,
+            min_requests: 20,
+            timeout: Duration::from_secs(120),
+            window_size: Duration::from_secs(300),
+        };
+        assert_eq!(config.failure_threshold, 10);
+        assert_eq!(config.success_threshold, 5);
+        assert_eq!(config.min_requests, 20);
+    }
+
+    #[test]
+    fn test_circuit_breaker_config_clone() {
+        let config = CircuitBreakerConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.failure_threshold, cloned.failure_threshold);
+        assert_eq!(config.timeout, cloned.timeout);
+    }
+
+    // ==================== CircuitBreakerMetrics Tests ====================
+
+    #[test]
+    fn test_circuit_breaker_metrics_closed() {
+        let metrics = CircuitBreakerMetrics {
+            state: CircuitState::Closed,
+            failure_count: 0,
+            success_count: 10,
+            request_count: 100,
+        };
+        assert_eq!(metrics.state, CircuitState::Closed);
+        assert_eq!(metrics.failure_count, 0);
+        assert_eq!(metrics.request_count, 100);
+    }
+
+    #[test]
+    fn test_circuit_breaker_metrics_open() {
+        let metrics = CircuitBreakerMetrics {
+            state: CircuitState::Open,
+            failure_count: 5,
+            success_count: 0,
+            request_count: 50,
+        };
+        assert_eq!(metrics.state, CircuitState::Open);
+        assert_eq!(metrics.failure_count, 5);
+    }
+
+    #[test]
+    fn test_circuit_breaker_metrics_half_open() {
+        let metrics = CircuitBreakerMetrics {
+            state: CircuitState::HalfOpen,
+            failure_count: 3,
+            success_count: 2,
+            request_count: 5,
+        };
+        assert_eq!(metrics.state, CircuitState::HalfOpen);
+        assert_eq!(metrics.success_count, 2);
+    }
+
+    #[test]
+    fn test_circuit_breaker_metrics_clone() {
+        let metrics = CircuitBreakerMetrics {
+            state: CircuitState::Closed,
+            failure_count: 1,
+            success_count: 5,
+            request_count: 10,
+        };
+        let cloned = metrics.clone();
+        assert_eq!(metrics.state, cloned.state);
+        assert_eq!(metrics.failure_count, cloned.failure_count);
+    }
+
+    // ==================== RetryConfig Default Tests ====================
+
+    #[test]
+    fn test_retry_config_default() {
+        let config = RetryConfig::default();
+        assert_eq!(config.max_attempts, 3);
+        assert_eq!(config.base_delay, Duration::from_millis(100));
+        assert_eq!(config.max_delay, Duration::from_secs(30));
+        assert!((config.backoff_multiplier - 2.0).abs() < f64::EPSILON);
+        assert!(config.jitter);
+    }
+
+    #[test]
+    fn test_retry_config_custom() {
+        let config = RetryConfig {
+            max_attempts: 5,
+            base_delay: Duration::from_millis(500),
+            max_delay: Duration::from_secs(60),
+            backoff_multiplier: 1.5,
+            jitter: false,
+        };
+        assert_eq!(config.max_attempts, 5);
+        assert_eq!(config.base_delay, Duration::from_millis(500));
+        assert!(!config.jitter);
+    }
+
+    #[test]
+    fn test_retry_config_no_retries() {
+        let config = RetryConfig {
+            max_attempts: 0,
+            ..RetryConfig::default()
+        };
+        assert_eq!(config.max_attempts, 0);
+    }
+
+    #[test]
+    fn test_retry_config_clone() {
+        let config = RetryConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.max_attempts, cloned.max_attempts);
+        assert_eq!(config.base_delay, cloned.base_delay);
+        assert_eq!(config.jitter, cloned.jitter);
+    }
+
+    #[test]
+    fn test_retry_config_high_multiplier() {
+        let config = RetryConfig {
+            backoff_multiplier: 10.0,
+            ..RetryConfig::default()
+        };
+        assert!((config.backoff_multiplier - 10.0).abs() < f64::EPSILON);
+    }
+}
