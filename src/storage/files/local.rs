@@ -269,3 +269,213 @@ impl LocalStorage {
         hex::encode(hasher.finalize())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== detect_content_type Tests ====================
+
+    #[test]
+    fn test_detect_content_type_txt() {
+        assert_eq!(LocalStorage::detect_content_type("file.txt"), "text/plain");
+    }
+
+    #[test]
+    fn test_detect_content_type_json() {
+        assert_eq!(
+            LocalStorage::detect_content_type("data.json"),
+            "application/json"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_xml() {
+        assert_eq!(
+            LocalStorage::detect_content_type("config.xml"),
+            "application/xml"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_html() {
+        assert_eq!(LocalStorage::detect_content_type("index.html"), "text/html");
+    }
+
+    #[test]
+    fn test_detect_content_type_css() {
+        assert_eq!(LocalStorage::detect_content_type("styles.css"), "text/css");
+    }
+
+    #[test]
+    fn test_detect_content_type_js() {
+        assert_eq!(
+            LocalStorage::detect_content_type("script.js"),
+            "application/javascript"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_png() {
+        assert_eq!(LocalStorage::detect_content_type("image.png"), "image/png");
+    }
+
+    #[test]
+    fn test_detect_content_type_jpg() {
+        assert_eq!(LocalStorage::detect_content_type("photo.jpg"), "image/jpeg");
+    }
+
+    #[test]
+    fn test_detect_content_type_jpeg() {
+        assert_eq!(LocalStorage::detect_content_type("photo.jpeg"), "image/jpeg");
+    }
+
+    #[test]
+    fn test_detect_content_type_gif() {
+        assert_eq!(LocalStorage::detect_content_type("anim.gif"), "image/gif");
+    }
+
+    #[test]
+    fn test_detect_content_type_pdf() {
+        assert_eq!(
+            LocalStorage::detect_content_type("document.pdf"),
+            "application/pdf"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_zip() {
+        assert_eq!(
+            LocalStorage::detect_content_type("archive.zip"),
+            "application/zip"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_unknown() {
+        assert_eq!(
+            LocalStorage::detect_content_type("file.xyz"),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_no_extension() {
+        assert_eq!(
+            LocalStorage::detect_content_type("README"),
+            "application/octet-stream"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_multiple_dots() {
+        assert_eq!(
+            LocalStorage::detect_content_type("file.backup.json"),
+            "application/json"
+        );
+    }
+
+    #[test]
+    fn test_detect_content_type_uppercase() {
+        // Extensions are case-sensitive in this impl
+        assert_eq!(
+            LocalStorage::detect_content_type("file.TXT"),
+            "application/octet-stream"
+        );
+    }
+
+    // ==================== calculate_checksum Tests ====================
+
+    #[test]
+    fn test_calculate_checksum_basic() {
+        let content = b"Hello, World!";
+        let checksum = LocalStorage::calculate_checksum(content);
+        // SHA256 produces 64 hex characters
+        assert_eq!(checksum.len(), 64);
+        assert!(checksum.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn test_calculate_checksum_empty() {
+        let content = b"";
+        let checksum = LocalStorage::calculate_checksum(content);
+        assert_eq!(checksum.len(), 64);
+        // Known SHA256 hash for empty input
+        assert_eq!(
+            checksum,
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        );
+    }
+
+    #[test]
+    fn test_calculate_checksum_consistency() {
+        let content = b"test content";
+        let checksum1 = LocalStorage::calculate_checksum(content);
+        let checksum2 = LocalStorage::calculate_checksum(content);
+        assert_eq!(checksum1, checksum2);
+    }
+
+    #[test]
+    fn test_calculate_checksum_different_content() {
+        let content1 = b"content A";
+        let content2 = b"content B";
+        let checksum1 = LocalStorage::calculate_checksum(content1);
+        let checksum2 = LocalStorage::calculate_checksum(content2);
+        assert_ne!(checksum1, checksum2);
+    }
+
+    #[test]
+    fn test_calculate_checksum_binary_data() {
+        let content = &[0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD];
+        let checksum = LocalStorage::calculate_checksum(content);
+        assert_eq!(checksum.len(), 64);
+    }
+
+    #[test]
+    fn test_calculate_checksum_large_content() {
+        let content = vec![0u8; 1024 * 1024]; // 1MB
+        let checksum = LocalStorage::calculate_checksum(&content);
+        assert_eq!(checksum.len(), 64);
+    }
+
+    // ==================== get_file_path Tests ====================
+
+    #[test]
+    fn test_get_file_path_structure() {
+        let storage = LocalStorage {
+            base_path: PathBuf::from("/tmp/storage"),
+        };
+        let file_id = "ab12345";
+        let path = storage.get_file_path(file_id);
+
+        // Should use first 2 chars as subdir
+        assert!(path.to_string_lossy().contains("/ab/"));
+        assert!(path.to_string_lossy().ends_with("ab12345"));
+    }
+
+    #[test]
+    fn test_get_file_path_short_id() {
+        let storage = LocalStorage {
+            base_path: PathBuf::from("/tmp/storage"),
+        };
+        let file_id = "a";
+        let path = storage.get_file_path(file_id);
+
+        // Should handle short IDs gracefully
+        assert!(path.to_string_lossy().contains("/a/"));
+    }
+
+    // ==================== get_metadata_path Tests ====================
+
+    #[test]
+    fn test_get_metadata_path_structure() {
+        let storage = LocalStorage {
+            base_path: PathBuf::from("/tmp/storage"),
+        };
+        let file_id = "cd67890";
+        let path = storage.get_metadata_path(file_id);
+
+        assert!(path.to_string_lossy().contains("/cd/"));
+        assert!(path.to_string_lossy().ends_with("cd67890.meta"));
+    }
+}
