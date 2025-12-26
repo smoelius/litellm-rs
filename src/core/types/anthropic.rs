@@ -85,3 +85,297 @@ pub struct AnthropicChatRequest {
     #[serde(flatten)]
     pub anthropic_params: AnthropicRequestParams,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== AnthropicThinkingConfig Tests ====================
+
+    #[test]
+    fn test_thinking_config_enabled() {
+        let config = AnthropicThinkingConfig { enabled: true };
+        assert!(config.enabled);
+    }
+
+    #[test]
+    fn test_thinking_config_disabled() {
+        let config = AnthropicThinkingConfig { enabled: false };
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_thinking_config_serialization() {
+        let config = AnthropicThinkingConfig { enabled: true };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["enabled"], true);
+    }
+
+    #[test]
+    fn test_thinking_config_deserialization() {
+        let json = r#"{"enabled": false}"#;
+        let config: AnthropicThinkingConfig = serde_json::from_str(json).unwrap();
+        assert!(!config.enabled);
+    }
+
+    #[test]
+    fn test_thinking_config_clone() {
+        let config = AnthropicThinkingConfig { enabled: true };
+        let cloned = config.clone();
+        assert_eq!(config.enabled, cloned.enabled);
+    }
+
+    // ==================== ComputerToolConfig Tests ====================
+
+    #[test]
+    fn test_computer_tool_config_structure() {
+        let config = ComputerToolConfig {
+            display_width: 1920,
+            display_height: 1080,
+            display_density: None,
+        };
+        assert_eq!(config.display_width, 1920);
+        assert_eq!(config.display_height, 1080);
+    }
+
+    #[test]
+    fn test_computer_tool_config_with_density() {
+        let config = ComputerToolConfig {
+            display_width: 2560,
+            display_height: 1440,
+            display_density: Some(2),
+        };
+        assert_eq!(config.display_density, Some(2));
+    }
+
+    #[test]
+    fn test_computer_tool_config_serialization() {
+        let config = ComputerToolConfig {
+            display_width: 1280,
+            display_height: 720,
+            display_density: Some(1),
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["display_width"], 1280);
+        assert_eq!(json["display_height"], 720);
+        assert_eq!(json["display_density"], 1);
+    }
+
+    #[test]
+    fn test_computer_tool_config_skip_none_density() {
+        let config = ComputerToolConfig {
+            display_width: 800,
+            display_height: 600,
+            display_density: None,
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert!(!json.as_object().unwrap().contains_key("display_density"));
+    }
+
+    #[test]
+    fn test_computer_tool_config_clone() {
+        let config = ComputerToolConfig {
+            display_width: 1920,
+            display_height: 1080,
+            display_density: Some(2),
+        };
+        let cloned = config.clone();
+        assert_eq!(config.display_width, cloned.display_width);
+    }
+
+    // ==================== McpServerConfig Tests ====================
+
+    #[test]
+    fn test_mcp_server_config_structure() {
+        let config = McpServerConfig {
+            name: "test-server".to_string(),
+            endpoint: "https://mcp.example.com".to_string(),
+            auth: None,
+        };
+        assert_eq!(config.name, "test-server");
+        assert_eq!(config.endpoint, "https://mcp.example.com");
+    }
+
+    #[test]
+    fn test_mcp_server_config_with_auth() {
+        let config = McpServerConfig {
+            name: "secure-server".to_string(),
+            endpoint: "https://secure.example.com".to_string(),
+            auth: Some(serde_json::json!({"token": "secret"})),
+        };
+        assert!(config.auth.is_some());
+    }
+
+    #[test]
+    fn test_mcp_server_config_serialization() {
+        let config = McpServerConfig {
+            name: "server".to_string(),
+            endpoint: "https://api.example.com".to_string(),
+            auth: Some(serde_json::json!({"type": "bearer", "token": "abc"})),
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["name"], "server");
+        assert_eq!(json["auth"]["type"], "bearer");
+    }
+
+    #[test]
+    fn test_mcp_server_config_clone() {
+        let config = McpServerConfig {
+            name: "clone-test".to_string(),
+            endpoint: "https://test.com".to_string(),
+            auth: None,
+        };
+        let cloned = config.clone();
+        assert_eq!(config.name, cloned.name);
+    }
+
+    // ==================== AnthropicMetadata Tests ====================
+
+    #[test]
+    fn test_anthropic_metadata_empty() {
+        let metadata = AnthropicMetadata {
+            user_id: None,
+            session_id: None,
+            custom: HashMap::new(),
+        };
+        assert!(metadata.user_id.is_none());
+        assert!(metadata.custom.is_empty());
+    }
+
+    #[test]
+    fn test_anthropic_metadata_with_ids() {
+        let metadata = AnthropicMetadata {
+            user_id: Some("user-123".to_string()),
+            session_id: Some("session-456".to_string()),
+            custom: HashMap::new(),
+        };
+        assert_eq!(metadata.user_id, Some("user-123".to_string()));
+        assert_eq!(metadata.session_id, Some("session-456".to_string()));
+    }
+
+    #[test]
+    fn test_anthropic_metadata_with_custom() {
+        let mut custom = HashMap::new();
+        custom.insert("key".to_string(), serde_json::json!("value"));
+
+        let metadata = AnthropicMetadata {
+            user_id: None,
+            session_id: None,
+            custom,
+        };
+        assert_eq!(metadata.custom.get("key"), Some(&serde_json::json!("value")));
+    }
+
+    #[test]
+    fn test_anthropic_metadata_serialization() {
+        let metadata = AnthropicMetadata {
+            user_id: Some("user".to_string()),
+            session_id: None,
+            custom: HashMap::new(),
+        };
+        let json = serde_json::to_value(&metadata).unwrap();
+        assert_eq!(json["user_id"], "user");
+    }
+
+    #[test]
+    fn test_anthropic_metadata_clone() {
+        let metadata = AnthropicMetadata {
+            user_id: Some("user".to_string()),
+            session_id: None,
+            custom: HashMap::new(),
+        };
+        let cloned = metadata.clone();
+        assert_eq!(metadata.user_id, cloned.user_id);
+    }
+
+    // ==================== AnthropicRequestParams Tests ====================
+
+    #[test]
+    fn test_request_params_empty() {
+        let params = AnthropicRequestParams {
+            system: None,
+            stop_sequences: None,
+            top_k: None,
+            metadata: None,
+            thinking: None,
+            computer_use: None,
+            mcp_servers: None,
+        };
+        assert!(params.system.is_none());
+        assert!(params.stop_sequences.is_none());
+    }
+
+    #[test]
+    fn test_request_params_with_system() {
+        let params = AnthropicRequestParams {
+            system: Some("You are a helpful assistant.".to_string()),
+            stop_sequences: None,
+            top_k: None,
+            metadata: None,
+            thinking: None,
+            computer_use: None,
+            mcp_servers: None,
+        };
+        assert_eq!(params.system, Some("You are a helpful assistant.".to_string()));
+    }
+
+    #[test]
+    fn test_request_params_with_stop_sequences() {
+        let params = AnthropicRequestParams {
+            system: None,
+            stop_sequences: Some(vec!["STOP".to_string(), "END".to_string()]),
+            top_k: Some(40),
+            metadata: None,
+            thinking: None,
+            computer_use: None,
+            mcp_servers: None,
+        };
+        assert_eq!(params.stop_sequences.as_ref().unwrap().len(), 2);
+        assert_eq!(params.top_k, Some(40));
+    }
+
+    #[test]
+    fn test_request_params_with_thinking() {
+        let params = AnthropicRequestParams {
+            system: None,
+            stop_sequences: None,
+            top_k: None,
+            metadata: None,
+            thinking: Some(AnthropicThinkingConfig { enabled: true }),
+            computer_use: None,
+            mcp_servers: None,
+        };
+        assert!(params.thinking.as_ref().unwrap().enabled);
+    }
+
+    #[test]
+    fn test_request_params_serialization() {
+        let params = AnthropicRequestParams {
+            system: Some("System prompt".to_string()),
+            stop_sequences: Some(vec!["STOP".to_string()]),
+            top_k: Some(50),
+            metadata: None,
+            thinking: None,
+            computer_use: None,
+            mcp_servers: None,
+        };
+        let json = serde_json::to_value(&params).unwrap();
+        assert_eq!(json["system"], "System prompt");
+        assert_eq!(json["top_k"], 50);
+    }
+
+    #[test]
+    fn test_request_params_clone() {
+        let params = AnthropicRequestParams {
+            system: Some("test".to_string()),
+            stop_sequences: None,
+            top_k: None,
+            metadata: None,
+            thinking: None,
+            computer_use: None,
+            mcp_servers: None,
+        };
+        let cloned = params.clone();
+        assert_eq!(params.system, cloned.system);
+    }
+}
