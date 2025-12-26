@@ -98,3 +98,323 @@ impl crate::core::traits::ProviderConfig for OpenAIProviderConfig {
         self.max_retries
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::traits::ProviderConfig;
+
+    // ==================== ProviderConfigEntry Tests ====================
+
+    #[test]
+    fn test_provider_config_entry_structure() {
+        let entry = ProviderConfigEntry {
+            name: "openai-prod".to_string(),
+            provider_type: "openai".to_string(),
+            enabled: true,
+            weight: 0.8,
+            config: serde_json::json!({"api_key": "test"}),
+            tags: HashMap::from([("env".to_string(), "prod".to_string())]),
+            health_check: None,
+            retry: None,
+            rate_limit: None,
+        };
+        assert_eq!(entry.name, "openai-prod");
+        assert_eq!(entry.provider_type, "openai");
+        assert!(entry.enabled);
+        assert!((entry.weight - 0.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_provider_config_entry_with_all_options() {
+        let entry = ProviderConfigEntry {
+            name: "test-provider".to_string(),
+            provider_type: "anthropic".to_string(),
+            enabled: true,
+            weight: 1.0,
+            config: serde_json::json!({}),
+            tags: HashMap::new(),
+            health_check: Some(HealthCheckConfig::default()),
+            retry: Some(RetryConfig::default()),
+            rate_limit: Some(RateLimitConfig {
+                algorithm: super::super::rate_limit::RateLimitAlgorithm::TokenBucket,
+                requests_per_second: Some(10),
+                requests_per_minute: None,
+                tokens_per_minute: None,
+                burst_size: Some(20),
+            }),
+        };
+        assert!(entry.health_check.is_some());
+        assert!(entry.retry.is_some());
+        assert!(entry.rate_limit.is_some());
+    }
+
+    #[test]
+    fn test_provider_config_entry_serialization() {
+        let entry = ProviderConfigEntry {
+            name: "test".to_string(),
+            provider_type: "openai".to_string(),
+            enabled: true,
+            weight: 1.0,
+            config: serde_json::json!({"key": "value"}),
+            tags: HashMap::new(),
+            health_check: None,
+            retry: None,
+            rate_limit: None,
+        };
+        let json = serde_json::to_value(&entry).unwrap();
+        assert_eq!(json["name"], "test");
+        assert_eq!(json["provider_type"], "openai");
+        assert_eq!(json["enabled"], true);
+    }
+
+    #[test]
+    fn test_provider_config_entry_deserialization() {
+        let json = r#"{
+            "name": "my-provider",
+            "provider_type": "azure",
+            "enabled": false,
+            "weight": 0.5,
+            "config": {"deployment": "gpt-4"}
+        }"#;
+        let entry: ProviderConfigEntry = serde_json::from_str(json).unwrap();
+        assert_eq!(entry.name, "my-provider");
+        assert_eq!(entry.provider_type, "azure");
+        assert!(!entry.enabled);
+        assert!((entry.weight - 0.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_provider_config_entry_deserialization_defaults() {
+        let json = r#"{
+            "name": "minimal",
+            "provider_type": "openai",
+            "config": {}
+        }"#;
+        let entry: ProviderConfigEntry = serde_json::from_str(json).unwrap();
+        assert!(entry.enabled);
+        assert!((entry.weight - 1.0).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_provider_config_entry_clone() {
+        let entry = ProviderConfigEntry {
+            name: "clone-test".to_string(),
+            provider_type: "openai".to_string(),
+            enabled: true,
+            weight: 0.9,
+            config: serde_json::json!({}),
+            tags: HashMap::new(),
+            health_check: None,
+            retry: None,
+            rate_limit: None,
+        };
+        let cloned = entry.clone();
+        assert_eq!(entry.name, cloned.name);
+        assert_eq!(entry.weight, cloned.weight);
+    }
+
+    // ==================== OpenAIProviderConfig Tests ====================
+
+    #[test]
+    fn test_openai_provider_config_structure() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-test123".to_string(),
+            api_base: Some("https://api.openai.com/v1".to_string()),
+            organization: Some("org-123".to_string()),
+            timeout_seconds: 60,
+            max_retries: 5,
+            models: vec!["gpt-4".to_string(), "gpt-3.5-turbo".to_string()],
+            headers: HashMap::from([("X-Custom".to_string(), "value".to_string())]),
+        };
+        assert_eq!(config.api_key, "sk-test123");
+        assert!(config.api_base.is_some());
+        assert_eq!(config.timeout_seconds, 60);
+        assert_eq!(config.models.len(), 2);
+    }
+
+    #[test]
+    fn test_openai_provider_config_validate_success() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-valid-key".to_string(),
+            api_base: Some("https://api.openai.com/v1".to_string()),
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_openai_provider_config_validate_empty_api_key() {
+        let config = OpenAIProviderConfig {
+            api_key: "".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("API key"));
+    }
+
+    #[test]
+    fn test_openai_provider_config_validate_invalid_url() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-valid".to_string(),
+            api_base: Some("not-a-valid-url".to_string()),
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("URL"));
+    }
+
+    #[test]
+    fn test_openai_provider_config_validate_zero_timeout() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-valid".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 0,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Timeout"));
+    }
+
+    #[test]
+    fn test_openai_provider_config_api_key_trait() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-my-api-key".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert_eq!(config.api_key(), Some("sk-my-api-key"));
+    }
+
+    #[test]
+    fn test_openai_provider_config_api_base_trait() {
+        let config = OpenAIProviderConfig {
+            api_key: "key".to_string(),
+            api_base: Some("https://custom.api.com".to_string()),
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert_eq!(config.api_base(), Some("https://custom.api.com"));
+
+        let config_no_base = OpenAIProviderConfig {
+            api_key: "key".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert_eq!(config_no_base.api_base(), None);
+    }
+
+    #[test]
+    fn test_openai_provider_config_timeout_trait() {
+        let config = OpenAIProviderConfig {
+            api_key: "key".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 45,
+            max_retries: 3,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert_eq!(config.timeout(), Duration::from_secs(45));
+    }
+
+    #[test]
+    fn test_openai_provider_config_max_retries_trait() {
+        let config = OpenAIProviderConfig {
+            api_key: "key".to_string(),
+            api_base: None,
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 7,
+            models: vec![],
+            headers: HashMap::new(),
+        };
+        assert_eq!(config.max_retries(), 7);
+    }
+
+    #[test]
+    fn test_openai_provider_config_serialization() {
+        let config = OpenAIProviderConfig {
+            api_key: "sk-test".to_string(),
+            api_base: Some("https://api.example.com".to_string()),
+            organization: Some("org-abc".to_string()),
+            timeout_seconds: 60,
+            max_retries: 5,
+            models: vec!["model-1".to_string()],
+            headers: HashMap::new(),
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["api_key"], "sk-test");
+        assert_eq!(json["timeout_seconds"], 60);
+        assert_eq!(json["max_retries"], 5);
+    }
+
+    #[test]
+    fn test_openai_provider_config_deserialization() {
+        let json = r#"{
+            "api_key": "sk-from-json",
+            "api_base": "https://api.openai.com/v1",
+            "timeout_seconds": 120,
+            "max_retries": 10
+        }"#;
+        let config: OpenAIProviderConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.api_key, "sk-from-json");
+        assert_eq!(config.timeout_seconds, 120);
+        assert_eq!(config.max_retries, 10);
+    }
+
+    #[test]
+    fn test_openai_provider_config_deserialization_defaults() {
+        let json = r#"{"api_key": "sk-minimal"}"#;
+        let config: OpenAIProviderConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.api_key, "sk-minimal");
+        assert_eq!(config.timeout_seconds, 30);
+        assert_eq!(config.max_retries, 3);
+    }
+
+    #[test]
+    fn test_openai_provider_config_clone() {
+        let config = OpenAIProviderConfig {
+            api_key: "key".to_string(),
+            api_base: Some("https://api.com".to_string()),
+            organization: None,
+            timeout_seconds: 30,
+            max_retries: 3,
+            models: vec!["gpt-4".to_string()],
+            headers: HashMap::new(),
+        };
+        let cloned = config.clone();
+        assert_eq!(config.api_key, cloned.api_key);
+        assert_eq!(config.models, cloned.models);
+    }
+}

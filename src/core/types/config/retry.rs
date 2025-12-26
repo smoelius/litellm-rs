@@ -43,3 +43,143 @@ impl Default for RetryConfig {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== RetryConfig Default Tests ====================
+
+    #[test]
+    fn test_retry_config_default() {
+        let config = RetryConfig::default();
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.initial_delay_ms, 100);
+        assert_eq!(config.max_delay_ms, 30000);
+        assert!(config.exponential_backoff);
+        assert!(config.jitter);
+        assert_eq!(config.retryable_errors.len(), 4);
+    }
+
+    #[test]
+    fn test_retry_config_default_retryable_errors() {
+        let config = RetryConfig::default();
+        assert!(config.retryable_errors.contains(&"network_error".to_string()));
+        assert!(config.retryable_errors.contains(&"timeout_error".to_string()));
+        assert!(config.retryable_errors.contains(&"rate_limit_error".to_string()));
+        assert!(config.retryable_errors.contains(&"server_error".to_string()));
+    }
+
+    // ==================== RetryConfig Structure Tests ====================
+
+    #[test]
+    fn test_retry_config_structure() {
+        let config = RetryConfig {
+            max_retries: 5,
+            initial_delay_ms: 200,
+            max_delay_ms: 60000,
+            exponential_backoff: true,
+            jitter: false,
+            retryable_errors: vec!["custom_error".to_string()],
+        };
+        assert_eq!(config.max_retries, 5);
+        assert_eq!(config.initial_delay_ms, 200);
+        assert_eq!(config.max_delay_ms, 60000);
+        assert!(config.exponential_backoff);
+        assert!(!config.jitter);
+        assert_eq!(config.retryable_errors.len(), 1);
+    }
+
+    #[test]
+    fn test_retry_config_no_retries() {
+        let config = RetryConfig {
+            max_retries: 0,
+            initial_delay_ms: 100,
+            max_delay_ms: 30000,
+            exponential_backoff: false,
+            jitter: false,
+            retryable_errors: vec![],
+        };
+        assert_eq!(config.max_retries, 0);
+        assert!(!config.exponential_backoff);
+        assert!(config.retryable_errors.is_empty());
+    }
+
+    // ==================== RetryConfig Serialization Tests ====================
+
+    #[test]
+    fn test_retry_config_serialization() {
+        let config = RetryConfig {
+            max_retries: 3,
+            initial_delay_ms: 100,
+            max_delay_ms: 30000,
+            exponential_backoff: true,
+            jitter: true,
+            retryable_errors: vec!["error1".to_string(), "error2".to_string()],
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["max_retries"], 3);
+        assert_eq!(json["initial_delay_ms"], 100);
+        assert_eq!(json["max_delay_ms"], 30000);
+        assert_eq!(json["exponential_backoff"], true);
+        assert_eq!(json["jitter"], true);
+        assert!(json["retryable_errors"].is_array());
+    }
+
+    #[test]
+    fn test_retry_config_deserialization() {
+        let json = r#"{
+            "max_retries": 10,
+            "initial_delay_ms": 500,
+            "max_delay_ms": 120000,
+            "exponential_backoff": false,
+            "jitter": true,
+            "retryable_errors": ["connection_refused", "dns_error"]
+        }"#;
+        let config: RetryConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_retries, 10);
+        assert_eq!(config.initial_delay_ms, 500);
+        assert_eq!(config.max_delay_ms, 120000);
+        assert!(!config.exponential_backoff);
+        assert!(config.jitter);
+        assert_eq!(config.retryable_errors.len(), 2);
+    }
+
+    #[test]
+    fn test_retry_config_deserialization_defaults() {
+        let json = r#"{}"#;
+        let config: RetryConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.initial_delay_ms, 100);
+        assert_eq!(config.max_delay_ms, 30000);
+        assert!(config.exponential_backoff);
+        assert!(config.jitter);
+    }
+
+    #[test]
+    fn test_retry_config_deserialization_partial() {
+        let json = r#"{"max_retries": 7}"#;
+        let config: RetryConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.max_retries, 7);
+        assert_eq!(config.initial_delay_ms, 100);
+        assert!(config.exponential_backoff);
+    }
+
+    // ==================== RetryConfig Clone Tests ====================
+
+    #[test]
+    fn test_retry_config_clone() {
+        let config = RetryConfig {
+            max_retries: 5,
+            initial_delay_ms: 250,
+            max_delay_ms: 60000,
+            exponential_backoff: true,
+            jitter: true,
+            retryable_errors: vec!["error".to_string()],
+        };
+        let cloned = config.clone();
+        assert_eq!(config.max_retries, cloned.max_retries);
+        assert_eq!(config.initial_delay_ms, cloned.initial_delay_ms);
+        assert_eq!(config.retryable_errors, cloned.retryable_errors);
+    }
+}
