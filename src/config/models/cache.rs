@@ -57,3 +57,126 @@ impl CacheConfig {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cache_config_default() {
+        let config = CacheConfig::default();
+        assert!(!config.enabled);
+        assert_eq!(config.ttl, 3600);
+        assert_eq!(config.max_size, 1000);
+        assert!(!config.semantic_cache);
+        assert!((config.similarity_threshold - 0.95).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_cache_config_structure() {
+        let config = CacheConfig {
+            enabled: true,
+            ttl: 7200,
+            max_size: 5000,
+            semantic_cache: true,
+            similarity_threshold: 0.9,
+        };
+        assert!(config.enabled);
+        assert_eq!(config.ttl, 7200);
+        assert!(config.semantic_cache);
+    }
+
+    #[test]
+    fn test_cache_config_serialization() {
+        let config = CacheConfig {
+            enabled: true,
+            ttl: 1800,
+            max_size: 2000,
+            semantic_cache: false,
+            similarity_threshold: 0.85,
+        };
+        let json = serde_json::to_value(&config).unwrap();
+        assert_eq!(json["enabled"], true);
+        assert_eq!(json["ttl"], 1800);
+        assert_eq!(json["max_size"], 2000);
+    }
+
+    #[test]
+    fn test_cache_config_deserialization() {
+        let json = r#"{"enabled": true, "ttl": 900, "max_size": 500, "semantic_cache": true, "similarity_threshold": 0.92}"#;
+        let config: CacheConfig = serde_json::from_str(json).unwrap();
+        assert!(config.enabled);
+        assert_eq!(config.ttl, 900);
+        assert!(config.semantic_cache);
+    }
+
+    #[test]
+    fn test_cache_config_merge_enabled() {
+        let base = CacheConfig::default();
+        let other = CacheConfig {
+            enabled: true,
+            ttl: 3600,
+            max_size: 1000,
+            semantic_cache: false,
+            similarity_threshold: 0.95,
+        };
+        let merged = base.merge(other);
+        assert!(merged.enabled);
+    }
+
+    #[test]
+    fn test_cache_config_merge_ttl() {
+        let base = CacheConfig::default();
+        let other = CacheConfig {
+            enabled: false,
+            ttl: 1800,
+            max_size: 1000,
+            semantic_cache: false,
+            similarity_threshold: 0.95,
+        };
+        let merged = base.merge(other);
+        assert_eq!(merged.ttl, 1800);
+    }
+
+    #[test]
+    fn test_cache_config_merge_semantic() {
+        let base = CacheConfig::default();
+        let other = CacheConfig {
+            enabled: false,
+            ttl: 3600,
+            max_size: 1000,
+            semantic_cache: true,
+            similarity_threshold: 0.95,
+        };
+        let merged = base.merge(other);
+        assert!(merged.semantic_cache);
+    }
+
+    #[test]
+    fn test_cache_config_merge_threshold() {
+        let base = CacheConfig::default();
+        let other = CacheConfig {
+            enabled: false,
+            ttl: 3600,
+            max_size: 1000,
+            semantic_cache: false,
+            similarity_threshold: 0.8,
+        };
+        let merged = base.merge(other);
+        assert!((merged.similarity_threshold - 0.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_cache_config_clone() {
+        let config = CacheConfig {
+            enabled: true,
+            ttl: 3600,
+            max_size: 2000,
+            semantic_cache: true,
+            similarity_threshold: 0.9,
+        };
+        let cloned = config.clone();
+        assert_eq!(config.enabled, cloned.enabled);
+        assert_eq!(config.ttl, cloned.ttl);
+    }
+}
