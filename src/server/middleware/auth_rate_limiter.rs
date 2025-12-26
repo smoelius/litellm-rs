@@ -145,3 +145,339 @@ pub fn get_auth_rate_limiter() -> Arc<AuthRateLimiter> {
         .get_or_init(|| Arc::new(AuthRateLimiter::default()))
         .clone()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::thread;
+    use std::time::Duration;
+
+    // ==================== Constructor Tests ====================
+
+    #[test]
+    fn test_auth_rate_limiter_new() {
+        let limiter = AuthRateLimiter::new(10, 600, 120);
+        assert_eq!(limiter.max_attempts, 10);
+        assert_eq!(limiter.window_secs, 600);
+        assert_eq!(limiter.base_lockout_secs, 120);
+        assert_eq!(limiter.blocked_count.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn test_auth_rate_limiter_default() {
+        let limiter = AuthRateLimiter::default();
+        assert_eq!(limiter.max_attempts, 5);
+        assert_eq!(limiter.window_secs, 300);
+        assert_eq!(limiter.base_lockout_secs, 60);
+    }
+
+    // ==================== check_allowed Tests ====================
+
+    #[test]
+    fn test_check_allowed_new_client() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+        let result = limiter.check_allowed("new_client");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_allowed_after_failures_below_threshold() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+        let client = "test_client";
+
+        // Record 4 failures (below threshold of 5)
+        for _ in 0..4 {
+            limiter.record_failure(client);
+        }
+
+        // Should still be allowed
+        let result = limiter.check_allowed(client);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_allowed_blocked_after_max_attempts() {
+        let limiter = AuthRateLimiter::new(3, 300, 60);
+        let client = "locked_client";
+
+        // Trigger lockout by reaching max attempts
+        for _ in 0..3 {
+            limiter.record_failure(client);
+        }
+
+        // Should be blocked
+        let result = limiter.check_allowed(client);
+        assert!(result.is_err());
+
+        // Should return remaining lockout time
+        let remaining = result.unwrap_err();
+        assert!(remaining > 0);
+        assert!(remaining <= 60);
+    }
+
+    // ==================== record_failure Tests ====================
+
+    #[test]
+    fn test_record_failure_increments_count() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+        let client = "failure_client";
+
+        // First 4 failures should not trigger lockout
+        for _ in 0..4 {
+            let result = limiter.record_failure(client);
+            assert!(result.is_none());
+        }
+    }
+
+    #[test]
+    fn test_record_failure_triggers_lockout() {
+        let limiter = AuthRateLimiter::new(3, 300, 60);
+        let client = "lockout_client";
+
+        // Record failures up to threshold
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+        let result = limiter.record_failure(client);
+
+        // Third failure should trigger lockout
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), 60); // Base lockout
+    }
+
+    #[test]
+    fn test_record_failure_exponential_backoff() {
+        let limiter = AuthRateLimiter::new(2, 300, 60);
+        let client = "backoff_client";
+
+        // First lockout: base * 2^0 = 60
+        limiter.record_failure(client);
+        let first = limiter.record_failure(client);
+        assert_eq!(first, Some(60));
+
+        // Wait a tiny bit to allow check to pass after lockout logic
+        // In real code, we'd need to wait for lockout to expire
+
+        // Reset by simulating lockout expiry via direct entry manipulation
+        // For this test, just trigger another failure cycle
+        // The lockout_count should now be 1, so next lockout = 60 * 2^1 = 120
+        if let Some(mut entry) = limiter.attempts.get_mut(client) {
+            entry.lockout_until = None;
+        }
+
+        limiter.record_failure(client);
+        let second = limiter.record_failure(client);
+        assert_eq!(second, Some(120)); // 60 * 2^1
+
+        // Third lockout: 60 * 2^2 = 240
+        if let Some(mut entry) = limiter.attempts.get_mut(client) {
+            entry.lockout_until = None;
+        }
+
+        limiter.record_failure(client);
+        let third = limiter.record_failure(client);
+        assert_eq!(third, Some(240)); // 60 * 2^2
+    }
+
+    // ==================== record_success Tests ====================
+
+    #[test]
+    fn test_record_success_resets_failure_count() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+        let client = "success_client";
+
+        // Record some failures
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+
+        // Record success
+        limiter.record_success(client);
+
+        // Verify failure count is reset by checking we can fail 4 more times without lockout
+        for _ in 0..4 {
+            let result = limiter.record_failure(client);
+            assert!(result.is_none());
+        }
+    }
+
+    #[test]
+    fn test_record_success_nonexistent_client() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+
+        // Should not panic for non-existent client
+        limiter.record_success("nonexistent");
+    }
+
+    // ==================== blocked_attempts Tests ====================
+
+    #[test]
+    fn test_blocked_attempts_counter() {
+        let limiter = AuthRateLimiter::new(2, 300, 60);
+        let client = "blocked_client";
+
+        assert_eq!(limiter.blocked_attempts(), 0);
+
+        // Trigger lockout
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+
+        // Try to check while locked out
+        let _ = limiter.check_allowed(client);
+        assert_eq!(limiter.blocked_attempts(), 1);
+
+        // Try again
+        let _ = limiter.check_allowed(client);
+        assert_eq!(limiter.blocked_attempts(), 2);
+    }
+
+    // ==================== cleanup_old_entries Tests ====================
+
+    #[test]
+    fn test_cleanup_old_entries_empty() {
+        let limiter = AuthRateLimiter::new(5, 300, 60);
+        limiter.cleanup_old_entries();
+        // Should not panic on empty map
+    }
+
+    #[test]
+    fn test_cleanup_retains_active_lockouts() {
+        let limiter = AuthRateLimiter::new(2, 1, 60);
+        let client = "active_lockout";
+
+        // Trigger lockout
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+
+        // Cleanup should retain entry with active lockout
+        limiter.cleanup_old_entries();
+
+        // Entry should still exist
+        assert!(limiter.attempts.contains_key(client));
+    }
+
+    // ==================== Window Reset Tests ====================
+
+    #[test]
+    fn test_window_reset_clears_failure_count() {
+        // Use very short window for testing
+        let limiter = AuthRateLimiter::new(5, 1, 60);
+        let client = "window_client";
+
+        // Record failures
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+
+        // Wait for window to expire
+        thread::sleep(Duration::from_millis(1100));
+
+        // Check should reset the window
+        let result = limiter.check_allowed(client);
+        assert!(result.is_ok());
+
+        // Now we should be able to fail again without previous count
+        for _ in 0..4 {
+            let result = limiter.record_failure(client);
+            assert!(result.is_none());
+        }
+    }
+
+    // ==================== Edge Cases ====================
+
+    #[test]
+    fn test_zero_max_attempts() {
+        let limiter = AuthRateLimiter::new(0, 300, 60);
+        let client = "zero_attempts";
+
+        // Even first check should trigger lockout after first failure
+        // Actually max_attempts = 0 means first failure (count=1) >= 0 is true
+        // But failure_count starts at 0 and increments to 1
+        // 1 >= 0 is true, so immediate lockout
+        let result = limiter.record_failure(client);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_multiple_clients_independent() {
+        let limiter = AuthRateLimiter::new(3, 300, 60);
+
+        // Lock out client1
+        for _ in 0..3 {
+            limiter.record_failure("client1");
+        }
+
+        // client1 should be blocked
+        assert!(limiter.check_allowed("client1").is_err());
+
+        // client2 should still be allowed
+        assert!(limiter.check_allowed("client2").is_ok());
+    }
+
+    #[test]
+    fn test_lockout_expiry() {
+        // Very short lockout for testing
+        let limiter = AuthRateLimiter::new(2, 300, 1);
+        let client = "expiry_client";
+
+        // Trigger lockout
+        limiter.record_failure(client);
+        limiter.record_failure(client);
+
+        // Should be blocked
+        assert!(limiter.check_allowed(client).is_err());
+
+        // Wait for lockout to expire
+        thread::sleep(Duration::from_millis(1100));
+
+        // Should be allowed again
+        assert!(limiter.check_allowed(client).is_ok());
+    }
+
+    // ==================== Concurrency Tests ====================
+
+    #[test]
+    fn test_concurrent_access() {
+        let limiter = Arc::new(AuthRateLimiter::new(100, 300, 60));
+        let mut handles = vec![];
+
+        for i in 0..10 {
+            let limiter = Arc::clone(&limiter);
+            let handle = thread::spawn(move || {
+                let client = format!("client_{}", i);
+                for _ in 0..10 {
+                    let _ = limiter.check_allowed(&client);
+                    limiter.record_failure(&client);
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Should have 10 entries (one per client)
+        assert_eq!(limiter.attempts.len(), 10);
+    }
+
+    #[test]
+    fn test_same_client_concurrent_failures() {
+        let limiter = Arc::new(AuthRateLimiter::new(50, 300, 60));
+        let mut handles = vec![];
+
+        for _ in 0..5 {
+            let limiter = Arc::clone(&limiter);
+            let handle = thread::spawn(move || {
+                for _ in 0..10 {
+                    limiter.record_failure("shared_client");
+                }
+            });
+            handles.push(handle);
+        }
+
+        for handle in handles {
+            handle.join().unwrap();
+        }
+
+        // Should have exactly one entry for the shared client
+        assert_eq!(limiter.attempts.len(), 1);
+    }
+}

@@ -199,3 +199,348 @@ pub struct BatchError {
     /// Additional error details
     pub details: Option<serde_json::Value>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ==================== BatchRequest Tests ====================
+
+    #[test]
+    fn test_batch_request_structure() {
+        let request = BatchRequest {
+            batch_id: "batch-123".to_string(),
+            user_id: "user-456".to_string(),
+            batch_type: BatchType::ChatCompletion,
+            requests: vec![],
+            metadata: HashMap::new(),
+            completion_window: Some(24),
+            webhook_url: None,
+        };
+
+        assert_eq!(request.batch_id, "batch-123");
+        assert_eq!(request.user_id, "user-456");
+        assert_eq!(request.completion_window, Some(24));
+    }
+
+    #[test]
+    fn test_batch_request_with_items() {
+        let item = BatchItem {
+            custom_id: "req-1".to_string(),
+            method: "POST".to_string(),
+            url: "/v1/chat/completions".to_string(),
+            body: serde_json::json!({"model": "gpt-4"}),
+        };
+
+        let request = BatchRequest {
+            batch_id: "batch-with-items".to_string(),
+            user_id: "user-1".to_string(),
+            batch_type: BatchType::ChatCompletion,
+            requests: vec![item],
+            metadata: HashMap::new(),
+            completion_window: None,
+            webhook_url: Some("https://webhook.example.com".to_string()),
+        };
+
+        assert_eq!(request.requests.len(), 1);
+        assert!(request.webhook_url.is_some());
+    }
+
+    #[test]
+    fn test_batch_request_serialization() {
+        let request = BatchRequest {
+            batch_id: "batch-ser".to_string(),
+            user_id: "user-ser".to_string(),
+            batch_type: BatchType::Embedding,
+            requests: vec![],
+            metadata: HashMap::new(),
+            completion_window: None,
+            webhook_url: None,
+        };
+
+        let json = serde_json::to_value(&request).unwrap();
+        assert_eq!(json["batch_id"], "batch-ser");
+        assert!(json["requests"].is_array());
+    }
+
+    // ==================== BatchType Tests ====================
+
+    #[test]
+    fn test_batch_type_chat_completion() {
+        let batch_type = BatchType::ChatCompletion;
+        let json = serde_json::to_string(&batch_type).unwrap();
+        assert!(json.contains("ChatCompletion"));
+    }
+
+    #[test]
+    fn test_batch_type_embedding() {
+        let batch_type = BatchType::Embedding;
+        let json = serde_json::to_string(&batch_type).unwrap();
+        assert!(json.contains("Embedding"));
+    }
+
+    #[test]
+    fn test_batch_type_custom() {
+        let batch_type = BatchType::Custom("custom_type".to_string());
+        let json = serde_json::to_string(&batch_type).unwrap();
+        assert!(json.contains("custom_type"));
+    }
+
+    #[test]
+    fn test_batch_type_clone() {
+        let batch_type = BatchType::ImageGeneration;
+        let cloned = batch_type.clone();
+        let json1 = serde_json::to_string(&batch_type).unwrap();
+        let json2 = serde_json::to_string(&cloned).unwrap();
+        assert_eq!(json1, json2);
+    }
+
+    // ==================== BatchItem Tests ====================
+
+    #[test]
+    fn test_batch_item_structure() {
+        let item = BatchItem {
+            custom_id: "item-123".to_string(),
+            method: "POST".to_string(),
+            url: "/v1/chat/completions".to_string(),
+            body: serde_json::json!({"model": "gpt-4", "messages": []}),
+        };
+
+        assert_eq!(item.custom_id, "item-123");
+        assert_eq!(item.method, "POST");
+        assert!(item.url.contains("/chat/completions"));
+    }
+
+    #[test]
+    fn test_batch_item_serialization() {
+        let item = BatchItem {
+            custom_id: "ser-item".to_string(),
+            method: "POST".to_string(),
+            url: "/v1/embeddings".to_string(),
+            body: serde_json::json!({"input": "hello"}),
+        };
+
+        let json = serde_json::to_value(&item).unwrap();
+        assert_eq!(json["custom_id"], "ser-item");
+        assert_eq!(json["method"], "POST");
+    }
+
+    #[test]
+    fn test_batch_item_deserialization() {
+        let json = r#"{
+            "custom_id": "deser-item",
+            "method": "POST",
+            "url": "/v1/chat/completions",
+            "body": {"model": "gpt-4"}
+        }"#;
+
+        let item: BatchItem = serde_json::from_str(json).unwrap();
+        assert_eq!(item.custom_id, "deser-item");
+        assert_eq!(item.method, "POST");
+    }
+
+    // ==================== BatchStatus Tests ====================
+
+    #[test]
+    fn test_batch_status_variants() {
+        let statuses = vec![
+            BatchStatus::Validating,
+            BatchStatus::Failed,
+            BatchStatus::InProgress,
+            BatchStatus::Finalizing,
+            BatchStatus::Completed,
+            BatchStatus::Expired,
+            BatchStatus::Cancelling,
+            BatchStatus::Cancelled,
+        ];
+
+        for status in statuses {
+            let json = serde_json::to_string(&status).unwrap();
+            assert!(!json.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_batch_status_equality() {
+        assert_eq!(BatchStatus::Completed, BatchStatus::Completed);
+        assert_ne!(BatchStatus::Completed, BatchStatus::Failed);
+    }
+
+    #[test]
+    fn test_batch_status_serialization() {
+        let status = BatchStatus::InProgress;
+        let json = serde_json::to_string(&status).unwrap();
+        assert!(json.contains("InProgress"));
+    }
+
+    // ==================== BatchRequestCounts Tests ====================
+
+    #[test]
+    fn test_batch_request_counts_structure() {
+        let counts = BatchRequestCounts {
+            total: 100,
+            completed: 50,
+            failed: 5,
+        };
+
+        assert_eq!(counts.total, 100);
+        assert_eq!(counts.completed, 50);
+        assert_eq!(counts.failed, 5);
+    }
+
+    #[test]
+    fn test_batch_request_counts_zero() {
+        let counts = BatchRequestCounts {
+            total: 0,
+            completed: 0,
+            failed: 0,
+        };
+
+        assert_eq!(counts.total, 0);
+    }
+
+    #[test]
+    fn test_batch_request_counts_serialization() {
+        let counts = BatchRequestCounts {
+            total: 10,
+            completed: 8,
+            failed: 2,
+        };
+
+        let json = serde_json::to_value(&counts).unwrap();
+        assert_eq!(json["total"], 10);
+        assert_eq!(json["completed"], 8);
+        assert_eq!(json["failed"], 2);
+    }
+
+    // ==================== BatchResult Tests ====================
+
+    #[test]
+    fn test_batch_result_success() {
+        let response = BatchHttpResponse {
+            status_code: 200,
+            headers: HashMap::new(),
+            body: serde_json::json!({"id": "msg-123"}),
+        };
+
+        let result = BatchResult {
+            custom_id: "success-req".to_string(),
+            response: Some(response),
+            error: None,
+        };
+
+        assert!(result.response.is_some());
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_batch_result_failure() {
+        let error = BatchError {
+            code: "rate_limit_exceeded".to_string(),
+            message: "Rate limit exceeded".to_string(),
+            details: None,
+        };
+
+        let result = BatchResult {
+            custom_id: "failed-req".to_string(),
+            response: None,
+            error: Some(error),
+        };
+
+        assert!(result.response.is_none());
+        assert!(result.error.is_some());
+    }
+
+    // ==================== BatchHttpResponse Tests ====================
+
+    #[test]
+    fn test_batch_http_response_structure() {
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        let response = BatchHttpResponse {
+            status_code: 200,
+            headers,
+            body: serde_json::json!({"result": "success"}),
+        };
+
+        assert_eq!(response.status_code, 200);
+        assert!(response.headers.contains_key("Content-Type"));
+    }
+
+    #[test]
+    fn test_batch_http_response_error_status() {
+        let response = BatchHttpResponse {
+            status_code: 429,
+            headers: HashMap::new(),
+            body: serde_json::json!({"error": "rate limited"}),
+        };
+
+        assert_eq!(response.status_code, 429);
+    }
+
+    // ==================== BatchError Tests ====================
+
+    #[test]
+    fn test_batch_error_structure() {
+        let error = BatchError {
+            code: "invalid_request".to_string(),
+            message: "Invalid request format".to_string(),
+            details: Some(serde_json::json!({"field": "model"})),
+        };
+
+        assert_eq!(error.code, "invalid_request");
+        assert!(error.details.is_some());
+    }
+
+    #[test]
+    fn test_batch_error_no_details() {
+        let error = BatchError {
+            code: "server_error".to_string(),
+            message: "Internal server error".to_string(),
+            details: None,
+        };
+
+        assert!(error.details.is_none());
+    }
+
+    #[test]
+    fn test_batch_error_serialization() {
+        let error = BatchError {
+            code: "ser_error".to_string(),
+            message: "Serialization test".to_string(),
+            details: None,
+        };
+
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(json["code"], "ser_error");
+        assert_eq!(json["message"], "Serialization test");
+    }
+
+    // ==================== Clone Tests ====================
+
+    #[test]
+    fn test_batch_item_clone() {
+        let item = BatchItem {
+            custom_id: "clone-test".to_string(),
+            method: "POST".to_string(),
+            url: "/test".to_string(),
+            body: serde_json::json!({}),
+        };
+
+        let cloned = item.clone();
+        assert_eq!(item.custom_id, cloned.custom_id);
+    }
+
+    #[test]
+    fn test_batch_result_clone() {
+        let result = BatchResult {
+            custom_id: "clone-result".to_string(),
+            response: None,
+            error: None,
+        };
+
+        let cloned = result.clone();
+        assert_eq!(result.custom_id, cloned.custom_id);
+    }
+}
